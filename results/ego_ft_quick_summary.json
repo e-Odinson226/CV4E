@@ -1,0 +1,60 @@
+{
+  "dir": "checkpoints/ego_ft_quick",
+  "config": {
+    "checkpoint": "data/model_checkpoints/vjepa2-ac-vitg.pt",
+    "video_dir": "data/epic-kitchen/ek100-hd/HD-EPIC/Videos",
+    "gaze_dir": "data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze",
+    "participants": "['P04', 'P05', 'P06', 'P07']",
+    "out_dir": "checkpoints/ego_ft_quick",
+    "epochs": "3",
+    "batch_size": "8",
+    "num_workers": "4",
+    "context_steps": "8",
+    "frame_stride": "8",
+    "clips_per_recording": "30",
+    "signal_dropout": "0.4",
+    "unfreeze_last_n": "6",
+    "lr_proj": "0.001",
+    "lr_blocks": "0.0001",
+    "weight_decay": "0.01",
+    "no_normalize_reps": "False",
+    "no_amp": "False",
+    "no_standardize": "False",
+    "val_participants": "['P08']",
+    "val_recordings": "4",
+    "val_clips": "24",
+    "save_every": "3",
+    "log_every": "20",
+    "seed": "0",
+    "device": "cuda",
+    "normalize_reps": "True",
+    "amp_dtype": "torch.bfloat16"
+  },
+  "trainable_layers": [],
+  "epochs_completed": 1,
+  "epochs_planned": 3,
+  "avg_epoch_time_s": 978.0,
+  "total_train_time_s": 978,
+  "mean_it_s": null,
+  "best_train_loss": 0.5413,
+  "delta_first": -0.0082,
+  "delta_last": -0.0003,
+  "rows": [
+    {
+      "epoch": 0,
+      "train_loss": null,
+      "time_s": null,
+      "mse_A": 0.6153,
+      "mse_B": 0.6235,
+      "delta": -0.0082
+    },
+    {
+      "epoch": 1,
+      "train_loss": 0.5413,
+      "time_s": 978,
+      "mse_A": 0.4975,
+      "mse_B": 0.4977,
+      "delta": -0.0003
+    }
+  ]
+}
