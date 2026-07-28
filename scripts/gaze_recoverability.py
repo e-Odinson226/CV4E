@@ -396,71 +396,107 @@ def main():
     log(f"[collect] train n={len(Xg_tr)}  test n={len(Xg_te)}  "
         f"grid dim={Xg_tr.shape[1]}  pooled dim={Xp_tr.shape[1]}")
 
+    def mse_yp(pred, true):
+        return float(np.mean((pred[:, :2] - true[:, :2]) ** 2))
+
     rows = []
     for li, lead in enumerate(args.leads):
         Ytr, Yte = gl_tr[:, li, :], gl_te[:, li, :]
 
+        # The chance floor, computed FIRST because everything else is scored against it.
+        #
+        # Predicting the TRAIN mean does NOT give R^2 = 0 here. R^2 measures residual
+        # variance against the TEST set's own mean, and under a cross-participant split
+        # the train mean sits somewhere else entirely — different person, different
+        # kitchen, different resting gaze. So R^2 for this baseline is typically
+        # NEGATIVE, and strongly so at small n. That is expected, not a bug.
+        #
+        # Hence `skill`: 1 - MSE_model / MSE_chance. It is 0 when the model does no
+        # better than predicting the mean and 1 when perfect, and it is immune to the
+        # train/test mean shift that makes raw R^2 unreadable here. Skill is the
+        # headline number; R^2 is kept in the CSV for reference.
+        chance = np.repeat(Ytr.mean(0, keepdims=True), len(Yte), axis=0)
+        mse_chance = mse_yp(chance, Yte)
+
+        def record(name, pred, alpha=np.nan, _Yte=Yte, _mc=mse_chance, _lead=lead):
+            ang = angular_error_deg(pred, _Yte)
+            rows.append(dict(
+                lead_s=_lead, readout=name, alpha=alpha,
+                skill=1.0 - mse_yp(pred, _Yte) / max(_mc, 1e-12),
+                r2=r2(pred, _Yte), r2_yawpitch=r2(pred[:, :2], _Yte[:, :2]),
+                ang_err_deg_median=float(np.median(ang)),
+                ang_err_deg_mean=float(np.mean(ang)),
+                depth_mae_m=float(np.mean(np.abs(pred[:, 2] - _Yte[:, 2]))),
+                n_test=len(_Yte)))
+
         for name, Xtr, Xte in (("spatial", Xg_tr, Xg_te), ("pooled", Xp_tr, Xp_te)):
             a, _ = ridge_cv(Xtr.astype(np.float64), Ytr.astype(np.float64),
                             args.alphas, args.folds, seed=args.seed)
-            pred = Ridge(a).fit(Xtr.astype(np.float64), Ytr.astype(np.float64)) \
-                           .predict(Xte.astype(np.float64))
-            rows.append(dict(lead_s=lead, readout=name, alpha=a,
-                             r2=r2(pred, Yte),
-                             r2_yawpitch=r2(pred[:, :2], Yte[:, :2]),
-                             ang_err_deg_median=float(np.median(angular_error_deg(pred, Yte))),
-                             ang_err_deg_mean=float(np.mean(angular_error_deg(pred, Yte))),
-                             depth_mae_m=float(np.mean(np.abs(pred[:, 2] - Yte[:, 2]))),
-                             n_test=len(Yte)))
+            record(name, Ridge(a).fit(Xtr.astype(np.float64), Ytr.astype(np.float64))
+                                 .predict(Xte.astype(np.float64)), a)
 
-        # Baseline 1 — chance. Predict the TRAIN mean. R^2 near 0 by construction.
-        mean_pred = np.repeat(Ytr.mean(0, keepdims=True), len(Yte), axis=0)
-        rows.append(dict(lead_s=lead, readout="baseline_mean", alpha=np.nan,
-                         r2=r2(mean_pred, Yte), r2_yawpitch=r2(mean_pred[:, :2], Yte[:, :2]),
-                         ang_err_deg_median=float(np.median(angular_error_deg(mean_pred, Yte))),
-                         ang_err_deg_mean=float(np.mean(angular_error_deg(mean_pred, Yte))),
-                         depth_mae_m=float(np.mean(np.abs(mean_pred[:, 2] - Yte[:, 2]))),
-                         n_test=len(Yte)))
+        record("baseline_mean", chance)
 
-        # Baseline 2 — persistence. Predict gaze(t+lead) = gaze(t). This uses a
-        # PRIVILEGED input the encoder never gets, so it is a reference point for
-        # "how predictable is gaze at this lead at all", not a competitor.
-        rows.append(dict(lead_s=lead, readout="baseline_persistence", alpha=np.nan,
-                         r2=r2(g0_te, Yte), r2_yawpitch=r2(g0_te[:, :2], Yte[:, :2]),
-                         ang_err_deg_median=float(np.median(angular_error_deg(g0_te, Yte))),
-                         ang_err_deg_mean=float(np.mean(angular_error_deg(g0_te, Yte))),
-                         depth_mae_m=float(np.mean(np.abs(g0_te[:, 2] - Yte[:, 2]))),
-                         n_test=len(Yte)))
+        # Persistence: gaze(t+lead) = gaze(t). Uses a PRIVILEGED input the encoder never
+        # gets, so it is a reference for "how predictable is gaze at this lead at all",
+        # not a competitor. At lead 0 it must score exactly 1.0 / 0.00 degrees — that is
+        # the end-to-end check that timestamp alignment and lead pairing are correct.
+        record("baseline_persistence", g0_te.astype(np.float64))
 
     import pandas as pd
     df = pd.DataFrame(rows)
     df.to_csv(f"{out}.csv", index=False)
 
     log("\n" + "=" * 78)
-    log("GAZE RECOVERABILITY  —  R^2 on held-out participants (yaw/pitch only)")
+    log("GAZE RECOVERABILITY — held-out participants, yaw/pitch")
     log("=" * 78)
-    piv = df.pivot(index="lead_s", columns="readout", values="r2_yawpitch")
-    log(piv.to_string(float_format=lambda v: f"{v:7.3f}"))
+    log("SKILL over the chance baseline  (0 = no better than predicting the mean, 1 = perfect)")
+    log(df.pivot(index="lead_s", columns="readout", values="skill")
+          .to_string(float_format=lambda v: f"{v:7.3f}"))
     log("\nMedian angular error, degrees")
     log(df.pivot(index="lead_s", columns="readout", values="ang_err_deg_median")
           .to_string(float_format=lambda v: f"{v:7.2f}"))
+    log("\nRaw R^2 (negative for baseline_mean is EXPECTED under a cross-participant split)")
+    log(df.pivot(index="lead_s", columns="readout", values="r2_yawpitch")
+          .to_string(float_format=lambda v: f"{v:7.3f}"))
+
+    # Sanity gate: persistence at lead 0 predicts gaze(t) from gaze(t). Anything other
+    # than a perfect score means timestamp alignment or lead pairing is broken, and no
+    # other number in this table can be trusted.
+    p0 = df[(df.readout == "baseline_persistence") & (df.lead_s == min(args.leads))]
+    if len(p0) and min(args.leads) == 0.0:
+        s0 = float(p0.skill.iloc[0])
+        log(f"\n[sanity] persistence @ lead 0 skill = {s0:.4f} "
+            f"({'OK' if s0 > 0.999 else 'BROKEN — check VRS alignment'})")
 
     sp = df[df.readout == "spatial"].sort_values("lead_s")
-    lo, hi = sp.r2_yawpitch.iloc[-1], sp.r2_yawpitch.iloc[0]
+    s_first, s_last, s_best = sp.skill.iloc[0], sp.skill.iloc[-1], sp.skill.max()
     log("\n" + "-" * 78)
-    log(f"READING: spatial R^2 goes {hi:.3f} @ {sp.lead_s.iloc[0]:.2f}s "
-        f"-> {lo:.3f} @ {sp.lead_s.iloc[-1]:.2f}s")
-    if hi - lo < 0.05:
-        log("  Recoverability is FLAT across lead. Consistent with REDUNDANCY: the")
-        log("  encoder already carries future gaze, so a gaze token adds little at any")
-        log("  horizon. This would weaken the behavioral-conditioning direction — see")
-        log("  docs/EgoVault/topics/path-2-behavioral-conditioning.md.")
-    else:
-        log("  Recoverability FALLS with lead. Consistent with the HORIZON reading:")
-        log("  marginal information (~1 - R^2) grows with horizon, so the null at ~2s")
-        log("  may be a horizon artefact. Prioritise the horizon sweep — see")
+    log(f"READING: spatial skill {s_first:+.3f} @ {sp.lead_s.iloc[0]:.2f}s "
+        f"-> {s_last:+.3f} @ {sp.lead_s.iloc[-1]:.2f}s   (best {s_best:+.3f})")
+    if len(Xg_tr) < 500:
+        log(f"  !! n_train = {len(Xg_tr)} — far too few samples to fit "
+            f"{Xg_tr.shape[1]} features. Do not interpret these numbers at all.")
+        log("  Raise --recordings / --windows / --per-window and re-run.")
+    elif s_best < 0.05:
+        log("  NO SKILL at any lead — the probe never beats predicting the mean.")
+        log("  Gaze is not LINEARLY recoverable from the encoder. Taken at face value this")
+        log("  supports the conditioning signal carrying real information, but rule out an")
+        log("  underpowered fit first (check n_train, and that alpha is not pinned to the")
+        log("  top of the grid).")
+    elif s_first - s_last > 0.05:
+        log("  Skill FALLS with lead. Consistent with the HORIZON reading: marginal")
+        log("  information (~1 - skill) grows with horizon, so the null at ~2s may be a")
+        log("  horizon artefact. Prioritise the horizon sweep — see")
         log("  docs/EgoVault/experiments/EXP-002-ek100-probe-null.md.")
-    log("  Judge against baseline_mean (chance floor), not against zero.")
+    elif s_last - s_first > 0.05:
+        log("  Skill RISES with lead — unexpected, and no mechanism predicts it. Suspect")
+        log("  noise (check n_test) or leakage before believing it.")
+    else:
+        log("  Skill is FLAT across lead. Consistent with REDUNDANCY: the encoder already")
+        log("  carries future gaze about equally well at every horizon, so a gaze token")
+        log("  adds little anywhere. This weakens the behavioral-conditioning direction —")
+        log("  see docs/EgoVault/topics/path-2-behavioral-conditioning.md.")
     log("-" * 78)
 
     try:
@@ -471,9 +507,10 @@ def main():
         for name, style in (("spatial", "-o"), ("pooled", "-s"),
                             ("baseline_persistence", "--^"), ("baseline_mean", ":x")):
             d = df[df.readout == name].sort_values("lead_s")
-            ax[0].plot(d.lead_s, d.r2_yawpitch, style, label=name)
+            ax[0].plot(d.lead_s, d.skill, style, label=name)
             ax[1].plot(d.lead_s, d.ang_err_deg_median, style, label=name)
-        ax[0].set_xlabel("anticipation lead (s)"); ax[0].set_ylabel("R² (yaw, pitch)")
+        ax[0].set_xlabel("anticipation lead (s)")
+        ax[0].set_ylabel("skill over chance (0 = mean predictor)")
         ax[0].set_title("Gaze recoverability from the frozen encoder")
         ax[0].axhline(0, color="k", lw=0.5); ax[0].legend(fontsize=8); ax[0].grid(alpha=0.3)
         ax[1].set_xlabel("anticipation lead (s)"); ax[1].set_ylabel("median angular error (°)")
