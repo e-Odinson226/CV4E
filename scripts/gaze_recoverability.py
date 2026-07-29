@@ -262,6 +262,25 @@ def sample_indices(n_frames, fps, max_lead_s, windows, window_sec, per_window, r
     return sorted(set(out))
 
 
+def _fit_pca(pca, pca_buf, feats_grid, args, log, short=False):
+    """
+    Fit the channel PCA on buffered TRAIN frames, then flush the buffer into
+    feats_grid *in order*.
+
+    Buffered batches are always the earliest ones, so flushing them here — and
+    appending nothing while buffering — keeps feats_grid index-aligned with
+    feats_pool without needing placeholders.
+    """
+    buf = np.concatenate(pca_buf, 0)
+    pca[0] = ChannelPCA().fit(buf, args.pca_dim)
+    log(f"  [pca] fitted on {len(buf)} frames"
+        f"{' (fewer than --pca-fit-frames; dataset is small)' if short else ''}, "
+        f"{args.pca_dim}/{buf.shape[-1]} channels, {pca[0].explained:.1%} variance")
+    for b in pca_buf:
+        feats_grid.append(pca[0].transform(b).reshape(b.shape[0], -1))
+    pca_buf.clear()
+
+
 def collect(args, encoder, device, participants, split_name, pca, pca_buf, log):
     """Encode sampled frames and pair each with gaze at every lead. Returns arrays."""
     feats_grid, feats_pool, gaze_t, gaze_lead, meta = [], [], [], [], []
@@ -311,31 +330,35 @@ def collect(args, encoder, device, participants, split_name, pca, pca_buf, log):
                 g = h.cpu().numpy().astype(np.float32)                   # (b, tokens, D)
                 feats_pool.append(g.mean(1))
                 if pca[0] is None:
-                    pca_buf.append(g)                                    # train-only buffer
+                    # Still buffering: append NOTHING to feats_grid. The buffered
+                    # batches are the first ones, so flushing them in order the moment
+                    # PCA fits keeps feats_grid aligned with feats_pool. (Appending a
+                    # placeholder here instead would leave holes that never get filled.)
+                    pca_buf.append(g)
                     if sum(b.shape[0] for b in pca_buf) >= args.pca_fit_frames:
-                        buf = np.concatenate(pca_buf, 0)
-                        pca[0] = ChannelPCA().fit(buf, args.pca_dim)
-                        log(f"  [pca] fitted on {len(buf)} frames, "
-                            f"{args.pca_dim}/{buf.shape[-1]} channels, "
-                            f"{pca[0].explained:.1%} variance")
-                        for b in pca_buf:
-                            feats_grid.append(pca[0].transform(b).reshape(b.shape[0], -1))
-                        pca_buf.clear()
-                    else:
-                        feats_grid.append(None)                          # placeholder
+                        _fit_pca(pca, pca_buf, feats_grid, args, log)
                 else:
                     feats_grid.append(pca[0].transform(g).reshape(g.shape[0], -1))
             gaze_t.append(np.stack(y_t)); gaze_lead.append(np.stack(y_lead))
             meta.extend([(p, vp.stem)] * len(keep))
             log(f"  {split_name} {p}/{vp.stem}: {len(keep)} samples")
 
-    if any(f is None for f in feats_grid):
+    # Dataset smaller than the PCA quota: fit on whatever was buffered rather than
+    # failing. --pca-fit-frames is a target, not a requirement.
+    if pca[0] is None and pca_buf:
+        _fit_pca(pca, pca_buf, feats_grid, args, log, short=True)
+
+    if not feats_grid:
         raise RuntimeError(
-            "PCA was never fitted — not enough training frames buffered. "
-            "Lower --pca-fit-frames or raise --windows/--per-window."
+            f"no samples collected for the {split_name} split — check --video-dir / "
+            "--gaze-dir and the participant names, and that the gaze CSVs are extracted"
         )
-    return (np.concatenate(feats_grid, 0), np.concatenate(feats_pool, 0),
-            np.concatenate(gaze_t, 0), np.concatenate(gaze_lead, 0), meta)
+    Xg = np.concatenate(feats_grid, 0)
+    Xp = np.concatenate(feats_pool, 0)
+    if len(Xg) != len(Xp):                    # would silently misalign features and targets
+        raise RuntimeError(f"internal: grid/pooled feature counts differ "
+                           f"({len(Xg)} vs {len(Xp)}) in the {split_name} split")
+    return (Xg, Xp, np.concatenate(gaze_t, 0), np.concatenate(gaze_lead, 0), meta)
 
 
 # ---------------------------------------------------------------------------
