@@ -1,0 +1,130 @@
+[setup] device=cuda:0  leads=[0.0, 0.25, 0.5, 1.0, 2.0]
+[setup] train=['P01', 'P02', 'P03', 'P04', 'P05']  test=['P06', 'P07']
+[setup] encoder loaded in 21s (predictor built but unused)
+[collect] train split
+  train P01/P01-20240202-110250: 50 samples
+  train P01/P01-20240202-161354: 50 samples
+  train P01/P01-20240202-161948: 50 samples
+  train P01/P01-20240202-171220: 50 samples
+  train P01/P01-20240202-175627: 50 samples
+  [pca] fitted on 300 frames, 64/1408 channels, 71.9% variance
+  train P01/P01-20240202-195538: 50 samples
+  train P01/P01-20240203-093333: 50 samples
+  train P01/P01-20240203-121517: 50 samples
+  train P01/P01-20240203-123350: 50 samples
+  train P01/P01-20240203-130505: 50 samples
+  train P01/P01-20240203-132119: 50 samples
+  train P01/P01-20240203-135502: 50 samples
+  train P02/P02-20240209-184316: 50 samples
+  train P02/P02-20240209-194141: 50 samples
+  train P02/P02-20240209-231412: 48 samples
+  train P02/P02-20240210-092616: 47 samples
+  train P02/P02-20240210-100308: 50 samples
+  train P02/P02-20240210-100930: 47 samples
+  train P02/P02-20240210-122334: 50 samples
+  train P02/P02-20240210-195833: 50 samples
+  train P02/P02-20240210-220650: 48 samples
+  train P02/P02-20240211-100250: 50 samples
+  train P02/P02-20240211-104948: 50 samples
+  train P03/P03-20240216-084005: 50 samples
+  train P03/P03-20240216-090759: 50 samples
+  train P03/P03-20240216-185832: 50 samples
+  train P03/P03-20240216-205923: 50 samples
+  train P03/P03-20240216-223126: 50 samples
+  train P03/P03-20240217-091657: 50 samples
+  train P03/P03-20240217-094713: 50 samples
+  train P03/P03-20240217-100448: 50 samples
+  train P03/P03-20240217-130208: 50 samples
+  train P03/P03-20240217-131219: 50 samples
+  train P03/P03-20240217-150310: 50 samples
+  train P03/P03-20240217-152152: 50 samples
+  train P04/P04-20240413-142619: 50 samples
+  train P04/P04-20240413-145245: 50 samples
+  train P04/P04-20240413-151722: 50 samples
+  train P04/P04-20240414-064514: 50 samples
+  train P04/P04-20240414-065311: 50 samples
+  train P04/P04-20240414-072251: 50 samples
+  train P04/P04-20240414-162242: 50 samples
+  train P04/P04-20240414-162750: 50 samples
+  train P04/P04-20240414-164751: 50 samples
+  train P04/P04-20240414-165333: 50 samples
+  train P04/P04-20240414-170520: 50 samples
+  train P04/P04-20240414-172534: 49 samples
+  train P05/P05-20240423-170021: 50 samples
+  train P05/P05-20240423-172243: 50 samples
+  train P05/P05-20240423-175745: 50 samples
+  train P05/P05-20240423-180529: 50 samples
+  train P05/P05-20240423-183358: 50 samples
+  train P05/P05-20240424-085204: 50 samples
+  train P05/P05-20240424-090812: 50 samples
+  train P05/P05-20240424-130119: 50 samples
+  train P05/P05-20240424-131231: 48 samples
+  train P05/P05-20240424-171038: 50 samples
+  train P05/P05-20240424-175101: 50 samples
+  train P05/P05-20240425-082420: 50 samples
+[collect] test split
+  test P06/P06-20240510-090328: 50 samples
+  test P06/P06-20240510-094438: 50 samples
+  test P06/P06-20240510-100047: 50 samples
+  test P06/P06-20240510-104642: 50 samples
+  test P06/P06-20240510-115307: 50 samples
+  test P06/P06-20240510-121619: 50 samples
+  test P06/P06-20240510-135423: 50 samples
+  test P06/P06-20240510-140459: 47 samples
+  test P06/P06-20240511-102207: 50 samples
+  test P06/P06-20240511-121048: 50 samples
+  test P06/P06-20240511-122221: 50 samples
+  test P07/P07-20240529-102652: 50 samples
+  test P07/P07-20240529-131737: 50 samples
+  test P07/P07-20240529-134410: 50 samples
+  test P07/P07-20240529-191007: 50 samples
+  test P07/P07-20240529-194518: 50 samples
+  test P07/P07-20240530-102543: 50 samples
+  test P07/P07-20240530-111344: 50 samples
+  test P07/P07-20240531-101357: 50 samples
+  test P07/P07-20240531-201703: 50 samples
+[cache] wrote results/gaze_features.npz
+[split] RANDOM pooled split — internal control only, leaks across participants. Not a reportable result.
+[collect] train n=2950  test n=984  grid dim=16384  pooled dim=1408
+
+==============================================================================
+GAZE RECOVERABILITY — held-out participants, yaw/pitch
+==============================================================================
+SKILL over the chance baseline  (0 = no better than predicting the mean, 1 = perfect)
+readout  baseline_mean  baseline_persistence  pooled  spatial
+lead_s                                                       
+0.00             0.000                 1.000   0.324    0.273
+0.25             0.000                 0.447   0.259    0.230
+0.50             0.000                 0.091   0.250    0.219
+1.00             0.000                -0.315   0.210    0.184
+2.00             0.000                -0.390   0.174    0.145
+
+Median angular error, degrees
+readout  baseline_mean  baseline_persistence  pooled  spatial
+lead_s                                                       
+0.00              9.66                  0.00    7.20     8.04
+0.25              9.46                  3.88    7.57     8.01
+0.50              9.48                  6.12    7.87     8.05
+1.00              9.68                  8.66    8.07     8.33
+2.00              9.48                  9.82    8.35     8.80
+
+Raw R^2 (negative for baseline_mean is EXPECTED under a cross-participant split)
+readout  baseline_mean  baseline_persistence  pooled  spatial
+lead_s                                                       
+0.00            -0.003                 1.000   0.300    0.254
+0.25            -0.005                 0.410   0.233    0.211
+0.50            -0.002                 0.037   0.225    0.199
+1.00            -0.002                -0.374   0.187    0.165
+2.00            -0.002                -0.457   0.150    0.119
+
+[sanity] persistence @ lead 0 skill = 1.0000 (OK)
+
+------------------------------------------------------------------------------
+READING: spatial skill +0.273 @ 0.00s -> +0.145 @ 2.00s   (best +0.273)
+  Skill FALLS with lead. Consistent with the HORIZON reading: marginal
+  information (~1 - skill) grows with horizon, so the null at ~2s may be a
+  horizon artefact. Prioritise the horizon sweep — see
+  docs/EgoVault/experiments/EXP-002-ek100-probe-null.md.
+------------------------------------------------------------------------------
+[out] results/gaze_recov_randomsplit.png
+[out] results/gaze_recov_randomsplit.csv  results/gaze_recov_randomsplit.json  results/gaze_recov_randomsplit.log

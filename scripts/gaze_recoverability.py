@@ -391,6 +391,17 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--device", default="cuda:0")
     ap.add_argument("--out", default="results/gaze_recoverability")
+    ap.add_argument("--split", choices=["participant", "recording", "random"],
+                    default="participant",
+                    help="participant = the real experiment (held-out people); "
+                         "recording = same people, held-out recordings (isolates "
+                         "cross-scene from cross-person generalisation); "
+                         "random = leaky control answering 'can this decode gaze at all?'")
+    ap.add_argument("--cache", default="results/gaze_features.npz",
+                    help="feature cache, shared across analysis variants so re-slicing "
+                         "the data does not re-encode")
+    ap.add_argument("--recollect", action="store_true",
+                    help="rebuild the feature cache instead of reusing it")
     args = ap.parse_args()
 
     out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
@@ -405,17 +416,75 @@ def main():
     log(f"[setup] device={device}  leads={args.leads}")
     log(f"[setup] train={args.train_participants}  test={args.test_participants}")
 
-    t0 = time.time()
-    encoder, _, _ = load_models(args.checkpoint, device, context_steps=1)
-    log(f"[setup] encoder loaded in {time.time() - t0:.0f}s (predictor built but unused)")
+    # Encoding is the expensive step (~25 min) and every analysis variant reuses the
+    # same features, so cache them. Re-slicing the data a different way then costs
+    # seconds instead of a re-encode.
+    cache = Path(args.cache)
+    if cache.exists() and not args.recollect:
+        z = np.load(cache, allow_pickle=True)
+        Xg_tr, Xp_tr, g0_tr, gl_tr = z["Xg_tr"], z["Xp_tr"], z["g0_tr"], z["gl_tr"]
+        Xg_te, Xp_te, g0_te, gl_te = z["Xg_te"], z["Xp_te"], z["g0_te"], z["gl_te"]
+        meta_tr, meta_te = z["meta_tr"], z["meta_te"]
+        pca_expl = float(z["pca_explained"])
+        log(f"[cache] reused features from {cache} (--recollect to rebuild)")
+        if list(z["leads"]) != list(args.leads):
+            raise SystemExit(f"cached leads {list(z['leads'])} != requested {args.leads}; "
+                             "pass --recollect")
+    else:
+        t0 = time.time()
+        encoder, _, _ = load_models(args.checkpoint, device, context_steps=1)
+        log(f"[setup] encoder loaded in {time.time() - t0:.0f}s (predictor built but unused)")
+        pca, buf = [None], []
+        log("[collect] train split")
+        Xg_tr, Xp_tr, g0_tr, gl_tr, mtr = collect(args, encoder, device,
+                                                  args.train_participants, "train", pca, buf, log)
+        log("[collect] test split")
+        Xg_te, Xp_te, g0_te, gl_te, mte = collect(args, encoder, device,
+                                                  args.test_participants, "test", pca, buf, log)
+        # Per-sample "<participant>/<recording>" labels. Needed for the recording-level
+        # split, and cheap to keep — omitting them last time cost a full re-encode.
+        meta_tr = np.array([f"{p}/{s}" for p, s in mtr])
+        meta_te = np.array([f"{p}/{s}" for p, s in mte])
+        pca_expl = pca[0].explained
+        np.savez(cache, Xg_tr=Xg_tr, Xp_tr=Xp_tr, g0_tr=g0_tr, gl_tr=gl_tr,
+                 Xg_te=Xg_te, Xp_te=Xp_te, g0_te=g0_te, gl_te=gl_te,
+                 meta_tr=meta_tr, meta_te=meta_te,
+                 leads=np.array(args.leads), pca_explained=pca_expl)
+        log(f"[cache] wrote {cache}")
 
-    pca, buf = [None], []
-    log("[collect] train split")
-    Xg_tr, Xp_tr, g0_tr, gl_tr, _ = collect(args, encoder, device,
-                                            args.train_participants, "train", pca, buf, log)
-    log("[collect] test split")
-    Xg_te, Xp_te, g0_te, gl_te, _ = collect(args, encoder, device,
-                                            args.test_participants, "test", pca, buf, log)
+    # Diagnostic split. "participant" is the real experiment — held-out people, so the
+    # probe cannot memorise one person's gaze habits. "random" pools everything and
+    # splits at random, which LEAKS across participants and recordings and is therefore
+    # not a result: it is an internal control answering "can this pipeline decode gaze
+    # AT ALL?". If random shows skill and participant does not, the finding is about
+    # cross-person generalisation. If neither does, suspect the features.
+    if args.split != "participant":
+        Xg = np.concatenate([Xg_tr, Xg_te]); Xp = np.concatenate([Xp_tr, Xp_te])
+        g0 = np.concatenate([g0_tr, g0_te]); gl = np.concatenate([gl_tr, gl_te])
+        M = np.concatenate([meta_tr, meta_te])
+        rng = np.random.default_rng(args.seed)
+
+        if args.split == "random":
+            perm = rng.permutation(len(Xg))
+            cut = int(0.75 * len(Xg))
+            tr, te = perm[:cut], perm[cut:]
+            log("[split] RANDOM — leaks across participants AND within recordings: "
+                "samples 5-per-6s-window put near-duplicate frames on both sides. "
+                "Internal control only, NOT a reportable result.")
+        else:                                     # recording
+            recs = np.unique(M)
+            rng.shuffle(recs)
+            held = set(recs[int(0.75 * len(recs)):])
+            te = np.array([i for i, m in enumerate(M) if m in held])
+            tr = np.array([i for i, m in enumerate(M) if m not in held])
+            log(f"[split] RECORDING — same people, {len(recs) - len(held)} recordings "
+                f"train / {len(held)} held out. No within-recording leakage; still leaks "
+                "across participants, so it isolates cross-SCENE from cross-PERSON "
+                "generalisation. Diagnostic, not the headline result.")
+
+        Xg_tr, Xp_tr, g0_tr, gl_tr = Xg[tr], Xp[tr], g0[tr], gl[tr]
+        Xg_te, Xp_te, g0_te, gl_te = Xg[te], Xp[te], g0[te], gl[te]
+
     log(f"[collect] train n={len(Xg_tr)}  test n={len(Xg_te)}  "
         f"grid dim={Xg_tr.shape[1]}  pooled dim={Xp_tr.shape[1]}")
 
@@ -546,7 +615,7 @@ def main():
     with open(f"{out}.json", "w") as f:
         json.dump(dict(config=vars(args), rows=rows,
                        n_train=len(Xg_tr), n_test=len(Xg_te),
-                       pca_explained=pca[0].explained), f, indent=2, default=str)
+                       pca_explained=pca_expl), f, indent=2, default=str)
     log(f"[out] {out}.csv  {out}.json  {out}.log")
     logf.close()
 

@@ -42,3 +42,5 @@ model_checkpoints/vjepa2_1_vitl_dist_vitG_384.pt
 results/archive/*
 .DS_Store
 .claude
+# feature caches are large and regenerable
+results/*.npz
