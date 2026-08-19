@@ -1,0 +1,158 @@
+[setup] replaying EXP-003 sampler: seed=42 recordings=12 windows=10 window_sec=6.0 per_window=5
+[setup] leads=[0.0, 0.25, 0.5, 1.0, 2.0]  gaze tol=50.0ms  hand tol=100.0ms
+[replay] train split
+  train P01/P01-20240202-110250: 50 rows
+  train P01/P01-20240202-161354: 50 rows
+  train P01/P01-20240202-161948: 50 rows
+  train P01/P01-20240202-171220: 50 rows
+  train P01/P01-20240202-175627: 50 rows
+  train P01/P01-20240202-195538: 50 rows
+  train P01/P01-20240203-093333: 50 rows
+  train P01/P01-20240203-121517: 50 rows
+  train P01/P01-20240203-123350: 50 rows
+  train P01/P01-20240203-130505: 50 rows
+  train P01/P01-20240203-132119: 50 rows
+  train P01/P01-20240203-135502: 50 rows
+  train P02/P02-20240209-184316: 50 rows
+  train P02/P02-20240209-194141: 50 rows
+  train P02/P02-20240209-231412: 48 rows
+  train P02/P02-20240210-092616: 47 rows
+  train P02/P02-20240210-100308: 50 rows
+  train P02/P02-20240210-100930: 47 rows
+  train P02/P02-20240210-122334: 50 rows
+  train P02/P02-20240210-195833: 50 rows
+  train P02/P02-20240210-220650: 48 rows
+  train P02/P02-20240211-100250: 50 rows
+  train P02/P02-20240211-104948: 50 rows
+  train P03/P03-20240216-084005: 50 rows
+  train P03/P03-20240216-090759: 50 rows
+  train P03/P03-20240216-185832: 50 rows
+  train P03/P03-20240216-205923: 50 rows
+  train P03/P03-20240216-223126: 50 rows
+  train P03/P03-20240217-091657: 50 rows
+  train P03/P03-20240217-094713: 50 rows
+  train P03/P03-20240217-100448: 50 rows
+  train P03/P03-20240217-130208: 50 rows
+  train P03/P03-20240217-131219: 50 rows
+  train P03/P03-20240217-150310: 50 rows
+  train P03/P03-20240217-152152: 50 rows
+  train P04/P04-20240413-142619: 50 rows
+  train P04/P04-20240413-145245: 50 rows
+  train P04/P04-20240413-151722: 50 rows
+  train P04/P04-20240414-064514: 50 rows
+  train P04/P04-20240414-065311: 50 rows
+  train P04/P04-20240414-072251: 50 rows
+  train P04/P04-20240414-162242: 50 rows
+  train P04/P04-20240414-162750: 50 rows
+  train P04/P04-20240414-164751: 50 rows
+  train P04/P04-20240414-165333: 50 rows
+  train P04/P04-20240414-170520: 50 rows
+  train P04/P04-20240414-172534: 49 rows
+  train P05/P05-20240423-170021: 50 rows
+  train P05/P05-20240423-172243: 50 rows
+  train P05/P05-20240423-175745: 50 rows
+  train P05/P05-20240423-180529: 50 rows
+  train P05/P05-20240423-183358: 50 rows
+  train P05/P05-20240424-085204: 50 rows
+  train P05/P05-20240424-090812: 50 rows
+  train P05/P05-20240424-130119: 50 rows
+  train P05/P05-20240424-131231: 48 rows
+  train P05/P05-20240424-171038: 50 rows
+  train P05/P05-20240424-175101: 50 rows
+  train P05/P05-20240425-082420: 50 rows
+[replay] test split
+  test P06/P06-20240510-090328: 50 rows
+  test P06/P06-20240510-094438: 50 rows
+  test P06/P06-20240510-100047: 50 rows
+  test P06/P06-20240510-104642: 50 rows
+  test P06/P06-20240510-115307: 50 rows
+  test P06/P06-20240510-121619: 50 rows
+  test P06/P06-20240510-135423: 50 rows
+  test P06/P06-20240510-140459: 47 rows
+  test P06/P06-20240511-102207: 50 rows
+  test P06/P06-20240511-121048: 50 rows
+  test P06/P06-20240511-122221: 50 rows
+  test P07/P07-20240529-102652: 50 rows
+  test P07/P07-20240529-131737: 50 rows
+  test P07/P07-20240529-134410: 50 rows
+  test P07/P07-20240529-191007: 50 rows
+  test P07/P07-20240529-194518: 50 rows
+  test P07/P07-20240530-102543: 50 rows
+  test P07/P07-20240530-111344: 50 rows
+  test P07/P07-20240531-101357: 50 rows
+  test P07/P07-20240531-201703: 50 rows
+[verify] train: 2937 rows match the cache exactly (gaze values and recording labels)
+[verify] test: 997 rows match the cache exactly (gaze values and recording labels)
+[hand] looking up palm positions at every lead
+[data] pooled n=3934  train=2937  test=997
+[hand] left palm valid at t and every lead: 1987/3934 rows (50.5%)
+[hand] right palm valid at t and every lead: 1824/3934 rows (46.4%)
+  [participant] gaze_yawpitch: n_train=2937 n_test=997 done
+  [participant] left_palm_xyz: n_train=1395 n_test=592 done
+  [participant] right_palm_xyz: n_train=1234 n_test=590 done
+  [participant] gaze_on_left_rows: n_train=1395 n_test=592 done
+  [participant] gaze_on_right_rows: n_train=1234 n_test=590 done
+  [recording] gaze_yawpitch: n_train=2939 n_test=995 done
+  [recording] left_palm_xyz: n_train=1453 n_test=534 done
+  [recording] right_palm_xyz: n_train=1372 n_test=452 done
+  [recording] gaze_on_left_rows: n_train=1453 n_test=534 done
+  [recording] gaze_on_right_rows: n_train=1372 n_test=452 done
+  [random] gaze_yawpitch: n_train=2950 n_test=984 done
+  [random] left_palm_xyz: n_train=1517 n_test=470 done
+  [random] right_palm_xyz: n_train=1382 n_test=442 done
+  [random] gaze_on_left_rows: n_train=1517 n_test=470 done
+  [random] gaze_on_right_rows: n_train=1382 n_test=442 done
+
+============================================================================================
+CONTROL PROBE — same frozen features, same splits, same ridge. Only the target changes.
+============================================================================================
+
+SKILL — participant split
+target  gaze_on_left_rows  gaze_on_right_rows  gaze_yawpitch  left_palm_xyz  right_palm_xyz
+lead_s                                                                                     
+0.00                0.082              -0.036          0.001          0.346           0.220
+0.25                0.067              -0.005          0.004          0.287           0.152
+0.50                0.061               0.001         -0.015          0.207           0.056
+1.00                0.092              -0.027         -0.007          0.079          -0.045
+2.00                0.071              -0.002         -0.027         -0.032          -0.186
+n_test: gaze_yawpitch=997, left_palm_xyz=592, right_palm_xyz=590, gaze_on_left_rows=592, gaze_on_right_rows=590
+
+SKILL — recording split
+target  gaze_on_left_rows  gaze_on_right_rows  gaze_yawpitch  left_palm_xyz  right_palm_xyz
+lead_s                                                                                     
+0.00                0.156               0.168          0.116          0.391           0.313
+0.25                0.097               0.158          0.071          0.337           0.255
+0.50                0.058               0.102          0.055          0.247           0.181
+1.00                0.083               0.112         -0.000          0.101           0.113
+2.00                0.084               0.113          0.015         -0.027           0.062
+n_test: gaze_yawpitch=995, left_palm_xyz=534, right_palm_xyz=452, gaze_on_left_rows=534, gaze_on_right_rows=452
+
+SKILL — random split
+target  gaze_on_left_rows  gaze_on_right_rows  gaze_yawpitch  left_palm_xyz  right_palm_xyz
+lead_s                                                                                     
+0.00                0.307               0.356          0.273          0.628           0.540
+0.25                0.234               0.330          0.230          0.568           0.461
+0.50                0.229               0.337          0.219          0.506           0.392
+1.00                0.203               0.282          0.184          0.409           0.295
+2.00                0.178               0.262          0.145          0.323           0.247
+n_test: gaze_yawpitch=984, left_palm_xyz=470, right_palm_xyz=442, gaze_on_left_rows=470, gaze_on_right_rows=442
+
+--------------------------------------------------------------------------------------------
+READING — skill at lead 0, the number EXP-003's headline rests on
+  gaze_yawpitch          recording=+0.116   participant=+0.001
+  left_palm_xyz          recording=+0.391   participant=+0.346
+  right_palm_xyz         recording=+0.313   participant=+0.220
+  gaze_on_left_rows      recording=+0.156   participant=+0.082
+  gaze_on_right_rows     recording=+0.168   participant=-0.036
+
+  The CONTROL TARGET TRANSFERS across participants while gaze does not.
+  The frozen features carry information that survives the change of person and
+  kitchen, so EXP-003's collapse is not a generic encoder failure. Its headline
+  STANDS and is now defended against the confound.
+--------------------------------------------------------------------------------------------
+
+[identity] participant recoverable from pooled features on held-out RECORDINGS: 88.7% (7-way, chance 14.3%, n_test=995)
+           High accuracy means the representation is dominated by who/where, which is
+           the mechanism behind the participant/kitchen confound.
+
+[out] /tmp/claude-45247/-mnt-data-home-zj2433-Projects-Ego/58718949-d39c-4aef-960a-5c1afde99eaa/scratchpad/control_recoverability.csv  /tmp/claude-45247/-mnt-data-home-zj2433-Projects-Ego/58718949-d39c-4aef-960a-5c1afde99eaa/scratchpad/control_recoverability.json  /tmp/claude-45247/-mnt-data-home-zj2433-Projects-Ego/58718949-d39c-4aef-960a-5c1afde99eaa/scratchpad/control_recoverability.log
