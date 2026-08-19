@@ -1,0 +1,56 @@
+[ckpt] AC weights only — untrained projectors
+[setup] 21s  T=8  HW=256  seq=2064
+  P08/P08-20240613-122900: 6 clips
+  P08/P08-20240613-123547: 6 clips
+  P08/P08-20240614-085000: 6 clips
+  P08/P08-20240614-125650: 6 clips
+[clips] 24 clips
+  [5/24] 27s
+  [10/24] 33s
+  [15/24] 39s
+  [20/24] 45s
+
+[check] recomputed softmax vs the kernel's own output: max |diff| = 1.26e-05 (OK)
+[ref] uniform attention on ONE conditioning token = 1/258 = 0.00388 (0.388%); on the pair = 0.00775
+
+============================================================================================
+A2 — share of a visual token's attention landing on the conditioning positions (real gaze)
+   x/uniform: 1.0 = the token is indistinguishable from background
+============================================================================================
+       gaze_mass  gaze_vs_uniform  gaze_mass_max_head  gaze_max_head_vs_uniform  hand_mass  trainable
+block                                                                                                
+0        0.12143         31.32786             0.80583                 207.90333    0.07937      False
+1        0.20064         51.76449             0.54195                 139.82431    0.39623      False
+2        0.23193         59.83728             0.45291                 116.85110    0.33950      False
+3        0.21848         56.36659             0.41000                 105.77918    0.57693      False
+4        0.18916         48.80335             0.42627                 109.97812    0.26386      False
+5        0.14146         36.49545             0.38288                  98.78383    0.18310      False
+6        0.16104         41.54773             0.35160                  90.71217    0.19182      False
+7        0.19570         50.49002             0.34394                  88.73654    0.21639      False
+8        0.10968         28.29687             0.29549                  76.23655    0.11437      False
+9        0.11345         29.27011             0.25923                  66.88031    0.12359      False
+10       0.10322         26.63136             0.19364                  49.95874    0.11574      False
+11       0.10075         25.99357             0.19879                  51.28807    0.11301      False
+12       0.11044         28.49345             0.21990                  56.73534    0.12305      False
+13       0.12636         32.60171             0.30784                  79.42173    0.13818      False
+14       0.13302         34.31866             0.23119                  59.64810    0.14629      False
+15       0.14344         37.00625             0.27788                  71.69300    0.15854      False
+16       0.13052         33.67317             0.21259                  54.84788    0.14045      False
+17       0.13387         34.53870             0.27769                  71.64276    0.15015      False
+18       0.11711         30.21559             0.23766                  61.31579    0.12852       True
+19       0.10977         28.32087             0.17259                  44.52892    0.11733       True
+20       0.10664         27.51301             0.20746                  53.52448    0.11194       True
+21       0.11557         29.81676             0.23172                  59.78339    0.11853       True
+22       0.06966         17.97287             0.20660                  53.30287    0.06890       True
+23       0.02435          6.28234             0.07065                  18.22824    0.02453       True
+
+--------------------------------------------------------------------------------------------
+[summary] gaze mass, frozen blocks 0-17 : mean 0.14803 (38.19x uniform)
+[summary] gaze mass, trained blocks 18-23: mean 0.09052 (23.35x uniform)
+[summary] loudest block overall: 2 at 0.23193 (59.84x uniform); loudest single head 0.80583 (207.90x uniform)
+
+READING: gaze attention is not concentrated in the trained blocks — the frozen
+         AC blocks already route attention to the conditioning slot, which they
+         learned to do for robot actions in pretraining.
+--------------------------------------------------------------------------------------------
+[out] results/attention_mass_untrained.csv  results/attention_mass_untrained.json  results/attention_mass_untrained.log
