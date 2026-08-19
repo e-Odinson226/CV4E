@@ -1,0 +1,73 @@
+[init] rebuilt with seed=0
+  init  gaze_proj.weight             ||W||=      1.0976  (3,072 params)
+  init  gaze_proj.bias               ||W||=      0.0000  (1,024 params)
+  init  gaze_mask                    ||W||=      0.6663  (1,024 params)
+  init  hand_proj.weight             ||W||=      2.2159  (12,288 params)
+  init  hand_proj.bias               ||W||=      0.0000  (1,024 params)
+  init  hand_mask                    ||W||=      0.6233  (1,024 params)
+  init  blocks_18-23                 ||W||=    474.7594  (75,577,344 params)
+  init  predictor_norm               ||W||=     35.3596  (2,048 params)
+  init  predictor_proj               ||W||=     70.9503  (1,443,200 params)
+  init  blocks_0-17 [frozen]         ||W||=    823.2681  (226,732,032 params)
+  init  predictor_embed [frozen]     ||W||=     72.5237  (1,442,816 params)
+
+[ckpt] ego_ft_v2/best.pt  epoch=3  train_loss=0.5066320426610051  wd=0.01 lr_proj=0.001 epochs=3 clips/rec=30
+
+[ckpt] ego_ft_v2/final.pt  epoch=3  train_loss=0.5066320426610051  wd=0.01 lr_proj=0.001 epochs=3 clips/rec=30
+
+[ckpt] ego_ft_quick/best.pt  epoch=1  train_loss=0.5413188229004542  wd=0.01 lr_proj=0.001 epochs=3 clips/rec=30
+
+[ckpt] ego_finetune/best.pt  epoch=1  train_loss=0.5282872407839401  wd=0.01 lr_proj=0.001 epochs=8 clips/rec=60
+
+========================================================================================
+A3 — parameter norm relative to initialisation (1.000 = unchanged)
+========================================================================================
+checkpoint                ego_finetune/best.pt  ego_ft_quick/best.pt  ego_ft_v2/best.pt  ego_ft_v2/final.pt      init
+group                                                                                                                
+gaze_proj.weight                        1.1201                1.1132             1.1573              1.1573    1.0000
+gaze_proj.bias                             n/a                   n/a                n/a                 n/a    1.0000
+gaze_mask                               1.2371                1.2571             1.1759              1.1759    1.0000
+hand_proj.weight                        1.1418                1.0985             1.1750              1.1750    1.0000
+hand_proj.bias                             n/a                   n/a                n/a                 n/a    1.0000
+hand_mask                               1.3574                1.1079             1.2719              1.2719    1.0000
+blocks_18-23                            1.0005                1.0002             1.0002              1.0002    1.0000
+predictor_norm                          0.9992                0.9995             0.9992              0.9992    1.0000
+predictor_proj                          0.9993                0.9998             0.9999              0.9999    1.0000
+blocks_0-17 [frozen]                    1.0000                1.0000             1.0000              1.0000    1.0000
+predictor_embed [frozen]                1.0000                1.0000             1.0000              1.0000    1.0000
+
+(n/a = the group initialises to exactly 0, so a ratio is undefined; absolutes below)
+
+Absolute Frobenius norms
+checkpoint                ego_finetune/best.pt  ego_ft_quick/best.pt  ego_ft_v2/best.pt  ego_ft_v2/final.pt         init
+group                                                                                                                   
+gaze_proj.weight                       1.22941               1.22193            1.27026             1.27026      1.09764
+gaze_proj.bias                         0.35540               0.24199            0.57194             0.57194      0.00000
+gaze_mask                              0.82420               0.83754            0.78342             0.78342      0.66625
+hand_proj.weight                       2.53013               2.43407            2.60369             2.60369      2.21591
+hand_proj.bias                         0.61436               0.30334            0.55927             0.55927      0.00000
+hand_mask                              0.84609               0.69058            0.79276             0.79276      0.62331
+blocks_18-23                         474.97355             474.86563          474.87444           474.87444    474.75944
+predictor_norm                        35.33122              35.34163           35.33220            35.33220     35.35961
+predictor_proj                        70.89729              70.93500           70.94668            70.94668     70.95027
+blocks_0-17 [frozen]                 823.26814             823.26814          823.26814           823.26814    823.26814
+predictor_embed [frozen]              72.52372              72.52372           72.52372            72.52372     72.52372
+
+----------------------------------------------------------------------------------------
+[control] ego_finetune/best.pt: frozen groups at 1.000000, 1.000000 (OK)
+          gaze_proj 1.1201  hand_proj 1.1418  vs decayed reference blocks_18-23 1.0005, predictor_proj 0.9993
+          gaze_proj GREW against its initialisation. Training was building the pathway up, not suppressing it — the suppression story is not what happened.
+[control] ego_ft_quick/best.pt: frozen groups at 1.000000, 1.000000 (OK)
+          gaze_proj 1.1132  hand_proj 1.0985  vs decayed reference blocks_18-23 1.0002, predictor_proj 0.9998
+          gaze_proj GREW against its initialisation. Training was building the pathway up, not suppressing it — the suppression story is not what happened.
+[control] ego_ft_v2/best.pt: frozen groups at 1.000000, 1.000000 (OK)
+          gaze_proj 1.1573  hand_proj 1.1750  vs decayed reference blocks_18-23 1.0002, predictor_proj 0.9999
+          gaze_proj GREW against its initialisation. Training was building the pathway up, not suppressing it — the suppression story is not what happened.
+[control] ego_ft_v2/final.pt: frozen groups at 1.000000, 1.000000 (OK)
+          gaze_proj 1.1573  hand_proj 1.1750  vs decayed reference blocks_18-23 1.0002, predictor_proj 0.9999
+          gaze_proj GREW against its initialisation. Training was building the pathway up, not suppressing it — the suppression story is not what happened.
+----------------------------------------------------------------------------------------
+
+Caveat: --save-every was >= --epochs on every completed run, so these are endpoints,
+not a trace. When it dies mid-pathway matters (A4) and needs per-step logging in the rerun.
+[out] results/weight_norms.csv  results/weight_norms.json  results/weight_norms.log
