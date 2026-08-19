@@ -1,0 +1,56 @@
+[ckpt] fine-tuned predictor <- checkpoints/ego_ft_v2/best.pt
+[setup] 21s  T=8  HW=256  seq=2064
+  P08/P08-20240613-122900: 6 clips
+  P08/P08-20240613-123547: 6 clips
+  P08/P08-20240614-085000: 6 clips
+  P08/P08-20240614-125650: 6 clips
+[clips] 24 clips
+  [5/24] 28s
+  [10/24] 34s
+  [15/24] 39s
+  [20/24] 45s
+
+[check] recomputed softmax vs the kernel's own output: max |diff| = 8.11e-06 (OK)
+[ref] uniform attention on ONE conditioning token = 1/258 = 0.00388 (0.388%); on the pair = 0.00775
+
+============================================================================================
+A2 — share of a visual token's attention landing on the conditioning positions (real gaze)
+   x/uniform: 1.0 = the token is indistinguishable from background
+============================================================================================
+       gaze_mass  gaze_vs_uniform  gaze_mass_max_head  gaze_max_head_vs_uniform  hand_mass  trainable
+block                                                                                                
+0        0.12391         31.96843             0.99964                 257.90644    0.25844      False
+1        0.08829         22.77877             0.38412                  99.10203    0.53949      False
+2        0.21391         55.18862             0.30826                  79.53213    0.62752      False
+3        0.06606         17.04370             0.22131                  57.09902    0.74474      False
+4        0.19201         49.53923             0.37792                  97.50413    0.36415      False
+5        0.22903         59.08965             0.42188                 108.84513    0.40042      False
+6        0.21802         56.24861             0.38231                  98.63495    0.41524      False
+7        0.25958         66.97053             0.39273                 101.32325    0.40413      False
+8        0.23027         59.40937             0.37555                  96.89175    0.34411      False
+9        0.17906         46.19877             0.35749                  92.23258    0.26785      False
+10       0.17548         45.27358             0.34220                  88.28844    0.27230      False
+11       0.17233         44.46184             0.35541                  91.69481    0.25927      False
+12       0.14538         37.50748             0.28797                  74.29689    0.21407      False
+13       0.12801         33.02567             0.39843                 102.79422    0.18536      False
+14       0.11815         30.48288             0.27465                  70.85875    0.16804      False
+15       0.15198         39.21187             0.35034                  90.38896    0.20705      False
+16       0.12119         31.26683             0.28751                  74.17705    0.16652      False
+17       0.11911         30.73024             0.30740                  79.30850    0.17197      False
+18       0.07593         19.59086             0.20207                  52.13296    0.09889       True
+19       0.11202         28.90176             0.27309                  70.45714    0.16220       True
+20       0.13030         33.61648             0.35514                  91.62501    0.18124       True
+21       0.15590         40.22152             0.32208                  83.09683    0.20599       True
+22       0.06530         16.84742             0.20238                  52.21431    0.08069       True
+23       0.02362          6.09469             0.06670                  17.20973    0.03076       True
+
+--------------------------------------------------------------------------------------------
+[summary] gaze mass, frozen blocks 0-17 : mean 0.16288 (42.02x uniform)
+[summary] gaze mass, trained blocks 18-23: mean 0.09385 (24.21x uniform)
+[summary] loudest block overall: 7 at 0.25958 (66.97x uniform); loudest single head 0.99964 (257.91x uniform)
+
+READING: gaze attention is not concentrated in the trained blocks — the frozen
+         AC blocks already route attention to the conditioning slot, which they
+         learned to do for robot actions in pretraining.
+--------------------------------------------------------------------------------------------
+[out] results/attention_mass.csv  results/attention_mass.json  results/attention_mass.log
