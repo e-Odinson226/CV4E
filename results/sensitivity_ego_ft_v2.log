@@ -1,0 +1,59 @@
+[setup] device=cuda:0  T=8  stride=8  normalize_reps=True  amp=None
+[ckpt] AC weights: transferred 294, skipped 6  (20s)
+[ckpt] fine-tuned predictor <- checkpoints/ego_ft_v2/best.pt
+[clips] 4 recordings from ['P08']
+  P08/P08-20240613-122900: 24 clips
+  P08/P08-20240613-123547: 24 clips
+  P08/P08-20240614-085000: 24 clips
+  P08/P08-20240614-125650: 24 clips
+[clips] 96 clips total
+[setup] time permutation for shuffle conditions: [7, 3, 4, 0, 1, 6, 5, 2]
+  [10/96] 45s elapsed
+  [20/96] 67s elapsed
+  [30/96] 90s elapsed
+  [40/96] 112s elapsed
+  [50/96] 134s elapsed
+  [60/96] 156s elapsed
+  [70/96] 178s elapsed
+  [80/96] 200s elapsed
+  [90/96] 223s elapsed
+
+================================================================================================
+A1 SENSITIVITY — relative movement of z_pred when the input is perturbed, video held fixed
+================================================================================================
+                    n  rel_last_mean  rel_last_med  rel_last_max  rel_full_mean    mse_mean  d_mse_mean  frac_of_video_swap
+condition                                                                                                                  
+real               96       0.000000      0.000000      0.000000       0.000000    0.486603    0.000000            0.000000
+identity           96       0.000000      0.000000      0.000000       0.000000    0.486603    0.000000            0.000000
+gaze_yaw_1deg      96       0.001182      0.001064      0.002393       0.001472    0.486588   -0.000015            0.002084
+gaze_yaw_2deg      96       0.002370      0.002141      0.005223       0.002974    0.486577   -0.000025            0.004179
+gaze_yaw_5deg      96       0.006139      0.005521      0.014101       0.007538    0.486554   -0.000048            0.010824
+gaze_yaw_10deg     96       0.013049      0.011755      0.037426       0.015164    0.486614    0.000011            0.023007
+gaze_yaw_20deg     96       0.040802      0.031519      0.269927       0.032811    0.487872    0.001270            0.071940
+gaze_yaw_45deg     96       0.081327      0.067533      0.290898       0.062491    0.494476    0.007874            0.143393
+gaze_shuffle_time  96       0.008482      0.007042      0.037014       0.013565    0.486993    0.000391            0.014955
+gaze_swap          96       0.016176      0.012887      0.073729       0.021015    0.487094    0.000491            0.028521
+gaze_zero          96       0.023179      0.021541      0.044659       0.023879    0.487620    0.001017            0.040869
+gaze_mask          96       0.083780      0.070067      0.248595       0.052147    0.493983    0.007380            0.147717
+hand_shuffle_time  96       0.007476      0.006290      0.027815       0.007697    0.486813    0.000210            0.013181
+hand_swap          96       0.011724      0.009597      0.034734       0.012594    0.486862    0.000259            0.020672
+hand_mask          96       0.015658      0.015929      0.035388       0.016770    0.486714    0.000112            0.027608
+both_mask          96       0.036357      0.035634      0.063955       0.032155    0.487678    0.001076            0.064104
+video_swap         95       0.567163      0.578240      0.750118       0.571818    0.729906    0.243571            1.000000
+
+------------------------------------------------------------------------------------------------
+[gate 1] identity control, max over clips = 0.000e+00  (OK — network is deterministic)
+[gate 2] gaze_swap moves z_pred by 1.618e-02 of its norm (2.852% of a whole-video swap)
+[gate 3] gaze_mask (Condition A's gaze half) moves it by 8.378e-02
+
+READING:
+  Gaze is clearly READ. World B is ELIMINATED: the predictor's output is a
+  substantial function of the gaze input, so Coord-PE / zero-init / the gate are
+  aimed at a problem that does not exist. Redirect to H1 (information not useful
+  at this horizon) or H3 (3-epoch checkpoint too under-trained to measure).
+
+[end-to-end] Condition A (both_mask) vs B (real), same clips as validate():
+             MSE_A=0.4877  MSE_B=0.4866  Delta(A-B)=+0.0011
+             Compare with the run's own validation log to confirm the harness matches.
+------------------------------------------------------------------------------------------------
+[out] results/sensitivity_ego_ft_v2.csv  results/sensitivity_ego_ft_v2.json  results/sensitivity_ego_ft_v2.log

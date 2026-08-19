@@ -1,0 +1,59 @@
+[setup] device=cuda:0  T=8  stride=8  normalize_reps=True  amp=None
+[ckpt] AC weights: transferred 294, skipped 6  (39s)
+[ckpt] NO fine-tuned predictor — probing AC weights with untrained projectors
+[clips] 4 recordings from ['P08']
+  P08/P08-20240613-122900: 24 clips
+  P08/P08-20240613-123547: 24 clips
+  P08/P08-20240614-085000: 24 clips
+  P08/P08-20240614-125650: 24 clips
+[clips] 96 clips total
+[setup] time permutation for shuffle conditions: [7, 3, 4, 0, 1, 6, 5, 2]
+  [10/96] 70s elapsed
+  [20/96] 98s elapsed
+  [30/96] 136s elapsed
+  [40/96] 174s elapsed
+  [50/96] 201s elapsed
+  [60/96] 230s elapsed
+  [70/96] 263s elapsed
+  [80/96] 300s elapsed
+  [90/96] 328s elapsed
+
+================================================================================================
+A1 SENSITIVITY — relative movement of z_pred when the input is perturbed, video held fixed
+================================================================================================
+                    n  rel_last_mean  rel_last_med  rel_last_max  rel_full_mean    mse_mean  d_mse_mean  frac_of_video_swap
+condition                                                                                                                  
+real               96       0.000000      0.000000      0.000000       0.000000    0.611789    0.000000            0.000000
+identity           96       0.000000      0.000000      0.000000       0.000000    0.611789    0.000000            0.000000
+gaze_yaw_1deg      96       0.004156      0.003627      0.020432       0.003557    0.611842    0.000053            0.005593
+gaze_yaw_2deg      96       0.007980      0.006991      0.029487       0.006941    0.611923    0.000134            0.010739
+gaze_yaw_5deg      96       0.018619      0.016816      0.055892       0.015706    0.612119    0.000329            0.025056
+gaze_yaw_10deg     96       0.032994      0.030610      0.084274       0.027400    0.612496    0.000707            0.044400
+gaze_yaw_20deg     96       0.059575      0.054700      0.145648       0.045702    0.613284    0.001495            0.080172
+gaze_yaw_45deg     96       0.103644      0.093468      0.250576       0.073327    0.615001    0.003212            0.139477
+gaze_shuffle_time  96       0.043368      0.037573      0.190832       0.034143    0.611607   -0.000183            0.058362
+gaze_swap          96       0.056133      0.044564      0.158192       0.047301    0.611859    0.000070            0.075540
+gaze_zero          96       0.146198      0.145062      0.279595       0.099534    0.615506    0.003717            0.196743
+gaze_mask          96       0.132921      0.128860      0.307070       0.090638    0.616055    0.004266            0.178875
+hand_shuffle_time  96       0.045679      0.033691      0.238267       0.037868    0.611903    0.000113            0.061472
+hand_swap          96       0.078933      0.077754      0.240301       0.068802    0.613367    0.001577            0.106222
+hand_mask          96       0.112728      0.107817      0.267703       0.093163    0.614602    0.002813            0.151702
+both_mask          96       0.143526      0.130573      0.298073       0.119053    0.615574    0.003785            0.193148
+video_swap         95       0.743092      0.752823      0.903612       0.718895    0.862369    0.250813            1.000000
+
+------------------------------------------------------------------------------------------------
+[gate 1] identity control, max over clips = 0.000e+00  (OK — network is deterministic)
+[gate 2] gaze_swap moves z_pred by 5.613e-02 of its norm (7.554% of a whole-video swap)
+[gate 3] gaze_mask (Condition A's gaze half) moves it by 1.329e-01
+
+READING:
+  Gaze is clearly READ. World B is ELIMINATED: the predictor's output is a
+  substantial function of the gaze input, so Coord-PE / zero-init / the gate are
+  aimed at a problem that does not exist. Redirect to H1 (information not useful
+  at this horizon) or H3 (3-epoch checkpoint too under-trained to measure).
+
+[end-to-end] Condition A (both_mask) vs B (real), same clips as validate():
+             MSE_A=0.6156  MSE_B=0.6118  Delta(A-B)=+0.0038
+             Compare with the run's own validation log to confirm the harness matches.
+------------------------------------------------------------------------------------------------
+[out] results/sensitivity_untrained.csv  results/sensitivity_untrained.json  results/sensitivity_untrained.log
