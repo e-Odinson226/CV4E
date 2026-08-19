@@ -1,0 +1,61 @@
+[stats] empirical mean of the standardised signals over the training participants
+  [stats] P01: cumulative gaze n=14,939  hand n=9,431
+  [stats] P02: cumulative gaze n=42,393  hand n=28,380
+  [stats] P03: cumulative gaze n=102,876  hand n=71,307
+  [stats] P04: cumulative gaze n=338,665  hand n=184,920
+  [stats] P05: cumulative gaze n=435,745  hand n=228,639
+  [stats] P06: cumulative gaze n=656,000  hand n=325,974
+  [stats] P07: cumulative gaze n=812,274  hand n=394,400
+[stats] gaze mean in standardised space = [-0.0421, -0.5151, -0.0761]  (0 would mean GAZE_MEAN is right)
+[stats] gaze std  in standardised space = [0.435, 0.5522, 0.8725]  (1 would mean GAZE_STD is right)
+[stats] hand mean = [0.872, -0.3362, 0.7685, 0.7758, -0.4991, 0.8568, 0.776, -0.9524, 0.2821, 0.6815, -1.0049, 0.4561]
+[setup] models built in 23s
+  P08/P08-20240613-122900: 24 clips
+  P08/P08-20240613-123547: 24 clips
+  P08/P08-20240614-085000: 24 clips
+  P08/P08-20240614-125650: 24 clips
+[clips] 96 clips from ['P08']
+  [encode 20/96] 35s
+  [encode 40/96] 46s
+  [encode 60/96] 56s
+  [encode 80/96] 66s
+
+[model] stock_ac — AC weights, projectors and mask tokens UNTRAINED
+
+[model] finetuned — checkpoints/ego_sd1p0/best.pt
+
+==============================================================================
+RUNG B1 — mean feature-prediction MSE, every arm on the same clips
+==============================================================================
+variant        real      mask     zeros      mean
+model                                            
+finetuned    0.5685    0.4869    0.5714    0.6017
+stock_ac     0.6199    0.6133    0.6158    0.6186
+
+Paired contrasts (positive mean_delta = the SECOND arm predicts better)
+                        contrast  n  mean_delta  median_delta      ci_lo      ci_hi  wilcoxon_p  frac_positive
+  stock_ac:mask - finetuned:mask 96     0.12641       0.12603    0.11798    0.13491     0.00000        1.00000
+stock_ac:zeros - finetuned:zeros 96     0.04440       0.04187    0.04121    0.04770     0.00000        1.00000
+  stock_ac:real - finetuned:real 96     0.05144       0.04045    0.04356    0.05924     0.00000        0.97917
+ finetuned:mask - finetuned:real 96    -0.08157      -0.07911   -0.09066   -0.07296     0.00000        0.00000
+finetuned:zeros - finetuned:real 96     0.00293      -0.00639   -0.00371    0.00993     0.63735        0.37500
+ finetuned:mean - finetuned:real 96     0.03325       0.02178    0.02588    0.04122     0.00000        0.89583
+   stock_ac:mask - stock_ac:real 96    -0.00660      -0.00217   -0.01078   -0.00263     0.02415        0.48958
+finetuned:zeros - finetuned:mask 96     0.08450       0.08461    0.07614    0.09288     0.00000        1.00000
+
+------------------------------------------------------------------------------
+[B1 vs H] best no-signal stock arm  = 0.6133
+[B1 vs H] best no-signal tuned arm  = 0.4869
+[B1 vs H] tuned WITH real signals   = 0.5685
+[baselines] spread across the three no-signal definitions on the tuned model: 0.1148
+[baselines] compare with the gaze effect itself, -0.0816
+
+READING:
+  Fine-tuning improves on the stock predictor by 0.1264 MSE with no
+  signals at all. That gain is domain adaptation, not behavioural conditioning —
+  it is the part of the effect the ladder was built to separate out.
+  The choice of no-signal baseline moves the number MORE than gaze does. Any Delta
+  quoted without naming its baseline is uninterpretable — which is what happened
+  to the +0.0011.
+------------------------------------------------------------------------------
+[out] results/rung_b1_sd1p0.csv  results/rung_b1_sd1p0_contrasts.csv  results/rung_b1_sd1p0.json  results/rung_b1_sd1p0.log
