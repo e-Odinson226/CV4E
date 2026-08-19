@@ -44,3 +44,6 @@ results/archive/*
 .claude
 # feature caches are large and regenerable
 results/*.npz
+
+# render artifacts
+*_tmp.html
