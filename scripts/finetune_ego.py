@@ -9,7 +9,9 @@ Aligned with the original V-JEPA 2-AC droid training (see scripts/ego_common.py)
   * reps are LayerNorm'd before the loss (normalize_reps),
   * every step is supervised: slot t predicts step t+1 (teacher forcing),
   * gaze/hand are randomly dropped (--signal-dropout) so the mask tokens are
-    well trained and Condition A (no signal) is a FAIR baseline at eval time.
+    well trained and Condition A (no signal) is a FAIR baseline at eval time,
+  * --shuffle-signals destroys the signal/frame correspondence while preserving
+    everything else, giving the matched control arm the 2x2 rerun needs.
 
 Usage:
     python scripts/finetune_ego.py \
@@ -206,6 +208,69 @@ class HDEpicClipDataset(Dataset):
 
 
 # ---------------------------------------------------------------------------
+# Collate — and the shuffled-signal control
+# ---------------------------------------------------------------------------
+
+def make_collate(shuffle_signals: str = "off"):
+    """
+    Stack a batch, optionally destroying the correspondence between a signal value
+    and the frame it belongs to.
+
+    WHY THIS EXISTS. Adding a gaze token adds two things at once: the information in
+    gaze, and extra parameters, tokens and optimisation load. An arm that beats a
+    no-signal baseline could owe its gain to either. Permuting the signals removes
+    the information while holding everything else exactly fixed — identical tensor
+    shapes, token count, parameter count, marginal distribution, validity statistics
+    — so a shuffled arm is the only baseline that isolates the information itself.
+    `real > shuffled` is the single comparison that licenses the sentence "the model
+    used gaze information to predict the future".
+
+    Modes:
+      off    real signals, time-aligned. The normal training path.
+      time   permute within the clip. Gaze and hand get the SAME permutation, so
+             gaze/hand correspondence survives and only signal-to-frame alignment
+             is destroyed. The permutation is redrawn per clip.
+             A clip spans T*stride frames (64 at the defaults, ~2.1 s), and
+             EXP-003 measured gaze persistence collapsing to skill -0.12 by 1 s, so
+             a within-clip permutation genuinely decorrelates the signal rather
+             than returning a near-copy of it.
+      batch  every clip receives ANOTHER clip's signals — a different moment, and
+             usually a different person and kitchen. The stronger control, at the
+             cost of also changing the signal's marginal distribution per clip.
+
+    Validity masks are permuted with their vectors, so per-batch validity statistics
+    are untouched and a shuffled arm cannot be distinguished from a real one by how
+    much signal it received.
+
+    Randomness comes from torch, which the DataLoader seeds per worker from the
+    global seed; numpy is NOT reseeded per worker, so it would hand every worker the
+    same permutation stream.
+
+    Validation is deliberately NOT shuffled: arms trained on real and on shuffled
+    signals must be scored on the same held-out measurement to be comparable.
+    """
+    if shuffle_signals not in ("off", "time", "batch"):
+        raise ValueError(f"unknown --shuffle-signals {shuffle_signals!r}")
+
+    def collate(batch):
+        ctx_f, tgt_f, gaze_v, gaze_val, hand_v, h_l, h_r = (
+            torch.stack([b[i] for b in batch]) for i in range(7)
+        )
+        if shuffle_signals == "time":
+            for b in range(gaze_v.size(0)):
+                p = torch.randperm(gaze_v.size(1))
+                gaze_v[b], gaze_val[b] = gaze_v[b][p], gaze_val[b][p]
+                hand_v[b], h_l[b], h_r[b] = hand_v[b][p], h_l[b][p], h_r[b][p]
+        elif shuffle_signals == "batch":
+            p = torch.roll(torch.arange(gaze_v.size(0)), 1)   # a derangement for B > 1
+            gaze_v, gaze_val = gaze_v[p], gaze_val[p]
+            hand_v, h_l, h_r = hand_v[p], h_l[p], h_r[p]
+        return ctx_f, tgt_f, gaze_v, gaze_val, hand_v, h_l, h_r
+
+    return collate
+
+
+# ---------------------------------------------------------------------------
 # Training
 # ---------------------------------------------------------------------------
 
@@ -359,6 +424,10 @@ def main():
     ap.add_argument("--clips-per-recording", type=int,   default=200)
     ap.add_argument("--signal-dropout",      type=float, default=0.4,
                     help="Prob. of fully masking a clip's signals (trains mask tokens / fair Condition A)")
+    ap.add_argument("--shuffle-signals",     choices=["off", "time", "batch"], default="off",
+                    help="Destroy signal/frame alignment while holding shapes, token count, "
+                         "parameter count and validity statistics fixed. The matched control "
+                         "arm for the 2x2 rerun; validation is never shuffled.")
     ap.add_argument("--unfreeze-last-n",     type=int,   default=6)
     ap.add_argument("--lr-proj",             type=float, default=1e-3)
     ap.add_argument("--lr-blocks",           type=float, default=1e-4)
@@ -415,12 +484,9 @@ def main():
         standardize=not args.no_standardize,
     )
 
-    def collate(batch):
-        return tuple(torch.stack([b[i] for b in batch]) for i in range(7))
-
     loader = DataLoader(
         dataset, batch_size=args.batch_size, shuffle=True,
-        num_workers=args.num_workers, collate_fn=collate,
+        num_workers=args.num_workers, collate_fn=make_collate(args.shuffle_signals),
         pin_memory=(device.type == "cuda"), drop_last=True,
     )
 
