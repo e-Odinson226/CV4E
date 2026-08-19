@@ -235,6 +235,11 @@ def main():
     device = torch.device(args.device)
     normalize_reps = not args.no_normalize_reps
     amp_dtype = torch.bfloat16 if args.amp else None
+    # gaze_proj / hand_proj / the mask tokens are randomly initialised, so any arm
+    # that uses the UNTRAINED predictor depends on this draw. Seeding keeps those
+    # arms reproducible; checkpoint-loaded arms are deterministic regardless.
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
     T, stride = args.context_steps, args.frame_stride
 
     log(f"[setup] device={device}  T={T}  stride={stride}  normalize_reps={normalize_reps}  amp={amp_dtype}")

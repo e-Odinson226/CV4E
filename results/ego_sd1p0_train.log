@@ -1,0 +1,137 @@
+2026-08-19 09:43:01  INFO     Log file: checkpoints/ego_sd1p0/train.log
+2026-08-19 09:43:01  INFO     ============================================================
+2026-08-19 09:43:01  INFO     Ego predictor fine-tuning
+2026-08-19 09:43:01  INFO     ============================================================
+2026-08-19 09:43:01  INFO       checkpoint                data/model_checkpoints/vjepa2-ac-vitg.pt
+2026-08-19 09:43:01  INFO       video_dir                 data/epic-kitchen/ek100-hd/HD-EPIC/Videos
+2026-08-19 09:43:01  INFO       gaze_dir                  data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze
+2026-08-19 09:43:01  INFO       participants              ['P01', 'P02', 'P03', 'P04', 'P05', 'P06', 'P07']
+2026-08-19 09:43:01  INFO       out_dir                   checkpoints/ego_sd1p0
+2026-08-19 09:43:01  INFO       epochs                    3
+2026-08-19 09:43:01  INFO       batch_size                16
+2026-08-19 09:43:01  INFO       num_workers               8
+2026-08-19 09:43:01  INFO       context_steps             8
+2026-08-19 09:43:01  INFO       frame_stride              8
+2026-08-19 09:43:01  INFO       clips_per_recording       30
+2026-08-19 09:43:01  INFO       signal_dropout            1.0
+2026-08-19 09:43:01  INFO       shuffle_signals           off
+2026-08-19 09:43:01  INFO       unfreeze_last_n           6
+2026-08-19 09:43:01  INFO       lr_proj                   0.001
+2026-08-19 09:43:01  INFO       lr_blocks                 0.0001
+2026-08-19 09:43:01  INFO       weight_decay              0.01
+2026-08-19 09:43:01  INFO       no_normalize_reps         False
+2026-08-19 09:43:01  INFO       no_amp                    False
+2026-08-19 09:43:01  INFO       encode_chunk              48
+2026-08-19 09:43:01  INFO       no_standardize            False
+2026-08-19 09:43:01  INFO       val_participants          ['P08']
+2026-08-19 09:43:01  INFO       val_recordings            4
+2026-08-19 09:43:01  INFO       val_clips                 24
+2026-08-19 09:43:01  INFO       save_every                3
+2026-08-19 09:43:01  INFO       log_every                 10
+2026-08-19 09:43:01  INFO       seed                      0
+2026-08-19 09:43:01  INFO       device                    cuda
+2026-08-19 09:43:01  INFO       normalize_reps            True
+2026-08-19 09:43:01  INFO       amp_dtype                 torch.bfloat16
+2026-08-19 09:43:01  INFO     ============================================================
+2026-08-19 09:43:21  INFO     [ckpt] transferred 294 predictor keys, skipped 6
+2026-08-19 09:43:21  INFO     [layers] TRAIN  new: gaze_proj, hand_proj, gaze_mask, hand_mask
+2026-08-19 09:43:21  INFO     [layers] TRAIN  blocks 18-23 (last 6 of 24)  + predictor_norm, predictor_proj
+2026-08-19 09:43:21  INFO     [layers] FROZEN predictor_blocks[0:18], predictor_embed
+2026-08-19 09:43:21  INFO     [layers] 82 trainable tensors  77,042,048/305,216,896 params (25.2%)
+2026-08-19 09:43:21  INFO     [dataset] participants=['P01', 'P02', 'P03', 'P04', 'P05', 'P06', 'P07']
+2026-08-19 09:43:21  INFO     [dataset] recordings found:    131
+2026-08-19 09:43:21  INFO     [dataset] with gaze CSV:        129/131
+2026-08-19 09:43:21  INFO     [dataset] with hand CSV:        129/131
+2026-08-19 09:43:21  INFO     [dataset] context_steps=8  frame_stride=8  (span 64 frames/clip)
+2026-08-19 09:43:21  INFO     [dataset] clips/recording:      30
+2026-08-19 09:43:21  INFO     [dataset] signal_dropout:       1.0
+2026-08-19 09:43:21  INFO     [dataset] total clips/epoch:    ~3930
+2026-08-19 09:43:21  INFO     [val] 4 held-out recordings from ['P08'] (24 clips each, fixed seed)
+2026-08-19 09:43:21  INFO     [train] 245 steps/epoch  (3930 clips, batch=16)
+2026-08-19 09:43:21  INFO     [train] starting...
+2026-08-19 09:44:32  INFO     [val epoch0]  MSE_A(masked)=0.6153  MSE_B(real)=0.6235  Delta(A-B)=-0.0082  (no help, 96 clips)
+2026-08-19 09:45:22  INFO     epoch 1  step   10/245  loss=0.5856  grad=0.132  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=1162s
+2026-08-19 09:45:48  INFO     epoch 1  step   20/245  loss=0.5641  grad=0.080  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=856s
+2026-08-19 09:46:15  INFO     epoch 1  step   30/245  loss=0.5573  grad=0.046  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=738s
+2026-08-19 09:46:42  INFO     epoch 1  step   40/245  loss=0.5485  grad=0.057  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=664s
+2026-08-19 09:47:09  INFO     epoch 1  step   50/245  loss=0.5442  grad=0.032  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=610s
+2026-08-19 09:47:35  INFO     epoch 1  step   60/245  loss=0.5437  grad=0.044  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=565s
+2026-08-19 09:48:02  INFO     epoch 1  step   70/245  loss=0.5429  grad=0.033  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=526s
+2026-08-19 09:48:29  INFO     epoch 1  step   80/245  loss=0.5403  grad=0.043  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=489s
+2026-08-19 09:48:57  INFO     epoch 1  step   90/245  loss=0.5390  grad=0.032  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=455s
+2026-08-19 09:49:24  INFO     epoch 1  step  100/245  loss=0.5366  grad=0.053  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=423s
+2026-08-19 09:49:51  INFO     epoch 1  step  110/245  loss=0.5357  grad=0.062  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=391s
+2026-08-19 09:50:18  INFO     epoch 1  step  120/245  loss=0.5353  grad=0.044  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=361s
+2026-08-19 09:50:46  INFO     epoch 1  step  130/245  loss=0.5340  grad=0.045  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=330s
+2026-08-19 09:51:13  INFO     epoch 1  step  140/245  loss=0.5331  grad=0.034  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=301s
+2026-08-19 09:51:40  INFO     epoch 1  step  150/245  loss=0.5322  grad=0.045  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=271s
+2026-08-19 09:52:08  INFO     epoch 1  step  160/245  loss=0.5313  grad=0.070  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=242s
+2026-08-19 09:52:35  INFO     epoch 1  step  170/245  loss=0.5302  grad=0.062  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=213s
+2026-08-19 09:53:02  INFO     epoch 1  step  180/245  loss=0.5298  grad=0.035  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=184s
+2026-08-19 09:53:30  INFO     epoch 1  step  190/245  loss=0.5291  grad=0.034  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=156s
+2026-08-19 09:53:57  INFO     epoch 1  step  200/245  loss=0.5288  grad=0.062  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=127s
+2026-08-19 09:54:25  INFO     epoch 1  step  210/245  loss=0.5282  grad=0.050  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=99s
+2026-08-19 09:54:52  INFO     epoch 1  step  220/245  loss=0.5281  grad=0.073  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=70s
+2026-08-19 09:55:20  INFO     epoch 1  step  230/245  loss=0.5276  grad=0.091  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=42s
+2026-08-19 09:55:47  INFO     epoch 1  step  240/245  loss=0.5266  grad=0.092  lr_proj=1.00e-03  lr_blocks=1.00e-04  ETA=14s
+2026-08-19 09:56:02  INFO     [epoch   1/3]  loss=0.5264*  avg_grad=0.053  lr_proj=7.50e-04  lr_blocks=7.52e-05  time=689s  ETA=1378s
+2026-08-19 09:57:15  INFO     [val epoch1]  MSE_A(masked)=0.4939  MSE_B(real)=0.5627  Delta(A-B)=-0.0688  (no help, 96 clips)  (-0.0606 vs prev)
+2026-08-19 09:58:03  INFO     epoch 2  step   10/245  loss=0.5226  grad=0.034  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=1135s
+2026-08-19 09:58:30  INFO     epoch 2  step   20/245  loss=0.5186  grad=0.050  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=846s
+2026-08-19 09:58:57  INFO     epoch 2  step   30/245  loss=0.5127  grad=0.055  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=733s
+2026-08-19 09:59:24  INFO     epoch 2  step   40/245  loss=0.5129  grad=0.041  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=662s
+2026-08-19 09:59:51  INFO     epoch 2  step   50/245  loss=0.5148  grad=0.035  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=609s
+2026-08-19 10:00:18  INFO     epoch 2  step   60/245  loss=0.5165  grad=0.037  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=565s
+2026-08-19 10:00:45  INFO     epoch 2  step   70/245  loss=0.5168  grad=0.066  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=526s
+2026-08-19 10:01:12  INFO     epoch 2  step   80/245  loss=0.5164  grad=0.041  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=490s
+2026-08-19 10:01:40  INFO     epoch 2  step   90/245  loss=0.5172  grad=0.038  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=456s
+2026-08-19 10:02:07  INFO     epoch 2  step  100/245  loss=0.5168  grad=0.081  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=424s
+2026-08-19 10:02:34  INFO     epoch 2  step  110/245  loss=0.5169  grad=0.036  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=392s
+2026-08-19 10:03:02  INFO     epoch 2  step  120/245  loss=0.5164  grad=0.072  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=362s
+2026-08-19 10:03:29  INFO     epoch 2  step  130/245  loss=0.5167  grad=0.049  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=331s
+2026-08-19 10:03:57  INFO     epoch 2  step  140/245  loss=0.5160  grad=0.057  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=302s
+2026-08-19 10:04:24  INFO     epoch 2  step  150/245  loss=0.5162  grad=0.073  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=272s
+2026-08-19 10:04:52  INFO     epoch 2  step  160/245  loss=0.5164  grad=0.093  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=243s
+2026-08-19 10:05:19  INFO     epoch 2  step  170/245  loss=0.5161  grad=0.045  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=214s
+2026-08-19 10:05:47  INFO     epoch 2  step  180/245  loss=0.5156  grad=0.031  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=185s
+2026-08-19 10:06:14  INFO     epoch 2  step  190/245  loss=0.5159  grad=0.046  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=156s
+2026-08-19 10:06:42  INFO     epoch 2  step  200/245  loss=0.5156  grad=0.027  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=128s
+2026-08-19 10:07:10  INFO     epoch 2  step  210/245  loss=0.5154  grad=0.026  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=99s
+2026-08-19 10:07:37  INFO     epoch 2  step  220/245  loss=0.5156  grad=0.040  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=71s
+2026-08-19 10:08:05  INFO     epoch 2  step  230/245  loss=0.5155  grad=0.034  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=42s
+2026-08-19 10:08:32  INFO     epoch 2  step  240/245  loss=0.5152  grad=0.037  lr_proj=7.50e-04  lr_blocks=7.52e-05  ETA=14s
+2026-08-19 10:08:47  INFO     [epoch   2/3]  loss=0.5153*  avg_grad=0.047  lr_proj=2.51e-04  lr_blocks=2.58e-05  time=692s  ETA=727s
+2026-08-19 10:10:00  INFO     [val epoch2]  MSE_A(masked)=0.4886  MSE_B(real)=0.5667  Delta(A-B)=-0.0781  (no help, 96 clips)  (-0.0092 vs prev)
+2026-08-19 10:10:44  INFO     epoch 3  step   10/245  loss=0.5084  grad=0.041  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=1032s
+2026-08-19 10:11:11  INFO     epoch 3  step   20/245  loss=0.4988  grad=0.037  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=799s
+2026-08-19 10:11:38  INFO     epoch 3  step   30/245  loss=0.5030  grad=0.024  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=702s
+2026-08-19 10:12:05  INFO     epoch 3  step   40/245  loss=0.5048  grad=0.034  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=640s
+2026-08-19 10:12:32  INFO     epoch 3  step   50/245  loss=0.5044  grad=0.036  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=593s
+2026-08-19 10:12:59  INFO     epoch 3  step   60/245  loss=0.5057  grad=0.036  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=552s
+2026-08-19 10:13:26  INFO     epoch 3  step   70/245  loss=0.5060  grad=0.043  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=516s
+2026-08-19 10:13:53  INFO     epoch 3  step   80/245  loss=0.5072  grad=0.027  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=482s
+2026-08-19 10:14:21  INFO     epoch 3  step   90/245  loss=0.5069  grad=0.052  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=449s
+2026-08-19 10:14:48  INFO     epoch 3  step  100/245  loss=0.5074  grad=0.034  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=418s
+2026-08-19 10:15:15  INFO     epoch 3  step  110/245  loss=0.5074  grad=0.032  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=387s
+2026-08-19 10:15:43  INFO     epoch 3  step  120/245  loss=0.5070  grad=0.026  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=357s
+2026-08-19 10:16:10  INFO     epoch 3  step  130/245  loss=0.5068  grad=0.043  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=328s
+2026-08-19 10:16:38  INFO     epoch 3  step  140/245  loss=0.5065  grad=0.032  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=298s
+2026-08-19 10:17:05  INFO     epoch 3  step  150/245  loss=0.5063  grad=0.031  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=269s
+2026-08-19 10:17:33  INFO     epoch 3  step  160/245  loss=0.5062  grad=0.027  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=241s
+2026-08-19 10:18:00  INFO     epoch 3  step  170/245  loss=0.5058  grad=0.035  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=212s
+2026-08-19 10:18:28  INFO     epoch 3  step  180/245  loss=0.5058  grad=0.027  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=183s
+2026-08-19 10:18:55  INFO     epoch 3  step  190/245  loss=0.5060  grad=0.032  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=155s
+2026-08-19 10:19:23  INFO     epoch 3  step  200/245  loss=0.5056  grad=0.046  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=127s
+2026-08-19 10:19:50  INFO     epoch 3  step  210/245  loss=0.5060  grad=0.031  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=98s
+2026-08-19 10:20:18  INFO     epoch 3  step  220/245  loss=0.5068  grad=0.042  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=70s
+2026-08-19 10:20:45  INFO     epoch 3  step  230/245  loss=0.5068  grad=0.025  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=42s
+2026-08-19 10:21:13  INFO     epoch 3  step  240/245  loss=0.5070  grad=0.034  lr_proj=2.51e-04  lr_blocks=2.58e-05  ETA=14s
+2026-08-19 10:21:28  INFO     [epoch   3/3]  loss=0.5069*  avg_grad=0.038  lr_proj=1.00e-06  lr_blocks=1.00e-06  time=687s  ETA=0s
+2026-08-19 10:22:38  INFO     [val epoch3]  MSE_A(masked)=0.4869  MSE_B(real)=0.5685  Delta(A-B)=-0.0816  (no help, 96 clips)  (-0.0035 vs prev)
+2026-08-19 10:22:38  INFO     [save] checkpoints/ego_sd1p0/epoch_003.pt
+2026-08-19 10:22:39  INFO     ============================================================
+2026-08-19 10:22:39  INFO     Training complete
+2026-08-19 10:22:39  INFO       Total time:  38.1 min
+2026-08-19 10:22:39  INFO       Best loss:   0.5069
+2026-08-19 10:22:39  INFO       Checkpoints: checkpoints/ego_sd1p0/
+2026-08-19 10:22:39  INFO     ============================================================
