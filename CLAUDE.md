@@ -27,7 +27,7 @@ Then open only the specific notes you need. Don't read the whole vault.
 
 | Path | What |
 |---|---|
-| `docs/EgoVault/` | The notes vault — experiments, papers, topics, concepts, reference, meetings, decisions |
+| `docs/EgoVault/` | The notes vault — experiments, papers, topics, concepts, reference, meetings, decisions. **Its own git repo as of 2026-08-22** (history extracted and purged from this repo via `git-filter-repo`), not tracked by this repo — see `../CLAUDE.md` and `.gitignore` |
 | `docs/EgoVault/archive/originals/` | The 15 pre-migration source notes, untouched. Never edit; read-only history |
 | `scripts/` | The pipeline: `finetune_ego.py`, `eval_ego_mse.py`, `ego_common.py`, `extract_gaze_hand.py`, plus monitoring/plotting |
 | `vjepa2/` | V-JEPA 2 fork, **vendored** (not a submodule since 2026-07-28). Our `ego_*` modules live inside `src/models/` and `src/datasets/` |
