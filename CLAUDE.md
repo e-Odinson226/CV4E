@@ -6,8 +6,13 @@ here would only let the two drift apart.
 
 ## Read this first, in this order
 
+0. **New to the project, or lost in the cross-links?** Read
+   `docs/EgoVault/reports/2026-08-19-project-narrative.md` first — the whole story, zero to
+   now, in plain language with every term explained. Everything from step 1 onward is a
+   precise lab record written for someone who already knows the story; that file is what
+   gets you there.
 1. **`docs/EgoVault/_INDEX.md`** — current state, the next concrete action, and links to
-   everything active. If you read one file, read this one.
+   everything active. If you read one file *of the lab record*, read this one.
 2. **`docs/EgoVault/CLAUDE.md`** — how to work in the vault: where notes go, the frontmatter
    schema, and the hard rules (append-only decision log, mandatory Takeaways, ask before
    deleting).
