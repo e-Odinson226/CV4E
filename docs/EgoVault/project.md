@@ -13,9 +13,9 @@ People, timeline, the paper and the final presentation.
 
 | Person | Role | Work |
 |---|---|---|
-| Erfan Yekehzare (University of Rostock) | Author. The project is part of Erfan's master's thesis. | Built the ego predictor (ViT-G) and its training and evaluation code. Trained `ego_ft_v2`, the model used in T2, T3 and T6–T11. Ran T2, T4–T8, T10 and T11. |
-| Seyyed Parsa Sharifi (University of Rostock) | Author | Ran the feasibility check, the EK100 probe and the HD-EPIC P01 probes: T1, T3, T9 and T12. Led the writing of the paper. |
-| Ioana Marica (Babeș-Bolyai University, Cluj) | Collaborator | Wrote the first gaze and hand projection layers. Raised the concern that the frozen encoder's features may be weak. T5 tests one form of this concern. Suggested the PEVA readout (T9) and the idea of using the signals to supervise the representation. |
+| Erfan Yekehzare (University of Rostock) | Author. The project is part of Erfan's master's thesis. | Built the ego predictor (ViT-G) and its training and evaluation code. Trained `ego_ft_v2`, the model used in T2, T3 and T6–T11. Ran T2, T4–T8, T10 and T11. Ran the first experiment, which used gaze to choose V-JEPA 2's context patches. Proposed that the signals may help more at longer horizons (H1). Wrote sections 2.1, 4.4 and 4.8 of the paper. |
+| Seyyed Parsa Sharifi (University of Rostock) | Author | Ran the feasibility check, the EK100 probe and the HD-EPIC P01 probes: T1, T3, T9 and T12. Designed the stronger pathway. Wrote the other sections of the paper and assembled it. |
+| Ioana Marica (Babeș-Bolyai University, Cluj) | Collaborator | Wrote the first gaze and hand loaders and projection layers. Raised the concern that the frozen encoder's features may be weak. T5 tests one form of this concern. Suggested the PEVA readout (T9) and the idea of using the signals to supervise the representation. |
 | Ashwin Nedungadi (Ash) | Supervisor of the Rostock team | Asked whether gaze can already be read from the image (T4). The Path 3 design choices came from Ash's review. |
 | Klára Orbán | Supervisor of the Cluj team | |
 | Stefan Lüdtke | Oversees the project | |
@@ -27,6 +27,7 @@ Babeș-Bolyai University. Each test in [[4-results]] names who ran it.
 
 | When | Who | What | Result |
 |---|---|---|---|
+| 1 May 2026 | Erfan | Used gaze to choose which image patches V-JEPA 2 takes as context. | No benefit. Not continued. |
 | May 2026 | Erfan | Built the ego predictor. Trained `ego_ft_v2` for 3 epochs ([[4-results#^t2\|T2]]). | Real signals lowered the error slightly (Δ = +0.0011). Longer runs showed no gain and were stopped. |
 | By mid-June | Parsa | Trained a small ViT-L version as a feasibility check ([[4-results#^t1\|T1]]). | The model can learn with these inputs. |
 | June–July | Parsa | Tested `ego_ft_v2` on EK100 action anticipation ([[4-results#^t3\|T3]]). | No effect. |
@@ -55,18 +56,21 @@ are the reference. Where the paper differs from them, the paper is changed.
 
 ### Who wrote what
 
-The paper's contribution statement (Appendix A) says:
-
-- **Parsa:** the EK100 probe and its controls, the HD-EPIC P01 diagnostics, the verb and noun
-  analysis, the sample-size analysis, and the stronger pathway that was designed and then
-  dropped. Parsa led the writing of the method, experiments, discussion, limitations and
-  conclusion.
-- **Erfan:** the JEPA background (section 2.1) and the horizon analysis (section 4.8), with the
-  gaze and palm probes. The ego predictor and its training and evaluation code. The trained
-  model behind every anticipation result. The matched model trained without signals, and the
-  attention test on the untrained model.
-- **Ioana:** a collaborator, not an author of the report. Ideas, the first projection layers,
+- **Parsa:** the EK100 probe and its controls ([[4-results#^t3|T3]]), the HD-EPIC P01
+  diagnostics ([[4-results#^t9|T9]], [[4-results#^t12|T12]]), the two code checks, the verb
+  and noun analysis, the sample-size analysis, and the stronger pathway, which was designed
+  and then dropped. Parsa wrote the method, the experiments apart from sections 4.4 and 4.8,
+  the discussion, the limitations and the conclusion, and assembled the paper.
+- **Erfan:** the ego predictor and its training and evaluation code, and `ego_ft_v2`, the
+  model behind every anticipation result in the paper. Erfan wrote section 2.1 (the JEPA
+  background), section 4.4 (varying the training: [[4-results#^t6|T6]]–[[4-results#^t8|T8]],
+  [[4-results#^t10|T10]], [[4-results#^t11|T11]]) and section 4.8 (the horizon analysis:
+  [[4-results#^t4|T4]], [[4-results#^t5|T5]]).
+- **Ioana:** a collaborator, not an author. Ideas, the first loaders and projection layers,
   and the PEVA readout.
+
+Parsa and Erfan each tested whether the model reads the signals before building anything
+larger. Parsa did this with T9 and T12, and Erfan with T6–T8 and T10.
 
 ### Open problems
 
@@ -80,9 +84,10 @@ These are the places where the paper does not yet follow the notes and the code.
 2. The sample size behind Table 3 is not confirmed. A comment in the paper's LaTeX source
    gave two candidate values, 762 and 243. The notes do not give it either. Parsa needs to confirm
    it. Then [[4-results#^t3|T3]] records it, and the paper follows.
-3. Section 4.4 reports Erfan's sensitivity, weight-norm and untrained-model tests
-   ([[4-results#^t6|T6]], [[4-results#^t8|T8]], [[4-results#^t10|T10]]). Appendix A does
-   not list them under Erfan.
+3. Appendix A does not match who did the work (see [[#Who wrote what]]). It does not say
+   that Erfan wrote section 4.4, or that Erfan ran [[4-results#^t6|T6]],
+   [[4-results#^t8|T8]] and [[4-results#^t10|T10]]. It credits the diagnostic-first approach
+   to Parsa alone, but Erfan also tested the model before building anything larger.
 4. Neither the paper nor [[4-results#^t7|T7]] says which inputs the attention test hid.
    `scripts/probe_attention_mass.py` runs three variants: real signals, gaze hidden alone,
    and gaze and hand hidden together. T7 should say this first, then the paper.

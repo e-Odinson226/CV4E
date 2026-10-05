@@ -28,8 +28,10 @@ run has not been done yet. The thesis notes, with every test and its result, are
 
 ## Who wrote the code
 
-- Erfan wrote everything in `scripts/` and `ego/`. Ioana wrote the first gaze and hand
-  projection layers. Erfan moved them into the predictor and extended them to all time steps.
+- Erfan wrote everything in `scripts/` and `ego/`, apart from the first gaze and hand loaders
+  and projection layers, which Ioana wrote. Erfan moved the projection layers into the
+  predictor and extended them to all time steps. Erfan added timestamp matching and scaling to
+  the loaders.
 - Meta wrote V-JEPA 2, which the code imports from `vjepa2/`. Its licenses are in that
   repository.
 - Parsa ran tests T1, T3, T9 and T12 with Parsa's own code. That code is not in this

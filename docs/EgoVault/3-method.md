@@ -32,9 +32,10 @@ Ego predictor:  [gaze,   hand,  256 image tokens]   per frame
 The layout is the same, so all 24 pretrained predictor blocks load without changes. Attention
 is causal over frames: a token at frame t sees all tokens of the frames up to t.
 
-Ioana wrote the first gaze and hand projection layers. Erfan moved them into the predictor and
-extended them to all time steps. Parsa built a separate ViT-L version, used only for a
-feasibility check ([[4-results#^t1|T1]]).
+Ioana wrote the first gaze and hand loaders and projection layers. Erfan moved the projection
+layers into the predictor, extended them to all time steps, and added timestamp matching and
+scaling to the loaders. Parsa built a separate ViT-L version, used only for a feasibility
+check ([[4-results#^t1|T1]]).
 
 ### Inputs
 
@@ -138,7 +139,7 @@ the checks during training use. (Decided by Erfan, August 2026.)
   information is `ego_ft_v2` with real signals compared with `ego_sd1p0` with hidden signals
   ([[4-results#^t11|T11]]).
 - Every future training run includes such a matched model. (Control defined by Parsa, June
-  2026. First run by Erfan, August 2026.)
+  2026. It uses Erfan's `--signal-dropout` option. Run by Erfan, August 2026.)
 
 ### Linear probes on the frozen encoder (T4, T5)
 

@@ -52,7 +52,7 @@ tests are in [[4-results]].
 |---|---|---|---|
 | M | Gaze and hand inputs make the prediction better. | Not supported for the 3-epoch model. | T2, T3, T11 |
 | R | The frozen image features already contain gaze, so a gaze input adds nothing. | Rejected. | T4, T5 |
-| H1 | The signals contain information that does not help at the horizons tested: 0.27 s ahead for the prediction error, 1 s ahead for EK100. | Supported, if H3 is false. | T9, T10, T11, T12 |
+| H1 | The signals contain information that does not help at the horizons tested: 0.27 s ahead for the prediction error, 1 s ahead for EK100. (Proposed by Erfan, May 2026.) | Supported, if H3 is false. | T9, T10, T11, T12 |
 | H2 | The model does not use the signals. | Rejected. The model uses them. It reacts mainly to whether they are present. | T6, T7, T8, T9 |
 | H3 | The model is undertrained. A longer run could give a different result. | Open. | No test yet |
 

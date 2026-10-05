@@ -24,7 +24,8 @@ participant P01 for 20 epochs.
 after epoch 5.
 
 **Conclusion.** The predictor can learn with these inputs. This ViT-L model was only a
-feasibility check. All later tests use the ViT-G model from T2.
+feasibility check. Erfan's ViT-G model from T2 also learned with these inputs, on P01–P07.
+The tests that use a trained predictor use that model.
 
 ### T2. Does the trained predictor do better with real signals?
 
