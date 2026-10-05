@@ -1,0 +1,149 @@
+% ============================================================
+% 2. BACKGROUND / RELATED WORK
+% Erfan owns 2.1 (JEPA/VL-JEPA) -- sized stub.
+% Parsa: 2.2 (gaze-conditioning) + 2.3 (project origin, from EARLY_WORK_SUMMARY.md).
+% 2.3 REWRITTEN 2026-08-13: real origin = 5-phase plan -> confounded 2.81/4.27
+% pilot. Context-selection thread demoted to one sentence.
+% ============================================================
+\section{Background and related work}
+
+% ------------------------------------------------------------
+\subsection{Joint-embedding predictive architectures for video}
+\label{subsec:bg-jepa}
+% -----------------------------------------------------------------------------
+% ERFAN: the JEPA lineage that sets up our method. Suggested coverage:
+%   - I-JEPA (image, latent prediction vs pixel reconstruction) \citep{assran2023ijepa}
+%   - V-JEPA / V-JEPA 2 / 2.1 (video feature prediction; frozen encoder+predictor)
+%     \citep{bardes2024vjepa, assran2025vjepa2, murlabadia2026vjepa21}
+%   - DINO-WM (world models on frozen features) \citep{zhou2024dinowm}
+%   - VL-JEPA / language-aligned latent prediction -- YOUR section, tie to horizon.
+%   - EgoAgent (joint predictive agent model, egocentric) \citep{chen2025egoagent} -- adjacent framing.
+%   - the AC (action-conditioned) predictor as the thing we re-purpose for HUMAN signals.
+% Keep it tight; \S\ref{subsec:method-setup} carries the setup detail.
+% -----------------------------------------------------------------------------
+\paragraph{Latent prediction.}
+The lineage this work builds on replaces pixel reconstruction with prediction in
+representation space. I-JEPA~\citep{assran2023ijepa} established the pattern for
+images: from a context block, predict the \emph{embeddings} of masked target
+blocks rather than their pixels, so the objective is never forced to model detail
+that carries no semantic content. V-JEPA~\citep{bardes2024vjepa} carried the idea
+to video, and V-JEPA~2~\citep{assran2025vjepa2} scaled it. Its three components
+fix the vocabulary we use throughout: a student encoder that sees the visible
+patches, a teacher encoder updated by exponential moving average that supplies
+target embeddings under a stop-gradient, and a \emph{predictor} that maps the
+student's context embeddings plus positional queries for the masked positions
+onto what the teacher would emit there. The entire training signal is a distance
+between predicted and target latents; nothing is ever rendered to pixels.
+V-JEPA~2.1~\citep{murlabadia2026vjepa21} revises the recipe toward denser
+features, and is the backbone of both frozen-probe systems that currently lead
+EK100 anticipation (\S\ref{subsec:bg-gaze}).
+
+\paragraph{Frozen features as a world model.}
+The encoder/predictor split matters because the two can be used separately.
+DINO-WM~\citep{zhou2024dinowm} builds a world model on top of frozen visual
+features and plans by optimising action sequences against predicted future
+latents, which is evidence that a frozen representation plus a learned latent
+predictor is already enough to support prediction-based control. Our protocol
+rests on the same assumption in a weaker form: we never fine-tune the
+representation, and read anticipation out of it with a deliberately small probe
+(\S\ref{subsec:method-setup}).
+
+\paragraph{The action-conditioned predictor, and what we re-purpose.}
+V-JEPA~2 also ships an action-conditioned variant (V-JEPA~2-AC), in which the
+predictor is additionally conditioned on robot end-effector action and state,
+each encoded to a token and concatenated as a peer alongside the visual tokens
+\emph{inside} the predictor. That token layout is precisely the interface this
+paper re-purposes: we substitute human gaze and hand pose for the robot's action
+and state and change nothing else about the pathway
+(\S\ref{subsec:method-weak}). EgoAgent~\citep{chen2025egoagent} makes an adjacent
+move in the egocentric setting, learning representation, prediction and action
+jointly rather than treating them as separate stages.
+
+\paragraph{Language-aligned latent prediction.}
+A final branch of the lineage moves the \emph{target} of latent prediction from
+appearance toward meaning. VL-JEPA~\citep{vljepa2025} predicts the embedding of
+an answer rather than generating it token by token, so that two paraphrases of
+the same content land near each other instead of being orthogonal in token space,
+and the semantics are available without waiting for a decode. Its relevance here
+is directional rather than architectural: it demonstrates that the JEPA objective
+survives a change of target, which is exactly the move our own results argue for
+in place of input-level conditioning --- supervising the representation toward
+goal- or intention-level targets rather than concatenating a signal at the input
+(\S\ref{sec:conclusion}).
+
+% ------------------------------------------------------------
+\subsection{Conditioning prediction on behavioral signals}
+\label{subsec:bg-gaze}
+
+A parallel line of work asks how gaze and body signals should enter a predictive
+model, and it divides usefully by where the signal is injected. At one end sit
+input concatenation methods, the peer-token approach this paper diagnoses. At the
+other, signals supervise the representation during training and are discarded at
+inference. GABRIL \citep{banayeeanzade2025gabril} regularises an
+imitation-learning representation toward human gaze to mitigate causal confusion;
+the gaze-regularised vision-language models of \citet{pani2026gazereg} align model
+attention to gaze via a regularisation term and report improved future-event
+prediction without gaze at inference; and \citet{royfernando2022abstractgoal}
+model an abstract goal distribution and a goal-consistency objective for
+next-action selection. A related line conditions anticipation explicitly on
+intention or goal: the intention-conditioned VAE of \citet{mascaro2023icvae}, the
+goal-conditioning isolated by AntGPT \citep{zhao2024antgpt}, the intention-guided
+cognitive reasoning of \citet{chu2026intention}, and the gaze-guided,
+intention-conditioned graph network of \citet{ozdel2024gazegnn} all report that an
+intention or goal signal improves long-term anticipation, a pattern our own
+results echo in pointing away from input-level conditioning and toward goal-level
+targets. Anticipating the behavioral signal itself has also been studied
+directly, as in the audio-visual egocentric gaze anticipation of
+\citet{lai2024listentolook}. Between these, GazeQwen \citep{pham2026gazeqwen}
+modulates a frozen video-language model with gaze through a lightweight resampler
+that adds residuals at decoder layers, and argues that the obstacle is a missing
+learned pathway from gaze into the model's internal representations rather than a
+deficiency of the signal. That framing organises our own investigation: we adapt
+GazeQwen's mechanisms as the template for a stronger pathway, but test whether
+such a pathway could help before building it (\S\ref{subsec:method-strong}).
+
+On the benchmark itself, the two strongest published EK100 anticipation systems
+are both frozen-V-JEPA-2.1 attentive probes \citep{chu2026jfaa, wang2026tapjepa}.
+Neither conditions on behavioral signals, yet both split their probes into
+separate verb and noun heads on the reasoning that verbs track motion and nouns
+track object appearance, a split that reappears in our own results
+(\S\ref{subsec:dissociation}). They mark the vision-only ceiling of the
+frozen-probe regime, and they leave our question, whether behavioral conditioning
+adds anything on top, untested.
+
+% ------------------------------------------------------------
+\subsection{Project origin}
+\label{subsec:bg-origin}
+
+This study grew out of an earlier attempt to carry V-JEPA~2's action-conditioned
+predictor from robot manipulation to egocentric human video, replacing the
+robot's end-effector action and state tokens with human gaze and hand-pose
+tokens. (An even earlier exploratory step had used gaze only to bias
+\emph{context selection} for masked reconstruction, and found no benefit at high
+coverage; it did not lead anywhere and we mention it only for completeness.) The
+conditioning effort was organised as a five-stage plan: reproduce the published
+EK100 anticipation baseline, train an own probe to own that baseline, map the
+action-conditioned predictor's architecture, post-train the predictor on HD-EPIC
+with gaze and hand tokens, and re-probe on EK100 to measure the change.
+
+The plan did not survive contact with a deadline, and the first behavioral
+comparison was confounded by design. The from-scratch behavioral predictor
+trained on HD-EPIC was a ViT-L model, but the only fine-tuned
+behavioral checkpoint available in time was the ViT-G model from the project's
+own conditioning track, trained separately and with a differently-shaped
+(three-dimensional) gaze input. Rather than wait, the comparison
+was run across encoders, knowingly unfairly: a ViT-L vision baseline reached
+$4.27\%$ action R@5 on EK100 while the ViT-G behavioral arm reached $2.81\%$, with
+the behavioral arm also behind on verb and noun recall, feature silhouette, and
+nearest-neighbour retrieval. Both sides were trained for a single probe epoch and
+were underfit. The number is therefore directional only, and we treat it as a
+confounded pilot rather than a result: the encoders differ, the predictors come
+from different training runs, and gaze is masked at EK100 evaluation. What the
+pilot did establish was the question this paper takes up. Behavioral conditioning
+had not helped, and it was not yet clear whether the fault lay with the injection
+pathway, the confounds, or the signal itself. The controlled study that follows
+was built to separate those explanations.
+% NOTE: origin sourced from EARLY_WORK_SUMMARY.md (reconstructed from ocean-cluster
+% session transcripts + live CLAUDE.md/eval_report.md). 4.27 = Phase 2 ViT-L
+% baseline; 2.81 = Phase 5 ViT-G behavioral (colleague checkpoint). Deliberately
+% confounded, directional only -- do NOT upgrade to a headline result.

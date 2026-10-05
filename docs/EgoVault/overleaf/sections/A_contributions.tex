@@ -1,0 +1,36 @@
+% ============================================================
+% APPENDIX A: CONTRIBUTION STATEMENT (mandatory; refs/appendix don't count to 15pp)
+% ============================================================
+\section{Contribution statement}
+\label{sec:contrib}
+
+The authors contributed to distinct, complementary workstreams under a shared
+research goal. This report was written by Parsa and Erfan; Ioana is a project
+collaborator whose contributions inform the work but who did not author this
+report.
+
+\paragraph{Seyyed Parsa Sharifi.}
+Designed and directed the diagnostic study of the conditioning pathway: the EK100
+anticipation probe of the behaviorally-trained predictor and its 6a/6b/6c control
+family; the bit-exact verification of the weak (peer-token) pathway; the
+silent-null gradient guard; the five diagnostics (output shift, PEVA-1/2,
+attention Test~A, direct-probe Test~B); the verb/noun dissociation analysis and
+its fair-vision correction; and the $d\gg n$ sample-size analysis. Specified the
+stronger (GazeQwen-informed) pathway and made the design-stage decision to retire
+it. Proposed the diagnostic-first approach adopted under supervision. Led the writing of the Method, Experiments, Discussion, Limitations, and Conclusion, and assembled the report.
+
+\paragraph{Erfan Yekehzare.}
+Authored the JEPA/VL-JEPA background (\S\ref{subsec:bg-jepa}) and the horizon
+analysis (\S\ref{subsec:horizon}), including the frozen-feature recoverability
+probes and the hand-pose transfer control they report. Designed and built the ego predictor that integrates
+the behavioral projection layers, together with its fine-tuning and evaluation
+pipeline, and trained the ViT-G behavioral checkpoint on which every anticipation
+result in this report is based. Built and ran the companion conditioning track
+that supplies the matched never-conditioned control and the untrained-model
+attention measurement of \S\ref{subsec:diagnostics}.
+
+\paragraph{Ioana Marica (collaborator, non-author).}
+Contributed the representation- and signal-level hypotheses, an initial
+implementation of the gaze and hand projection layers and their token
+construction, the encoder-supervision direction, and the PEVA evaluation idea. These inform the framing and future-work
+direction of this report; Ioana did not author the report itself.

@@ -47,4 +47,3 @@ results/*.npz
 
 # render artifacts
 *_tmp.html
-docs/EgoVault/

@@ -1,0 +1,87 @@
+% ============================================================
+% 6. LIMITATIONS -- humanized. Strong section already; just vary cadence,
+% cut em-dashes, let some sentences be plain.
+% ============================================================
+\section{Limitations}
+
+We put the limitations before the discussion's conclusions travel too far,
+because several of them set exactly how far those conclusions can go.
+
+\paragraph{Single-participant evaluation.}
+The binding limitation is scope. The EK100 probe was evaluated on P01 alone
+(\num{870} validation clips), and the HD-EPIC direct probes use P01 as well.
+\S\ref{subsec:protocol} explains that this followed from which videos were on disk
+at run time rather than from a deliberate choice. Every anticipation claim in the paper is therefore a claim about one
+participant. Two analyses are exceptions and should be read as such: the
+training-side ablations of \S\ref{subsec:training-ablation} and the
+recoverability probes of \S\ref{subsec:horizon} train on P01--P07 and evaluate
+on held-out participants, so where our conclusion rests on those it is not
+single-participant. We make no assertion about
+cross-participant generalisation, and the small spread between seeds should be
+read as a single-participant artifact, not as evidence of stability across the
+dataset.
+
+\paragraph{Sample size below the generalisation threshold.}
+Participant count aside, the direct probe runs on about \num{1900} training
+examples against a high-dimensional input, and both arms interpolate that
+training set (\S\ref{subsec:ddn}). In that regime held-out performance is set by
+sample size, not by model or optimiser choices. This is why we call the result a
+faint signal under a sample ceiling rather than no signal at all: the experiment
+as run cannot separate a genuinely absent effect from a real one too small to
+show at this $n$.
+
+\paragraph{Mechanism claims rest on the direct probe, not the benchmark.}
+The dissociation and the signal-content diagnostics come from the signal-present
+HD-EPIC venue. The EK100 result is signal-absent by construction, since the
+behavioral slots are masked at evaluation, so it speaks to whether a
+behaviorally-trained predictor transfers, not to the gaze/hand-to-motion
+mechanism. We do not carry evidence across that line. The cost of that discipline
+is that our mechanism claims are never checked on the benchmark task itself.
+
+\paragraph{The vision comparator sits below its own prior.}
+Even fitted fairly (\S\ref{subsec:dissociation}), the vision arm does not clear
+the verb class prior non-degenerately, and the behavioral arm never clears it at
+all. The dissociation is established below the level of useful anticipation. A
+stronger comparator, or a task with more headroom above the prior, might change
+its size, though on this evidence not its sign.
+
+\paragraph{The stronger pathway was not run.}
+We retired the GazeQwen-informed pathway at the design stage
+(\S\ref{subsec:b4}) on the strength of the diagnostics, without implementing it.
+The diagnostics argue convincingly that it would not recover the signal, but the
+argument is inferential. We did not falsify it directly, and a zero-initialised
+gated implementation is still the clean way to do so if the sample-size
+constraint is ever lifted.
+
+\paragraph{The signal-drop control is scored on the conditioning objective, not on EK100.}
+The matched never-conditioned control of \S\ref{subsec:training-ablation} is a
+full-rate ablation of the very checkpoint that carries every anticipation result
+here, which is stronger than a comparison across models. It is scored, however, on
+feature-space prediction error over a held-out participant rather than through the
+EK100 probe itself. What remains unrun is the same ablation carried all the way
+through to anticipation recall; we therefore report the null in signal content as
+established on the conditioning objective and inherited, rather than
+independently re-measured, downstream.
+
+\paragraph{The checkpoint is under-trained relative to the intended scale.}
+Every anticipation number here rests on a predictor fine-tuned for three epochs at
+thirty clips per recording (\S\ref{subsec:method-setup}). That is the small
+configuration, not the scale the conditioning study was designed around, and no
+full-scale run ever completed. This matters in a specific direction: a null
+measured on an under-trained predictor is weaker evidence than it reads as,
+because a model that has not finished learning the task has not finished learning
+what to do with an auxiliary input either. Two things limit how much weight this
+objection can carry. The feasibility curve of \S\ref{subsec:protocol} is
+essentially flat after the fifth epoch, and the fine-tune is demonstrably worth
+$0.125$ MSE over the stock predictor (\S\ref{subsec:training-ablation}), so the
+training did take. But we cannot rule out that a longer schedule would give the
+conditioning pathway something it currently lacks, and we do not claim otherwise.
+
+\paragraph{Goal-level probing is infeasible on one participant.}
+The representation-level test we wanted to run, a recipe-goal probe on
+HD-EPIC~P01, does not work at single-participant scale. Under the hand-validity
+session split, four of eight recipes have no held-out examples, one recipe
+accounts for about three-quarters of the held-out set, and recipe identity is
+nearly collinear with session identity. That is a characterised data requirement
+rather than a failed experiment, and it is what motivates the multi-participant
+direction of \S\ref{sec:conclusion}.

@@ -1,0 +1,29 @@
+% ============================================================
+% 7. CONCLUSION -- humanized. Short, plain.
+% ============================================================
+\section{Conclusion}\label{sec:conclusion}
+
+We asked whether conditioning a frozen V-JEPA~2 predictor on egocentric gaze and
+hand improves short-horizon action anticipation, and when it did not, we asked
+why. For one participant at a one-to-two-second horizon on the benchmark, and across
+held-out participants on the conditioning objective, the answer is that the
+signal reaches the predictor but does not change its output in any
+content-dependent way. Feeding these signals in at the input is the weak way to
+use them. We retired a stronger conditioning pathway at the design stage on
+converging diagnostic evidence, described a motion-specific residual that lives
+below the level of useful anticipation, and traced the binding constraint to
+single-participant sample size rather than to any floor in the probe's dynamic
+range.
+
+\paragraph{Future work.}
+The evidence points not toward a stronger input pathway but toward a different
+use of the signal: supervising the representation with gaze and hand during
+training and discarding them at inference, aimed at goal- or intention-level
+targets rather than the next action. To our knowledge that intersection is still
+open, a frozen-JEPA latent predictor trained with a representation-level
+auxiliary loss on behavioral signals against a goal-level target, and it is the
+natural next step from here. It also needs the goal probe run across participants rather than within one.
+HD-EPIC~P01--P07 already underpins the conditioning experiments reported here
+(\S\ref{subsec:training-ablation}); extending the recipe-level probe to that
+range is what our single-participant attempt shows to be a prerequisite rather
+than a convenience.

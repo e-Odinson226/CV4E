@@ -1,0 +1,114 @@
+\documentclass{article}
+
+% ============================================================
+% NeurIPS 2026 style, PREPRINT option so author names are shown
+% (course deliverable, not an anonymous submission).
+% ============================================================
+\usepackage[preprint]{neurips_2026}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage{listings}   % code snippets in appendix C
+\lstset{basicstyle=\ttfamily\small, breaklines=true, frame=single,
+        columns=fullflexible, showstringspaces=false}
+
+\newcommand{\flag}{\textcolor{red}{\textbf{[?]}}}
+\usepackage{siunitx}
+% ---- Per-section contribution tags. Set to \relax to hide. ----
+% \newcommand{\contrib}[1]{\textcolor{gray}{\small\textit{[#1]}}}
+\newcommand{\contrib}[1]{}
+
+% ============================================================
+% TITLE  -- placeholder; lock to the ACTUAL finding once results final.
+% ============================================================
+\title{Behavioral Conditioning of Video World-Model Predictors\\
+for Egocentric Action Anticipation}
+
+% ============================================================
+% AUTHORS  (course project -- real names, real emails)
+% ============================================================
+\author{%
+  Seyyed Parsa Sharifi \\
+  University of Rostock \\
+  \texttt{seyyed.sharifi@uni-rostock.de} \\
+  \And
+  Erfan Yekehzare \\
+  University of Rostock \\
+  \texttt{erfan.yekehzare@uni-rostock.de} \\
+  \And
+  Ioana Marica \\
+  Babe\c{s}--Bolyai University, Cluj \\
+  \texttt{ioana.marica1@stud.ubbcluj.ro} \\
+}
+
+\begin{document}
+
+\maketitle
+
+% ---- GITHUB LINK (Ashwin req 3: link must appear in the report) ----
+\begin{center}
+\fbox{\parbox{0.9\linewidth}{\centering
+\textbf{Code:} \url{https://github.com/EgocentricPerceptions/CV4Egocentric_Semantic_Intention_Prediction}
+\quad$\bullet$\quad
+Project: EgoProject 2026 (Univ.\ Rostock $\times$ UBB Cluj)
+}}
+\end{center}
+
+\input{sections/00_abstract}
+
+\input{sections/01_introduction}
+\input{sections/02_background}
+\input{sections/03_method}
+\input{sections/04_experiments}
+\input{sections/05_discussion}
+\input{sections/06_limitations}
+\input{sections/07_conclusion}
+
+% ============================================================
+% ACKNOWLEDGMENTS
+% ============================================================
+\begin{ack}
+We thank Jun.-Prof.\ Dr.-Ing.\ Stefan L\"udtke for overseeing the project.
+We also thank Ashwin Nedungadi, and Kl\'ara Orb\'an for supervising the Rostock
+and Cluj teams, respectively, and for their guidance and feedback throughout the
+project.
+
+We used AI assistants (Anthropic's Claude, including Claude Code) during this
+project. Their role was drafting and editing assistance, code scaffolding and
+execution on the compute cluster, literature retrieval, and help organising and
+reconciling experimental records. All research questions, experimental designs,
+decisions, and interpretations are the authors' own, and all reported
+experimental results were verified by the authors against primary experimental
+evidence. The authors take full responsibility for the content of this report.
+\end{ack}
+
+% ============================================================
+% REFERENCES
+% ============================================================
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\appendix
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\input{sections/A_contributions}
+\input{sections/B_experiments}
+\input{sections/C_code}
+\input{sections/D_abbreviations}
+
+% ---- NeurIPS checklist (after refs + appendix; does NOT count to limit) ----
+% \input{checklist}   % uncomment when ready to attach
+
+\end{document}

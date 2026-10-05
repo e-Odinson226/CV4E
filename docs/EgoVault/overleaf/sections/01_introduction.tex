@@ -1,0 +1,56 @@
+% ============================================================
+% 1. INTRODUCTION -- humanized pass. Break symmetric signposting,
+% vary constructions, keep the three contribution bullets (they work).
+% ============================================================
+\section{Introduction}
+
+Anticipating what a person will do next from egocentric video is hard for a
+structural reason: the most discriminative evidence, the action itself, has not
+happened yet. The model has to work from preparatory cues instead. Human
+behavioral signals are a natural candidate for those cues. Gaze leads
+manipulation by something like half a second to a second, and the hands are the
+effector that carries out intention, so conditioning a predictive model on gaze
+and hand pose ought to help it anticipate.
+
+V-JEPA~2 \citep{assran2025vjepa2} makes that idea testable. It learns a frozen
+encoder and a latent predictor by predicting masked spatiotemporal features, and
+its action-conditioned variant conditions the predictor on robot actions. We ask
+whether the same predictor can be conditioned on \emph{human} signals instead,
+gaze and hand pose from egocentric recordings, and whether that improves action
+anticipation on EPIC-KITCHENS-100 (EK100) \citep{damen2022ek100}. Earlier phases
+of the project had already returned a stubborn null at the two-second horizon,
+and a control family had suggested that what looked like an effect of
+conditioning was mostly an effect of feeding the model more tokens. That left one
+question unanswered, with two answers that point in opposite directions. Perhaps
+the injection pathway is too weak to expose whatever the signal carries; perhaps
+the signal simply does not carry action-relevant information at this horizon. The
+first answer argues for a stronger architecture. The second argues for giving up
+on input-level conditioning altogether.
+
+This paper sets out to decide between those two rather than assume either. The
+contribution is diagnostic, and we state it plainly, null included:
+\begin{itemize}
+  \item We make the existing peer-token pathway a bit-exact control and guard
+        against three silent-failure modes that can each fake a null, so that the
+        null we report is a property of the signal and the pathway, not an
+        artifact of the evaluation code (\S\ref{subsec:method-weak}).
+  \item We run five diagnostics directly against the frozen predictor and the
+        behavioral signal. They tell a consistent story: the signal reaches the output, the predictor
+        ignores its content, and on its own the signal anticipates the next
+        action barely above a class prior (\S\ref{subsec:diagnostics}). Varying
+        the training rather than the input confirms it: a predictor whose
+        training never included the signal matches one trained with it
+        (\S\ref{subsec:training-ablation}). That evidence let us retire a stronger,
+        GazeQwen-informed \citep{pham2026gazeqwen} pathway at the design stage
+        instead of after building it (\S\ref{subsec:b4}).
+  \item We isolate the one effect that does survive, a motion-specific advantage
+        of behavioral signals on verbs over vision, and show that under a fair
+        comparator it holds only in direction, never above the verb prior, and
+        that the real constraint is single-participant sample size, not a floor
+        in dynamic range (\S\ref{subsec:dissociation}--\ref{subsec:ddn}).
+\end{itemize}
+The result is a null we can explain rather than one we merely report, and the
+explanation points past input-level conditioning toward representation-level
+supervision of behavioral signals (\S\ref{sec:conclusion}). We keep every anticipation claim bounded to one participant at roughly one to two
+seconds; the training-side ablations reach across participants, and we flag which
+is which where it matters.

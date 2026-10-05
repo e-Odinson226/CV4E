@@ -1,0 +1,160 @@
+% ============================================================
+% 3. METHOD
+% ============================================================
+% DRAFT v0.1 (2026-08-13). Solid draft, NOT final. Seams marked "FLAG:".
+% DISCIPLINE: STRONG pathway is DESIGNED, NOT BUILT. Never say implemented/ran.
+% Ashwin quote (22 Jul) woven in; accuracy guard applied (Parsa proposed the
+% (b)-reading, Ashwin endorsed -- do NOT imply Ashwin proposed it end-to-end).
+% ============================================================
+\section{Method}
+\contrib{lead: Parsa}
+
+Our method is a frozen-representation probe of whether egocentric behavioral
+signals carry action-anticipatory content, together with a controlled pathway
+by which those signals are injected into the predictor. We first describe the
+frozen-probe setup and evaluation protocol (\S\ref{subsec:method-setup}), then
+the two conditioning pathways: a weak one that is built and verified, and a
+stronger one that is deliberately specified but left unimplemented
+(\S\ref{subsec:method-weak}--\ref{subsec:method-strong}). Last comes the
+direct, signal-present readout used to measure the signal's information content
+independent of any pathway (\S\ref{subsec:method-peva}).
+
+% ------------------------------------------------------------
+\subsection{Frozen-representation probing}
+\label{subsec:method-setup}
+
+We build on V-JEPA~2~\citep{assran2025vjepa2}, a self-supervised video model
+whose encoder and latent predictor are pretrained to predict masked
+spatiotemporal features rather than pixels. Throughout the anticipation probe, both the encoder and the
+predictor are kept frozen; the only trained component is a lightweight attentive
+probe that reads the predictor's output tokens and emits verb, noun, and action
+logits for the EK100 anticipation task.
+
+\paragraph{Backbone and projectors.}
+Two predictor instantiations appear in this work, and we are explicit about which
+carries which result. A ViT-L predictor (12 blocks, width 384) is used only for
+the Phase-4 feasibility fine-tuning of \S\ref{subsec:protocol}; every
+anticipation result reported below uses the ViT-G predictor (24 blocks, internal width
+1024, projected back to the 1408-dimensional encoder space on exit), on a $224/16 = 14$ patch grid ($N = 196$ tokens per frame) over
+$T = 8$ temporal positions. Behavioral signals enter through two single linear
+projectors with no activation or normalisation: a gaze projector
+($3\rightarrow1024$) and a hand projector ($12\rightarrow1024$), each paired with
+a learned mask-token parameter used when the signal is invalid. Gaze carries one
+validity flag; the two-hand signal carries two, combined by disjunction, so the
+mask substitutes only when both hands are invalid and a one-hand-valid frame
+passes its full twelve-dimensional vector (with the invalid half zero-filled).
+Of the predictor's 24 blocks, the last six (blocks 18--23) are unfrozen during
+conditioning. That six is the library default rather than an explicit argument,
+confirmed empirically by the gradient guard (Appendix~\ref{sec:code}).
+
+Freezing the backbone is a deliberate design choice rather than a shortcut: it
+keeps the limited supervised capacity focused on the task's label space, limits
+overfitting on rare classes, and makes the comparison between conditioning
+pathways a comparison of \emph{inputs to a fixed predictor} rather than of two
+separately fine-tuned models. The same frozen-probe recipe underlies the two
+strongest published EK100 anticipation systems~\citep{chu2026jfaa,
+wang2026tapjepa}, which lends the choice external support.
+
+\paragraph{Masked evaluation is in-distribution.}
+Several diagnostics in \S\ref{subsec:diagnostics} compare the predictor's
+behaviour on the real signal against its behaviour when the signal is replaced
+by a mask token. This masked condition is not out-of-distribution: the warm-start
+predictor checkpoint was trained with a signal-dropout rate of $0.4$, so masked
+behavioral slots were seen during training and the model has a defined response
+to them. Comparisons against the mask token are therefore not measuring a distribution
+shift. They do, however, conflate two effects --- the value of the signal's
+content and the cost of withholding an input the model was trained to expect ---
+and only a predictor trained without the signal at all can separate them. We report such a control in \S\ref{subsec:training-ablation}; it is null, which is what licenses
+the content reading we take here. This dropout rate is the checkpoint's own training
+setting: the warm-start predictor was fine-tuned within the project on
+HD-EPIC~P01--P07 with P08 held out, for three epochs at a signal-dropout rate of
+$0.4$, with the last six predictor blocks unfrozen.
+
+% ------------------------------------------------------------
+\subsection{The weak pathway: peer-token concatenation}
+\label{subsec:method-weak}
+
+The weak conditioning pathway is inherited from the project's earlier phases.
+Gaze and hand are each encoded to a single token per frame and concatenated
+alongside the visual tokens inside the predictor, mirroring the
+action--state--visual token layout of the original action-conditioned predictor.
+This widening is internal and transient: per frame the two behavioral tokens
+take the predictor's working sequence from \num{1568} ($T\cdot N = 8\times196$)
+to \num{1584} ($T\cdot(N{+}2) = 8\times198$), and they are stripped again before
+the predictor returns, so its output is once more \num{1568} tokens. The
+behavioral signal therefore conditions the prediction without appearing in the
+predictor's output.
+
+\paragraph{Bit-exact equivalence as a control.}
+For the weak pathway to serve as a baseline, it must reproduce the established
+Phase-5 evaluation route exactly; otherwise a later comparison would confound
+the pathway with an incidental change in evaluation code. We verify an exact
+match, with identical mean, standard deviation, and extrema, and a maximum
+absolute difference of zero to eight decimal places over the full
+$[1, 1568, 1408]$ output (Appendix~\ref{sec:code}). The weak pathway is thus a
+faithful control, not an approximate one.
+
+\paragraph{Guarding against silent nulls.}
+Three mechanisms in this codebase can each produce the appearance that
+``conditioning does not help'' without the conditioned modules ever being
+trained, and all three fail silently: a \texttt{no\_grad} scope around the
+predictor forward, a parameter-group misclassification that routes new modules
+into a low-learning-rate group, and default weight initialisation in place of the
+codebase's scheme. Because the last of these reproduces the very
+weight-stagnation symptom the project set out to explain, we verify after a
+single backward pass that every unfrozen module receives a non-zero gradient;
+all ten watched modules pass and the frozen blocks correctly receive none
+(Appendix~\ref{sec:code}). This guard is a precondition for any future
+implementation of the stronger pathway.
+
+% ------------------------------------------------------------
+\subsection{The strong pathway: designed, not built}
+\label{subsec:method-strong}
+
+The predictor exposes a second conditioning mode behind the same switch,
+reserved for a stronger pathway that \emph{adapts} mechanisms from
+GazeQwen~\citep{pham2026gazeqwen} to our architecture: biasing the visual
+tokens' keys with the behavioral signal, a bottleneck resampler that fuses gaze
+and hand, and a learned per-block gate over the fine-tuned predictor blocks. We
+stress that this is an adaptation rather than a reproduction: GazeQwen injects
+its signal externally, as a resampler residual added onto language-model decoder
+layers, and performs no in-place modification of a vision transformer's
+attention; the in-attention key-biasing here is our own design choice, informed
+by their mechanisms but structurally distinct from their implementation.
+\textbf{This pathway is deliberately left unimplemented.} Construction of the
+switch succeeds, but its forward pass raises rather than silently running a
+partial pathway (Appendix~\ref{sec:code}); no result in this paper is produced by
+the strong pathway, and it is never trained or evaluated.
+
+The ordering is intentional. Following supervision, we adopted the
+mechanism-adaptation reading of GazeQwen, adapting its key-biasing and resampler
+mechanisms into our own predictor, rather than reproducing its pipeline wholesale
+(its Qwen2.5-VL host, its benchmark, and live gaze), which was judged to offer
+little.\footnote{Our supervisor's guidance was explicit
+on this point: to ``go with option (b),'' the mechanism adaptation, because
+``there's nothing interesting that would come out of'' a one-to-one replication
+of the GazeQwen paper, and to ``perform the direct test as planned'' before
+committing to implementation.} A stronger pathway is worth building only if a
+stronger pathway could help; \S\ref{subsec:diagnostics} tests exactly that before
+any implementation cost is incurred, and \S\ref{subsec:b4} records the resulting
+decision to retire it at the design stage. The design stays on record, and because its zero-initialised gate makes it
+runnable as a falsifier, the choice can be revisited if the sample-size
+constraint of \S\ref{subsec:ddn} is relieved.
+
+% ------------------------------------------------------------
+\subsection{Direct readout of signal content}
+\label{subsec:method-peva}
+
+Independent of any injection pathway, we measure how much anticipatory
+information the behavioral signal carries by reading it out directly, adapting
+the whole-body-conditioned prediction protocol of
+PEVA~\citep{bai2025peva} to a signal-present readout on HD-EPIC~P01. We
+distinguish two questions the readout can answer. The first, an average-error
+comparison (PEVA-1), asks whether the predictor's output is on average closer to
+the target when the real signal is present than when it is masked, which tests
+detectability. The second, a discrimination comparison (PEVA-2), asks whether the
+signal opens a usable margin between correct and incorrect candidates, which tests
+whether any detectable effect is large enough to change a decision. As
+\S\ref{subsec:diagnostics} reports, the signal is detectable under the first test
+and negligible under the second. That decoupling, a real but decision-irrelevant
+effect, is what the diagnostics turn on.

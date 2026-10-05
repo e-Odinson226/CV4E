@@ -1,0 +1,31 @@
+% ============================================================
+% ABSTRACT  -- humanized pass (2026-08-13). Varied cadence, fewer em-dashes.
+% ============================================================
+\begin{abstract}
+Egocentric action anticipation depends on reading preparatory cues before an
+action becomes visible. Human behavioral signals are an obvious place to look for
+those cues: gaze tends to precede manipulation, and the hands are what turn
+intention into action. We ask whether conditioning a frozen V-JEPA~2 predictor on
+gaze and hand pose improves short-horizon anticipation on EPIC-KITCHENS-100. It
+does not, and the aim of this paper is to say why with some precision. We turn the
+existing peer-token conditioning pathway into a bit-exact control, add a guard
+against three failure modes that can each counterfeit a null, and run five diagnostics against the frozen predictor and the behavioral signal
+itself. We then repeat the predictor's own training with the signal ablated,
+which separates the value of the information from the cost of withholding an
+input the model expects. The results agree: the signal reaches the predictor's
+output, the predictor is indifferent to its content, a predictor that never saw
+the signal matches one trained with it, and on its own the signal beats a class
+prior by under two points. We therefore retired a stronger, GazeQwen-informed pathway at the
+design stage rather than after paying to build it. One effect does survive.
+Behavioral signals favour verbs, which encode motion, while vision favours nouns,
+which encode object identity, and the same split organises the two strongest
+published systems on this benchmark. But once the vision comparator is fitted
+fairly, the effect holds only in direction and never rises above the verb prior,
+and the constraint that bounds it is single-participant sample size rather than
+any floor in the probe's dynamic range. We read the null as evidence that
+feeding these signals in at the input is the wrong way to use them, and argue for
+supervising the representation with behavioral signals toward goal-level targets
+instead. The anticipation results here are bounded to one participant at a
+one-to-two-second horizon; the training-side ablations that carry the null are
+cross-participant.
+\end{abstract}
