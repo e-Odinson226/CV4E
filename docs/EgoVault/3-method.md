@@ -7,8 +7,8 @@ updated: 2026-10-05
 
 # 3. Method
 
-How the model is built, trained and evaluated, and the design choices in force. The commands
-are in [[runbook]].
+How the model is built, trained and evaluated, and the design choices in force. The code, the
+commands and the checkpoints are described in `README.md` at the root of the repository.
 
 ## Data
 
@@ -32,11 +32,9 @@ Ego predictor:  [gaze,   hand,  256 image tokens]   per frame
 The layout is the same, so all 24 pretrained predictor blocks load without changes. Attention
 is causal over frames: a token at frame t sees all tokens of the frames up to t.
 
-Code: `vjepa2/src/models/ego_predictor.py` (the model), `vjepa2/src/models/ego_finetune.py`
-(loading the weights and choosing what trains), and `vjepa2/src/datasets/ego_loaders.py`
-(reading and scaling the signals). Ioana wrote the first gaze and hand projection layers. Erfan
-moved them into the predictor and extended them to all time steps. Parsa built a separate ViT-L
-version, used only for a feasibility check ([[4-results#^t1|T1]]).
+Ioana wrote the first gaze and hand projection layers. Erfan moved them into the predictor and
+extended them to all time steps. Parsa built a separate ViT-L version, used only for a
+feasibility check ([[4-results#^t1|T1]]).
 
 ### Inputs
 

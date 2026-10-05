@@ -12,7 +12,7 @@ tags: [paper, own-work, final-report, gaze, hand-pose, conditioning, null-result
 **Erfan Yekehzare** — University of Rostock — `erfan.yekehzare@uni-rostock.de`
 **Ioana Marica** — Babeş–Bolyai University, Cluj — `ioana.marica1@stud.ubbcluj.ro`
 
-> **Code:** `https://github.com/EgocentricPerceptions/CV4Egocentric_Semantic_Intention_Prediction` (currently 404 — see [[project#Paper|the paper status]]) · **Project:** EgoProject 2026 (Univ. Rostock × UBB Cluj)
+> **Code:** `https://github.com/EgocentricPerceptions/CV4Egocentric_Semantic_Intention_Prediction` (currently 404 — see [[paper-status|the paper status]]) · **Project:** EgoProject 2026 (Univ. Rostock × UBB Cluj)
 
 > [!info] 📌 How to read this file
 > The paper's own text is left **unmodified** below — transcribed from the actual submitted PDF, `Semantic_Intention___Final_Report.pdf` (compiled 2026-08-24, commit `94541aa` in this repo), and cross-checked line-for-line against the `.tex` source in `overleaf/sections/`, which is byte-identical in substance. Everything added is inside a *callout* like this one, so annotation never blends into the authors' words. Four kinds:
@@ -24,7 +24,7 @@ tags: [paper, own-work, final-report, gaze, hand-pose, conditioning, null-result
 > | `[!warning]` ⚠️ | Where the paper is shaky, unclear, or possibly wrong |
 > | `[!tip]` 🧵 | How this connects to *your* thesis |
 >
-> A `+` after the type means "starts expanded"; swap it to `-` to collapse every annotation and read the paper clean. This first pass is **extraction only** — no annotations added yet. The open problems in this version are listed in [[project#Paper|the paper status]]. Related: [[gazeqwen]], [[vl-jepa]], [[vjepa]].
+> A `+` after the type means "starts expanded"; swap it to `-` to collapse every annotation and read the paper clean. This first pass is **extraction only** — no annotations added yet. The open problems in this version are listed in [[paper-status|the paper status]]. Related: [[gazeqwen]], [[vl-jepa]], [[vjepa]].
 
 ## Abstract
 
@@ -313,7 +313,7 @@ The authors contributed to distinct, complementary workstreams under a shared re
 **Ioana Marica (collaborator, non-author).** Contributed the representation- and signal-level hypotheses, an initial implementation of the gaze and hand projection layers and their token construction, the encoder-supervision direction, and the PEVA evaluation idea. These inform the framing and future-work direction of this report; Ioana did not author the report itself.
 
 > [!warning] ⚠️ Title page vs. Appendix A
-> The title page lists three authors with equal billing (name, affiliation, email — Ioana included). Appendix A then explicitly states Ioana "did not author this report" and is a "collaborator." This contradiction was flagged in the 2026-08-22 gap analysis and is still present in the submitted PDF. See [[project#Paper|the paper status]].
+> The title page lists three authors with equal billing (name, affiliation, email — Ioana included). Appendix A then explicitly states Ioana "did not author this report" and is a "collaborator." This contradiction was flagged in the 2026-08-22 gap analysis and is still present in the submitted PDF. See [[paper-status|the paper status]].
 
 ## Appendix B — Extended experimental details
 
@@ -336,7 +336,7 @@ Horizon sweep (fair-vision v3, common set), verb R@5 with verb prior 0.6749: 3 s
 > [!warning] ⚠️ Unresolved author note in the source, never rendered in the PDF
 > The `.tex` source (`sections/B_experiments.tex`, immediately after this subsection) carries a comment invisible to any reader of the compiled PDF:
 > > FLAG: test-set n for the v3 common set — Part III states 762; the reconstructed experiment log gives 243 for Option 2 v2 (with a known Notion 243→1. corruption now fixed). Confirm which n attaches to which row before stating a sample count.
-> This was never resolved before submission. Table 3 and this subsection report 95% CIs and a sample described only as "the v3 common set," without the sample size ever being confirmed as 762 or 243 — a roughly 3× discrepancy that changes how much those confidence intervals should be trusted. See [[project#Paper|the paper status]].
+> This was never resolved before submission. Table 3 and this subsection report 95% CIs and a sample described only as "the v3 common set," without the sample size ever being confirmed as 762 or 243 — a roughly 3× discrepancy that changes how much those confidence intervals should be trusted. See [[paper-status|the paper status]].
 
 ### B.5 $d \gg n$ comparator diagnostic
 
@@ -396,7 +396,7 @@ x = F.scaled_dot_product_attention(q, k, v, ...)
 ```
 
 > [!warning] ⚠️ This exact code was not found in this repository
-> `grep -rn "conditioning_mode\|IntegratedColleaguePredictor" vjepa2/src scripts/` returns nothing (re-checked 2026-08-25). This is Parsa's separately maintained codebase, filled in "from Notion mirror + Part III PDF" per the section's own source comment. See [[project#Paper|the paper status]] for the code link on the title page.
+> `grep -rn "conditioning_mode\|IntegratedColleaguePredictor" vjepa2/src scripts/` returns nothing (re-checked 2026-08-25). This is Parsa's separately maintained codebase, filled in "from Notion mirror + Part III PDF" per the section's own source comment. See [[paper-status|the paper status]] for the code link on the title page.
 
 ### C.4 Weak-mode equivalence check
 

@@ -8,7 +8,7 @@ updated: 2026-10-05
 # 2. Background
 
 The models and papers this work builds on, and the terms used in these notes. Each paper has
-its own note in `literature/`.
+its own note in `papers/literature/`.
 
 ## V-JEPA 2
 

@@ -33,16 +33,24 @@ Files 1 to 6 follow the chapters of a thesis. Read them in order.
 
 | File or folder | Contents |
 |---|---|
-| [[project]] | People, timeline, the submitted paper and the final presentation. |
-| [[runbook]] | Commands, data paths, scripts, result files and checkpoints. |
-| `literature/` | One note per paper, with the paper text and notes. |
-| `overleaf/` | The LaTeX source and the PDF of the submitted paper. |
+| [[project]] | People, timeline and the final presentation. |
+| `papers/` | The submitted paper and the literature. See below. |
 | `templates/` | A template for adding a test to [[4-results]]. |
 
+The code, the commands, the data paths and the checkpoints are described in `README.md` at the
+root of the repository.
+
 ## Papers
+
+The submitted paper, in `papers/`:
+
+- [[paper-status]]: who wrote what, the open problems, and the results missing from the paper.
+- [[final-report]]: the full text of the paper, with notes.
+- `overleaf/`: the LaTeX source and the PDFs.
+
+The literature, in `papers/literature/`, one note per paper:
 
 - [[vjepa]]: V-JEPA 2, the base model.
 - [[gazeqwen]]: GazeQwen, which adds gaze to a video-language model.
 - [[vl-jepa]]: VL-JEPA, a JEPA model aligned with language. The basis for Path 3.
 - [[vla-jepa]]: VLA-JEPA, JEPA-style pretraining for robot policies. Full text, no notes yet.
-- [[final-report]]: the submitted paper, with notes.
