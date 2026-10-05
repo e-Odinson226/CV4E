@@ -47,8 +47,8 @@ are the reference. Where the paper differs from them, the paper is changed.
 - Submitted on 24 August 2026 as the EgoProject 2026 report, in NeurIPS format.
 - Authors: Seyyed Parsa Sharifi and Erfan Yekehzare. Ioana Marica is a collaborator, not an
   author.
-- The LaTeX source is in `papers/overleaf/`. The full text, with notes, is in
-  [[final-report]].
+- The text as submitted is in [[submitted-paper]]. It is kept as a reference and never
+  edited. The working text, with notes, is in [[final-report]].
 - Main result: conditioning on gaze and hand does not improve prediction. A model trained
   without the signals does as well (Δ = +0.0003, p = 0.40,
   [[4-results#^t11|T11]]).
@@ -77,8 +77,8 @@ These are the places where the paper does not yet follow the notes and the code.
    [[4-results#^t12|T12]], and the code in Appendix C. All of it is Parsa's. These parts
    cannot be derived from this repository until the code is here. See
    [[#Points to discuss with Parsa]].
-2. A comment in the LaTeX source says the sample size behind Table 3 is not confirmed. The two
-   candidate values are 762 and 243. The notes do not give it either. Parsa needs to confirm
+2. The sample size behind Table 3 is not confirmed. A comment in the paper's LaTeX source
+   gave two candidate values, 762 and 243. The notes do not give it either. Parsa needs to confirm
    it. Then [[4-results#^t3|T3]] records it, and the paper follows.
 3. Section 4.4 reports Erfan's sensitivity, weight-norm and untrained-model tests
    ([[4-results#^t6|T6]], [[4-results#^t8|T8]], [[4-results#^t10|T10]]). Appendix A does
@@ -87,9 +87,6 @@ These are the places where the paper does not yet follow the notes and the code.
    `scripts/probe_attention_mass.py` runs three variants: real signals, gaze hidden alone,
    and gaze and hand hidden together. T7 should say this first, then the paper.
 5. The text says "five diagnostics". Table 2 has six rows.
-6. The PDFs in `papers/overleaf/` are older than the LaTeX source. The submitted PDF still
-   lists Ioana as an author. `report_PREVIEW.pdf` is an old draft. The PDF needs to be built
-   again from the source.
 
 ### Results in the notes that the paper lacks
 

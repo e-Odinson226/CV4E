@@ -21,7 +21,7 @@ run has not been done yet. The thesis notes, with every test and its result, are
 | `scripts/` | Training, evaluation and test scripts. |
 | `ego/` | Our model code: the ego predictor, its fine-tuning helpers, and the gaze and hand loaders. |
 | `vjepa2/` | Meta's V-JEPA 2 code. Not tracked: clone it here (see Setup). |
-| `docs/EgoVault/` | The thesis notes, an Obsidian vault. The paper's LaTeX source and the literature notes are in `docs/EgoVault/papers/`. |
+| `docs/EgoVault/` | The thesis notes, an Obsidian vault. The paper as submitted and the literature notes are in `docs/EgoVault/papers/`. |
 | `notebooks/` | `playground.ipynb`: a first look at the Aria gaze data and at a V-JEPA 2 model from Hugging Face. |
 | `data/`, `checkpoints/`, `results/` | Datasets, trained models and result files. Not tracked. |
 | `archive/` | Old files. Not tracked. |

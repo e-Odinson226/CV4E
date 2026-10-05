@@ -1,10 +1,12 @@
 ---
 type: paper
-status: running
-created: 2026-08-25
-updated: 2026-08-25
-tags: [paper, own-work, final-report, gaze, hand-pose, conditioning, null-result, vjepa2, ek100, hd-epic, annotated]
+status: done
+created: 2026-10-05
+updated: 2026-10-05
 ---
+
+*The text of the paper as submitted on 24 August 2026, kept as a reference. Do not edit this
+file. The working text, with notes, is in [[final-report]].*
 
 # Behavioral Conditioning of Video World-Model Predictors for Egocentric Action Anticipation
 
@@ -12,18 +14,6 @@ tags: [paper, own-work, final-report, gaze, hand-pose, conditioning, null-result
 **Erfan Yekehzare** — University of Rostock — `erfan.yekehzare@uni-rostock.de`
 
 > **Code:** `https://github.com/EgocentricPerceptions/CV4Egocentric_Semantic_Intention_Prediction` · **Project:** EgoProject 2026 (Univ. Rostock × UBB Cluj)
-
-> [!info] 📌 How to read this file
-> The paper's own text is left **unmodified** below. The text as submitted is kept, unedited, in [[submitted-paper]]. The paper is derived from the notes and the code in this repository; where they differ, the paper is changed. Everything added is inside a *callout* like this one, so annotation never blends into the authors' words. Four kinds:
->
-> | Callout | Means |
-> | --- | --- |
-> | `[!note]` 📖 | Explanation of a term, mechanism, or piece of notation |
-> | `[!question]` ❓ | An answer to a specific question you asked |
-> | `[!warning]` ⚠️ | Where the paper is shaky, unclear, or possibly wrong |
-> | `[!tip]` 🧵 | How this connects to *your* thesis |
->
-> A `+` after the type means "starts expanded"; swap it to `-` to collapse every annotation and read the paper clean. This first pass is **extraction only** — no annotations added yet. The open problems are listed in [[project#Open problems|the project note]]. Related: [[gazeqwen]], [[vl-jepa]], [[vjepa]].
 
 ## Abstract
 
@@ -115,10 +105,9 @@ The ViT-L feasibility fine-tuning below is trained on HD-EPIC (Perrett et al., 2
 
 **Feasibility of the conditioning target.** Before probing anticipation, we confirm the behavioral predictor was trainable at all. Fine-tuning the V-JEPA 2 predictor on HD-EPIC P01 (ViT-L, 20 epochs) reduces the per-epoch mean smooth-$L_1$ prediction loss from 1.207 to 1.019, with the curve essentially flat after roughly the fifth epoch (epoch 5 mean 1.063; epoch 15 mean 1.034).[^4] The signal is learnable, then, but its marginal return saturates early. That is an honest feasibility ceiling, not a training failure.
 
-> [!note]- 🖼️ Figure 1 (data, not a rendered image)
-> **Caption:** Per-epoch mean prediction loss for the behavioral predictor (HD-EPIC P01, ViT-L, 20 epochs). The loss falls from 1.207 to 1.019 but is essentially flat after epoch 5, indicating an early feasibility ceiling rather than a training failure. Intermediate points (1.063, 1.042, 1.034) are the epoch 5/10/15 means. The curve is drawn from the five recorded checkpoints.
->
-> Plotted points (epoch, loss): (1, 1.2074), (5, 1.0632), (10, 1.0421), (15, 1.0344), (20, 1.0189).
+**Figure 1.** Per-epoch mean prediction loss for the behavioral predictor (HD-EPIC P01, ViT-L, 20 epochs). The loss falls from 1.207 to 1.019 but is essentially flat after epoch 5, indicating an early feasibility ceiling rather than a training failure. Intermediate points (1.063, 1.042, 1.034) are the epoch 5/10/15 means. The curve is drawn from the five recorded checkpoints.
+
+Plotted points (epoch, loss): (1, 1.2074), (5, 1.0632), (10, 1.0421), (15, 1.0344), (20, 1.0189).
 
 ### 4.2 Controls: separating token count from content
 
@@ -142,7 +131,7 @@ The comparison is in Table 1, and the headline reading is best-epoch, where the 
 | 6c content-free repeat | 1764 | 3.77 (3.46) | 3.31 (3.13) | — | 3.54 (3.29) |
 | Behavioral | 1764 | 3.58 (3.48) | 3.49 (3.47) | 3.75 (3.75) | 3.61 (3.57) |
 
-> *Caption note (verbatim):* Best-epoch is the honest comparison, though it is selected on the reported validation set: the behavioral arm does not separate from its token-count-matched controls (behavioral − 6a = −0.013 pp). On final-epoch the behavioral arm leads by 0.15–0.27 pp, but only because it is the one arm that does not decay after epoch 8; that is a decay asymmetry, not a sign of the signal. The 6b and 6c conditions were run at two seeds, the third having been dropped once the direction was closed.
+> Best-epoch is the honest comparison, though it is selected on the reported validation set: the behavioral arm does not separate from its token-count-matched controls (behavioral − 6a = −0.013 pp). On final-epoch the behavioral arm leads by 0.15–0.27 pp, but only because it is the one arm that does not decay after epoch 8; that is a decay asymmetry, not a sign of the signal. The 6b and 6c conditions were run at two seeds, the third having been dropped once the direction was closed.
 
 ### 4.3 Five diagnostics on the frozen predictor
 
@@ -161,10 +150,9 @@ Two readings of the null remained open after the controls: either the injection 
 
 The attention result is the pivotal one. The predictor attends to the gaze and hand slots at roughly twenty-nine to thirty-five times the uniform rate, so the signal is clearly not being ignored on positional grounds. But replacing the real signal with the mask token barely moves the attention; if anything the mask draws marginally more. The model attends to where the signal sits and stays indifferent to what it says. §4.4 shows that this routing is inherited from the action-conditioned pretraining rather than learned here, which makes the absence of headroom a property of the architecture rather than of this particular run. Key-biasing, the first mechanism a stronger, GazeQwen-style pathway (Pham et al., 2026) would add, needs headroom in exactly this attention magnitude, and there is none to work with. Put beside the direct probe, where the signal beats a class prior by only 1.8 points, the reading is consistent: the signal is registered but faint, and no rearrangement of the pathway can recover information that a direct probe can barely find.
 
-> [!note]- 🖼️ Figure 2 (data, not a rendered image)
-> **Caption:** Attention on the behavioral slots, real versus masked signal, against the uniform baseline (dashed, 0.0017). Both slots draw roughly 29–35× uniform attention, yet the real and masked bars are indistinguishable (gaze 0.0491 vs. 0.0492; hand 0.0607 vs. 0.0610): the predictor attends to where the signal sits, not to what it says.
->
-> Bars (real, masked, uniform dashed): gaze 0.049080 / 0.049155 / 0.001716 (≈29×); hand 0.060709 / 0.061035 / 0.001716 (≈35×).
+**Figure 2.** Attention on the behavioral slots, real versus masked signal, against the uniform baseline (dashed, 0.0017). Both slots draw roughly 29–35× uniform attention, yet the real and masked bars are indistinguishable (gaze 0.0491 vs. 0.0492; hand 0.0607 vs. 0.0610): the predictor attends to where the signal sits, not to what it says.
+
+Bars (real, masked, uniform dashed): gaze 0.049080 / 0.049155 / 0.001716 (≈29×); hand 0.060709 / 0.061035 / 0.001716 (≈35×).
 
 ### 4.4 Varying the training instead of the input
 
@@ -329,11 +317,6 @@ Output shift: $L_2(\text{real}, \text{masked}) = 225.35$, $\lVert\text{real}\rVe
 
 Horizon sweep (fair-vision v3, common set), verb R@5 with verb prior 0.6749: 3 s behavior $0.5830 \pm 0.0108$, vision $0.5295 \pm 0.0305$, margin +0.0535 [−0.0288, +0.0988]; 5 s $0.6145 \pm 0.0229$ vs. $0.5117 \pm 0.0118$, +0.1029 [+0.0165, +0.1440]; 10 s $0.6159 \pm 0.0085$ vs. $0.4952 \pm 0.0216$, +0.1207 [+0.0535, +0.1687]. One-second row (separate subsample, prior 0.5922): behavior $0.5412 \pm 0.0096$, vision $0.5059 \pm 0.0169$, margin +0.0353 [+0.0078, +0.1176]. The earlier figure computed against the under-fit vision comparator is superseded by these values.
 
-> [!warning] ⚠️ Unresolved author note in the source, never rendered in the PDF
-> The `.tex` source (`sections/B_experiments.tex`, immediately after this subsection) carries a comment invisible to any reader of the compiled PDF:
-> > FLAG: test-set n for the v3 common set — Part III states 762; the reconstructed experiment log gives 243 for Option 2 v2 (with a known Notion 243→1. corruption now fixed). Confirm which n attaches to which row before stating a sample count.
-> This was never resolved before submission. Table 3 and this subsection report 95% CIs and a sample described only as "the v3 common set," without the sample size ever being confirmed as 762 or 243 — a roughly 3× discrepancy that changes how much those confidence intervals should be trusted. See [[project#Open problems|the open problems]].
-
 ### B.5 $d \gg n$ comparator diagnostic
 
 In the signal-present HD-EPIC probe both arms interpolate their training data: vision reaches training R@5 near unity while test R@5 sits at 0.50–0.62; the behavioral arm reaches training R@5 around 0.80. A prior-mimicry guard voids any run whose top-5 set collapses onto the class marginal (mean top-5 overlap ≈ 1.0). At roughly 1900 training examples the fair-vision pass-condition fails at all four horizons, locating the constraint in sample size rather than pathway design.
@@ -390,9 +373,6 @@ if action_tokens > 0:
     v = merge_(v, action_v)
 x = F.scaled_dot_product_attention(q, k, v, ...)
 ```
-
-> [!warning] ⚠️ This exact code was not found in this repository
-> `grep -rn "conditioning_mode\|IntegratedColleaguePredictor" vjepa2/src scripts/` returns nothing (re-checked 2026-08-25). This is Parsa's separately maintained codebase, filled in "from Notion mirror + Part III PDF" per the section's own source comment.
 
 ### C.4 Weak-mode equivalence check
 

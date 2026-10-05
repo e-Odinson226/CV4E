@@ -35,7 +35,7 @@ Files 1 to 6 follow the chapters of a thesis. Read them in order.
 |---|---|
 | [[project]] | People, timeline, the paper and the final presentation. |
 | [[final-report]] | The full text of the paper, with notes. |
-| `papers/` | The paper's LaTeX source and PDFs in `papers/overleaf/`, and the literature notes in `papers/literature/`. |
+| `papers/` | [[submitted-paper]], the paper as submitted (never edited), and the literature notes in `papers/literature/`. |
 | `templates/` | A template for adding a test to [[4-results]]. |
 
 The code, the commands, the data paths and the checkpoints are described in `README.md` at the
@@ -45,7 +45,8 @@ root of the repository.
 
 The paper is derived from these notes and the code. Who wrote it, its open problems and the
 results it still lacks are in [[project#Paper]]. Its full text, with notes, is in
-[[final-report]]. Its LaTeX source and PDFs are in `papers/overleaf/`.
+[[final-report]]. The text as submitted on 24 August 2026 is kept, unedited, in
+[[submitted-paper]].
 
 The literature, in `papers/literature/`, one note per paper:
 
