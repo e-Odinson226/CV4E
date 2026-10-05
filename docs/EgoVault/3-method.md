@@ -64,8 +64,8 @@ check ([[4-results#^t1|T1]]).
 
 ### Input format
 
-The AC predictor was trained on frames encoded one at a time. The scripts do the same, in
-`scripts/ego_common.py`, which training and testing share:
+The AC predictor was trained on frames encoded one at a time. The code does the same, in
+`ego/model.py` and `ego/clips.py`, which training and testing share:
 
 - Each frame is encoded on its own, as a 2-frame tubelet of the same image.
 - The EMA target encoder encodes both the context frames and the target frame.
@@ -126,8 +126,8 @@ There are three ways to give the model no signal. They give different Δ values:
 | Zeros | zero vectors through the projection layers | +0.0022 |
 | Average | the average scaled signal | +0.0007 |
 
-Every Δ states which input it uses. The default is the mask token, which `eval_ego_mse.py` and
-the checks during training use. (Decided by Erfan, August 2026.)
+Every Δ states which input it uses. The default is the mask token, which `python -m ego evaluate`
+and the checks during training use. (Decided by Erfan, August 2026.)
 
 ### Measuring the value of the signals
 

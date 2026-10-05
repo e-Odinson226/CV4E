@@ -1,58 +1,24 @@
 """
-Summarize a finetune_ego.py run into a JSON + Markdown report.
+Summarize a training run into a JSON + Markdown report.
 
-Parses train.log (and metrics.jsonl if present): config, per-epoch train loss +
-wall time, held-out MSE_A / MSE_B / Delta, throughput, and total time.
+Parses train.log: config, per-epoch train loss + wall time, held-out
+MSE_A / MSE_B / Delta, throughput, and total time.
 
-    python scripts/summarize_run.py --dir checkpoints/ego_ft_quick
-    python scripts/summarize_run.py --dir checkpoints/ego_ft_quick --out results/ego_ft_quick
+    python -m ego summarize --dir checkpoints/ego_ft_v2
+    python -m ego summarize --dir checkpoints/ego_ft_v2 --out results/ego_ft_v2
 """
 
 import argparse
 import json
-import re
 from pathlib import Path
 
-STEP_RE = re.compile(r"epoch (\d+)\s+step\s+(\d+)/(\d+).*?loss=([\d.]+).*?(?:it/s=([\d.]+))?.*?ETA=(\d+)s")
-EPOCH_RE = re.compile(r"\[epoch\s+(\d+)/(\d+)\]\s+loss=([\d.]+)(\*?).*?time=(\d+)s\s+ETA=(\d+)s")
-VAL_RE = re.compile(r"\[val (\w+)\]\s+MSE_A\(masked\)=([\d.]+)\s+MSE_B\(real\)=([\d.]+)\s+Delta\(A-B\)=([-+\d.]+)")
-CFG_RE = re.compile(r"INFO\s+  (\w[\w ]*?)\s{2,}(.+)$")
-LAYER_RE = re.compile(r"\[layers\] (.+)$")
-
-
-def parse(log_path):
-    cfg, epochs, vals, layers, steps_its = {}, [], [], [], []
-    in_cfg = False
-    for line in log_path.read_text(errors="ignore").splitlines():
-        if "Ego predictor fine-tuning" in line:
-            in_cfg = True; continue
-        if in_cfg:
-            if "===" in line and cfg:
-                in_cfg = False
-            else:
-                m = CFG_RE.search(line)
-                if m:
-                    cfg[m.group(1).strip()] = m.group(2).strip()
-        m = LAYER_RE.search(line)
-        if m: layers.append(m.group(1).strip())
-        m = EPOCH_RE.search(line)
-        if m:
-            epochs.append({"epoch": int(m.group(1)), "total": int(m.group(2)),
-                           "train_loss": float(m.group(3)), "best": m.group(4) == "*",
-                           "time_s": int(m.group(5))})
-        m = VAL_RE.search(line)
-        if m:
-            vals.append({"tag": m.group(1), "mse_A": float(m.group(2)),
-                         "mse_B": float(m.group(3)), "delta": float(m.group(4))})
-        m = STEP_RE.search(line)
-        if m and m.group(5):
-            steps_its.append(float(m.group(5)))
-    return cfg, epochs, vals, layers, steps_its
+from ego.runlog import parse_train_log
 
 
 def build(dir_path):
-    log_path = Path(dir_path) / "train.log"
-    cfg, epochs, vals, layers, its = parse(log_path)
+    r = parse_train_log(Path(dir_path) / "train.log")
+    epochs, vals = r["epochs"], r["vals"]
+    its = [s["it_s"] for s in r["steps"] if s["it_s"] is not None]
 
     # merge per-epoch train + val by index (val has epoch0 baseline first)
     val_by_epoch = {}
@@ -66,20 +32,20 @@ def build(dir_path):
         rows.append({"epoch": 0, "train_loss": None, "time_s": None, **{k: base[k] for k in ("mse_A", "mse_B", "delta")}})
     for e in epochs:
         v = val_by_epoch.get(e["epoch"], {})
-        rows.append({"epoch": e["epoch"], "train_loss": e["train_loss"], "time_s": e["time_s"],
+        rows.append({"epoch": e["epoch"], "train_loss": e["loss"], "time_s": e["time"],
                      "mse_A": v.get("mse_A"), "mse_B": v.get("mse_B"), "delta": v.get("delta")})
 
-    total_time = sum(e["time_s"] for e in epochs)
+    total_time = sum(e["time"] for e in epochs)
     summary = {
         "dir": str(dir_path),
-        "config": cfg,
-        "trainable_layers": layers,
+        "config": r["config"],
+        "trainable_layers": r["layers"],
         "epochs_completed": len(epochs),
         "epochs_planned": epochs[-1]["total"] if epochs else None,
         "avg_epoch_time_s": round(total_time / len(epochs), 1) if epochs else None,
         "total_train_time_s": total_time,
         "mean_it_s": round(sum(its) / len(its), 3) if its else None,
-        "best_train_loss": min((e["train_loss"] for e in epochs), default=None),
+        "best_train_loss": min((e["loss"] for e in epochs), default=None),
         "delta_first": rows[0]["delta"] if rows else None,
         "delta_last": next((r["delta"] for r in reversed(rows) if r["delta"] is not None), None),
         "rows": rows,

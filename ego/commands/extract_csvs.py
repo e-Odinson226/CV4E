@@ -7,8 +7,8 @@ just the two CSVs the loaders need:
     hand_tracking/wrist_and_palm_poses.csv
 Already-extracted, empty, or corrupt zips are skipped safely.
 
-    python scripts/extract_gaze_hand.py --gaze-dir data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze
-    python scripts/extract_gaze_hand.py --gaze-dir <dir> --participants P01 P02 P03
+    python -m ego extract-csvs --gaze-dir data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze
+    python -m ego extract-csvs --gaze-dir <dir> --participants P01 P02 P03
 """
 
 import argparse

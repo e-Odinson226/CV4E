@@ -35,13 +35,12 @@ Splits (--split)
   random       Random frames. Near-identical frames end up in both sets, so the score
                is too high. Use it only for comparison.
 
-The encoder features are cached in --cache. control_recoverability.py (T5) reads this
+The encoder features are cached in --cache. control-probe (T5) reads this
 cache. The results are in docs/EgoVault/4-results.md, under T4.
 
 Usage
 -----
-    PY=/mnt/data/home/zj2433/miniconda3/envs/VJEPA2-AC/bin/python
-    $PY scripts/gaze_recoverability.py \
+    python -m ego gaze-probe \
         --checkpoint data/model_checkpoints/vjepa2-ac-vitg.pt \
         --video-dir  data/epic-kitchen/ek100-hd/HD-EPIC/Videos \
         --gaze-dir   data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze \
@@ -52,197 +51,16 @@ Usage
 
 import argparse
 import json
-import sys
 import time
 from pathlib import Path
 
 import numpy as np
 import torch
 
-sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
-
-from ego_common import (
-    load_models, encode_independent, load_frames, video_info,
-    read_vrs_times, find_csvs, find_ts_csv,
-)
-from ego.ego_loaders import GazeTokenLoader
-
-
-# ---------------------------------------------------------------------------
-# Fast gaze lookup
-#
-# GazeTokenLoader._lookup does (df['ts_us'] - target).abs().idxmin() per call —
-# O(rows) each time. Gaze CSVs run 30-60 Hz over ~30 min, so ~100k rows, and we
-# make tens of thousands of lookups. We reuse the loader's PARSING (it handles
-# every column-name variant) but replace the lookup with searchsorted, and add
-# the tolerance check the original lacks: nearest-neighbour always returns
-# something, even for a timestamp past the end of the recording.
-# ---------------------------------------------------------------------------
-
-class GazeSeries:
-    def __init__(self, gaze_csv, fps, tol_ms=50.0):
-        loader = GazeTokenLoader(gaze_csv, fps, standardize=False)  # raw radians/metres
-        df = loader.df
-        self.ts = df["ts_us"].values.astype(np.int64)
-        self.yaw = df["yaw"].values.astype(np.float32)
-        self.pitch = df["pitch"].values.astype(np.float32)
-        self.depth = df["depth"].values.astype(np.float32)
-        self.valid = df["gaze_valid"].values.astype(bool)
-        self.tol_us = tol_ms * 1000.0
-
-    def at_ns(self, vrs_ns):
-        """Nearest gaze sample to an absolute VRS timestamp, or None."""
-        t = int(vrs_ns) // 1000
-        i = int(np.searchsorted(self.ts, t))
-        best, bestd = -1, None
-        for j in (i - 1, i):                      # searchsorted gives the insertion point
-            if 0 <= j < len(self.ts):
-                d = abs(int(self.ts[j]) - t)
-                if bestd is None or d < bestd:
-                    best, bestd = j, d
-        if best < 0 or bestd > self.tol_us or not self.valid[best]:
-            return None
-        d = float(self.depth[best])
-        if not np.isfinite(d) or d <= 0.05 or d >= 10.0:
-            d = 1.0                               # matches GazeTokenLoader.DEPTH_FILL
-        v = np.array([self.yaw[best], self.pitch[best], d], dtype=np.float32)
-        return None if not np.all(np.isfinite(v)) else v
-
-
-# ---------------------------------------------------------------------------
-# Geometry: (yaw, pitch) -> unit direction, so error is reportable in degrees
-# ---------------------------------------------------------------------------
-
-def yawpitch_to_unit(yp):
-    yaw, pitch = yp[:, 0], yp[:, 1]
-    cp = np.cos(pitch)
-    return np.stack([np.sin(yaw) * cp, np.sin(pitch), np.cos(yaw) * cp], axis=1)
-
-
-def angular_error_deg(pred_yp, true_yp):
-    a, b = yawpitch_to_unit(pred_yp), yawpitch_to_unit(true_yp)
-    dot = np.clip((a * b).sum(1), -1.0, 1.0)
-    return np.degrees(np.arccos(dot))
-
-
-# ---------------------------------------------------------------------------
-# Ridge regression, solved in whichever form is cheaper
-#
-# Primal (features D <= samples N):  w = (X'X + aI)^-1 X'Y     -> D x D solve
-# Dual   (D > N):                    w = X'(XX' + aI)^-1 Y     -> N x N solve
-#
-# Our headline readout has D = 256 tokens * pca_dim, typically >> N, so the dual
-# is the one that runs. Eigendecomposing the Gram matrix ONCE lets every alpha in
-# the CV grid be evaluated by a cheap diagonal rescale instead of a fresh solve.
-# ---------------------------------------------------------------------------
-
-class Ridge:
-    def __init__(self, alpha):
-        self.alpha = alpha
-
-    def fit(self, X, Y):
-        self.xm, self.ym = X.mean(0, keepdims=True), Y.mean(0, keepdims=True)
-        Xc, Yc = X - self.xm, Y - self.ym
-        n, d = Xc.shape
-        if d <= n:
-            A = Xc.T @ Xc + self.alpha * np.eye(d, dtype=np.float64)
-            self.W = np.linalg.solve(A, Xc.T @ Yc)
-        else:
-            K = Xc @ Xc.T + self.alpha * np.eye(n, dtype=np.float64)
-            self.W = Xc.T @ np.linalg.solve(K, Yc)
-        return self
-
-    def predict(self, X):
-        return (X - self.xm) @ self.W + self.ym
-
-
-def ridge_cv(X, Y, alphas, folds, seed=0):
-    """Pick alpha by k-fold CV on the TRAIN split only. Returns (best_alpha, curve)."""
-    n = X.shape[0]
-    rng = np.random.default_rng(seed)
-    order = rng.permutation(n)
-    cuts = np.array_split(order, folds)
-    scores = np.zeros(len(alphas))
-    for f in range(folds):
-        te = cuts[f]
-        tr = np.concatenate([cuts[g] for g in range(folds) if g != f])
-        Xtr, Ytr, Xte, Yte = X[tr], Y[tr], X[te], Y[te]
-        xm, ym = Xtr.mean(0, keepdims=True), Ytr.mean(0, keepdims=True)
-        Xc, Yc = Xtr - xm, Ytr - ym
-        ntr, d = Xc.shape
-        if d > ntr:
-            K = Xc @ Xc.T
-            s, V = np.linalg.eigh(K)                    # ONE decomposition per fold
-            VtY = V.T @ Yc
-            Kte = (Xte - xm) @ Xc.T
-            for ai, a in enumerate(alphas):
-                dual = V @ (VtY / (s[:, None] + a))
-                scores[ai] += r2(Kte @ dual + ym, Yte)
-        else:
-            G = Xc.T @ Xc
-            s, V = np.linalg.eigh(G)
-            VtXY = V.T @ (Xc.T @ Yc)
-            for ai, a in enumerate(alphas):
-                W = V @ (VtXY / (s[:, None] + a))
-                scores[ai] += r2((Xte - xm) @ W + ym, Yte)
-    scores /= folds
-    return alphas[int(np.argmax(scores))], scores
-
-
-def r2(pred, true):
-    """Uniform-average R^2 across targets. 0 == predicting the training mean."""
-    ss_res = ((true - pred) ** 2).sum(0)
-    ss_tot = ((true - true.mean(0, keepdims=True)) ** 2).sum(0)
-    return float(np.mean(1.0 - ss_res / np.maximum(ss_tot, 1e-12)))
-
-
-# ---------------------------------------------------------------------------
-# Channel PCA — fit on TRAIN frames only, applied to the patch grid
-# ---------------------------------------------------------------------------
-
-class ChannelPCA:
-    """(N, tokens, 1408) -> (N, tokens, k). Keeps the spatial grid, shrinks channels."""
-
-    def fit(self, grids, k):
-        A = grids.reshape(-1, grids.shape[-1]).astype(np.float64)
-        self.mean = A.mean(0, keepdims=True)
-        A = A - self.mean
-        C = (A.T @ A) / max(len(A) - 1, 1)
-        vals, vecs = np.linalg.eigh(C)
-        self.comp = vecs[:, ::-1][:, :k].copy()
-        self.explained = float(vals[::-1][:k].sum() / max(vals.sum(), 1e-12))
-        return self
-
-    def transform(self, grids):
-        n, t, _ = grids.shape
-        return ((grids.reshape(-1, grids.shape[-1]) - self.mean) @ self.comp) \
-            .reshape(n, t, -1).astype(np.float32)
-
-
-# ---------------------------------------------------------------------------
-# Sampling
-# ---------------------------------------------------------------------------
-
-def sample_indices(n_frames, fps, max_lead_s, windows, window_sec, per_window, rng):
-    """
-    Frame indices to probe, drawn inside a few short windows rather than scattered
-    across the whole recording. load_frames decodes sequentially from min to max
-    index, so scattered sampling would decode an entire 30-minute video per
-    recording. Windows bound that while keeping frame->timestamp alignment exact
-    (no keyframe seeking, which would silently misalign gaze).
-    """
-    span = int(window_sec * fps)
-    usable = n_frames - int(max_lead_s * fps) - 2
-    if usable <= span + 1:
-        return []
-    out = []
-    for _ in range(windows):
-        start = int(rng.integers(0, usable - span))
-        idx = rng.choice(np.arange(start, start + span), size=min(per_window, span), replace=False)
-        out.extend(int(i) for i in idx)
-    return sorted(set(out))
+from ego.data import load_frames
+from ego.linprobe import ChannelPCA, Ridge, angular_error_deg, probe_samples, r2, ridge_cv
+from ego.model import encode_independent, load_models
+from ego.runlog import Logger
 
 
 def _fit_pca(pca, pca_buf, feats_grid, args, log, short=False):
@@ -270,61 +88,33 @@ def collect(args, encoder, device, participants, split_name, pca, pca_buf, log):
     rng = np.random.default_rng(args.seed)
     amp = torch.bfloat16 if (not args.no_amp and device.type == "cuda") else None
 
-    for p in participants:
-        vids = sorted((Path(args.video_dir) / p).glob("*.mp4")) + \
-               sorted((Path(args.video_dir) / p).glob("*.MP4"))
-        if args.recordings:
-            vids = vids[:args.recordings]
-        for vp in vids:
-            gaze_csv, _ = find_csvs(args.gaze_dir, p, vp.stem)
-            ts_csv = find_ts_csv(str(vp))
-            if not gaze_csv or not ts_csv:
-                continue
-            try:
-                n_frames, fps = video_info(str(vp))
-                vrs = read_vrs_times(ts_csv)
-                gs = GazeSeries(gaze_csv, fps, tol_ms=args.tol_ms)
-            except Exception as e:                          # noqa: BLE001
-                log(f"  [skip] {vp.name}: {e}")
-                continue
-            if not np.isfinite(fps) or fps <= 0 or n_frames <= 0 or len(vrs) < n_frames:
-                continue
+    for p, vp, _, keep, y_t, y_lead in probe_samples(
+            args.video_dir, args.gaze_dir, participants, args.recordings, args.windows,
+            args.window_sec, args.per_window, args.leads, args.tol_ms, rng, log):
+        if not keep:
+            continue
 
-            idx = sample_indices(n_frames, fps, max(args.leads), args.windows,
-                                 args.window_sec, args.per_window, rng)
-            keep, y_t, y_lead = [], [], []
-            for i in idx:
-                g0 = gs.at_ns(vrs[i])
-                if g0 is None:
-                    continue
-                gl = [gs.at_ns(vrs[i] + int(L * 1e9)) for L in args.leads]
-                if any(g is None for g in gl):               # paired across leads:
-                    continue                                 # one sample set, every lead
-                keep.append(i); y_t.append(g0); y_lead.append(np.stack(gl))
-            if not keep:
-                continue
-
-            frames = load_frames(str(vp), keep, size=args.img_size)      # (K,3,H,W)
-            for s in range(0, len(keep), args.batch_size):
-                fb = frames[s:s + args.batch_size].unsqueeze(1)          # (b,1,3,H,W)
-                h = encode_independent(encoder, fb, device,
-                                       normalize_reps=not args.no_normalize_reps,
-                                       chunk=args.encode_chunk, amp_dtype=amp)
-                g = h.cpu().numpy().astype(np.float32)                   # (b, tokens, D)
-                feats_pool.append(g.mean(1))
-                if pca[0] is None:
-                    # Still buffering: append NOTHING to feats_grid. The buffered
-                    # batches are the first ones, so flushing them in order the moment
-                    # PCA fits keeps feats_grid aligned with feats_pool. (Appending a
-                    # placeholder here instead would leave holes that never get filled.)
-                    pca_buf.append(g)
-                    if sum(b.shape[0] for b in pca_buf) >= args.pca_fit_frames:
-                        _fit_pca(pca, pca_buf, feats_grid, args, log)
-                else:
-                    feats_grid.append(pca[0].transform(g).reshape(g.shape[0], -1))
-            gaze_t.append(np.stack(y_t)); gaze_lead.append(np.stack(y_lead))
-            meta.extend([(p, vp.stem)] * len(keep))
-            log(f"  {split_name} {p}/{vp.stem}: {len(keep)} samples")
+        frames = load_frames(str(vp), keep, size=args.img_size)      # (K,3,H,W)
+        for s in range(0, len(keep), args.batch_size):
+            fb = frames[s:s + args.batch_size].unsqueeze(1)          # (b,1,3,H,W)
+            h = encode_independent(encoder, fb, device,
+                                   normalize_reps=not args.no_normalize_reps,
+                                   chunk=args.encode_chunk, amp_dtype=amp)
+            g = h.cpu().numpy().astype(np.float32)                   # (b, tokens, D)
+            feats_pool.append(g.mean(1))
+            if pca[0] is None:
+                # Still buffering: append NOTHING to feats_grid. The buffered
+                # batches are the first ones, so flushing them in order the moment
+                # PCA fits keeps feats_grid aligned with feats_pool. (Appending a
+                # placeholder here instead would leave holes that never get filled.)
+                pca_buf.append(g)
+                if sum(b.shape[0] for b in pca_buf) >= args.pca_fit_frames:
+                    _fit_pca(pca, pca_buf, feats_grid, args, log)
+            else:
+                feats_grid.append(pca[0].transform(g).reshape(g.shape[0], -1))
+        gaze_t.append(np.stack(y_t)); gaze_lead.append(np.stack(y_lead))
+        meta.extend([(p, vp.stem)] * len(keep))
+        log(f"  {split_name} {p}/{vp.stem}: {len(keep)} samples")
 
     # Dataset smaller than the PCA quota: fit on whatever was buffered rather than
     # failing. --pca-fit-frames is a target, not a requirement.
@@ -387,12 +177,8 @@ def main():
                     help="rebuild the feature cache instead of reusing it")
     args = ap.parse_args()
 
-    out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
-    logf = open(f"{out}.log", "w")
-
-    def log(msg):
-        print(msg, flush=True)
-        logf.write(msg + "\n"); logf.flush()
+    out = Path(args.out)
+    log = Logger(out)
 
     torch.manual_seed(args.seed); np.random.seed(args.seed)
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
@@ -599,7 +385,7 @@ def main():
                        n_train=len(Xg_tr), n_test=len(Xg_te),
                        pca_explained=pca_expl), f, indent=2, default=str)
     log(f"[out] {out}.csv  {out}.json  {out}.log")
-    logf.close()
+    log.close()
 
 
 if __name__ == "__main__":

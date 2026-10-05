@@ -28,8 +28,8 @@ They are not equivalent, so all three are reported:
 If the three agree, the baseline is reliable. If they disagree, Delta depends on which
 one is used.
 
-The "signals hidden" condition of eval_ego_mse.py returns zero vectors with
-valid=False. The predictor uses the validity flag, so that condition is the mask
+The "signals hidden" condition of `python -m ego evaluate` and of the checks during
+training returns zero vectors with valid=False. The predictor uses the validity flag, so that condition is the mask
 variant.
 
 Every variant is scored on the same clips against the same target. The per-clip
@@ -37,7 +37,7 @@ differences are paired and tested with a Wilcoxon signed-rank test.
 
 Usage
 -----
-    $PY scripts/eval_rung_b1.py \
+    python -m ego stock-vs-tuned \
         --checkpoint data/model_checkpoints/vjepa2-ac-vitg.pt \
         --predictor-checkpoint checkpoints/ego_ft_v2/best.pt \
         --video-dir data/epic-kitchen/ek100-hd/HD-EPIC/Videos \
@@ -47,25 +47,19 @@ Usage
 
 import argparse
 import json
-import sys
 import time
 from pathlib import Path
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
-sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
-
-from ego_common import (
-    load_models, encode_independent, maybe_norm, load_frames,
-    read_vrs_times, find_csvs, find_ts_csv,
-)
-from eval_ego_mse import load_finetuned
-from probe_sensitivity import discover, enumerate_clips
-from ego.ego_loaders import GazeTokenLoader, HandTokenLoader
+from ego import signals
+from ego.clips import encode_clip, fixed_clips, mse, predict_last
+from ego.data import GAZE_MEAN, GAZE_STD, HAND_MEAN, HAND_STD
+from ego.data import GazeTokenLoader, HandTokenLoader, find_recordings, load_frames
+from ego.model import load_finetuned, load_models
+from ego.runlog import Logger
+from ego.stats import paired
 
 
 # ---------------------------------------------------------------------------
@@ -85,33 +79,25 @@ def signal_stats(video_dir, gaze_dir, participants, per_participant, standardize
     g_sum = np.zeros(3); g_sq = np.zeros(3); g_n = 0
     h_sum = np.zeros(12); h_sq = np.zeros(12); h_n = 0
     for p in participants:
-        seen = 0
-        for mp4 in sorted(Path(video_dir, p).glob("*.mp4")):
-            g_csv, h_csv = find_csvs(gaze_dir, p, mp4.stem)
-            if not (g_csv or h_csv):
-                continue
-            if g_csv:
-                gl = GazeTokenLoader(g_csv, 30.0, standardize=standardize)
+        for rec in find_recordings(video_dir, gaze_dir, [p], require_ts=False,
+                                   require_signal=True, limit_per_participant=per_participant):
+            if rec.gaze_csv:
+                gl = GazeTokenLoader(rec.gaze_csv, 30.0, standardize=standardize)
                 df = gl.df[gl.df["gaze_valid"]]
                 v = df[["yaw", "pitch", "depth"]].values.astype(np.float64)
                 v[:, 2] = np.clip(np.where(v[:, 2] == 0, 1.0, v[:, 2]), 0.05, 10.0)
                 if standardize:
-                    from ego.ego_loaders import GAZE_MEAN, GAZE_STD
                     v = (v - GAZE_MEAN) / GAZE_STD
                 g_sum += v.sum(0); g_sq += (v ** 2).sum(0); g_n += len(v)
-            if h_csv:
-                hl = HandTokenLoader(h_csv, 30.0, standardize=standardize)
+            if rec.hand_csv:
+                hl = HandTokenLoader(rec.hand_csv, 30.0, standardize=standardize)
                 df = hl.df[hl.df["left_valid"] | hl.df["right_valid"]]
                 cols = ["tx_lw", "ty_lw", "tz_lw", "tx_lp", "ty_lp", "tz_lp",
                         "tx_rw", "ty_rw", "tz_rw", "tx_rp", "ty_rp", "tz_rp"]
                 v = df[cols].values.astype(np.float64)
                 if standardize:
-                    from ego.ego_loaders import HAND_MEAN, HAND_STD
                     v = (v - HAND_MEAN) / HAND_STD
                 h_sum += v.sum(0); h_sq += (v ** 2).sum(0); h_n += len(v)
-            seen += 1
-            if seen >= per_participant:
-                break
         log(f"  [stats] {p}: cumulative gaze n={g_n:,}  hand n={h_n:,}")
     g_mean = g_sum / max(g_n, 1)
     h_mean = h_sum / max(h_n, 1)
@@ -124,46 +110,11 @@ def signal_stats(video_dir, gaze_dir, participants, per_participant, standardize
     }
 
 
-# ---------------------------------------------------------------------------
-# Conditioning variants
-# ---------------------------------------------------------------------------
-
-def make_variants(sig, g_mean_t, h_mean_t):
-    gaze, gv, hand, hl, hr = sig
-    ones_g = torch.ones_like(gv)
-    return {
-        "real":  sig,
-        "mask":  (gaze, torch.zeros_like(gv), hand, torch.zeros_like(hl), torch.zeros_like(hr)),
-        "zeros": (torch.zeros_like(gaze), ones_g, torch.zeros_like(hand),
-                  torch.ones_like(hl), torch.ones_like(hr)),
-        "mean":  (g_mean_t.expand_as(gaze).contiguous(), ones_g,
-                  h_mean_t.expand_as(hand).contiguous(),
-                  torch.ones_like(hl), torch.ones_like(hr)),
-    }
-
-
-@torch.no_grad()
-def score(predictor, enc_ctx, enc_fut, sig, HW, normalize_reps):
-    pred = maybe_norm(predictor(enc_ctx, *sig)[:, -HW:, :], normalize_reps)
-    return float(F.mse_loss(pred.float(), enc_fut.float()))
-
-
-def paired(df, arm_a, arm_b):
-    """Per-clip a - b, with a Wilcoxon signed-rank test and a bootstrap CI on the mean."""
-    from scipy.stats import wilcoxon
+def contrast(df, arm_a, arm_b, n_boot):
+    """Per-clip arm_a - arm_b, as ego.stats.paired computes it."""
     a = df[df.arm == arm_a].sort_values("clip").mse.values
     b = df[df.arm == arm_b].sort_values("clip").mse.values
-    d = a - b
-    rng = np.random.default_rng(0)
-    boot = np.array([rng.choice(d, len(d), replace=True).mean() for _ in range(5000)])
-    try:
-        stat, p = wilcoxon(d)
-    except ValueError:
-        stat, p = np.nan, np.nan
-    return {"contrast": f"{arm_a} - {arm_b}", "n": len(d), "mean_delta": float(d.mean()),
-            "median_delta": float(np.median(d)), "ci_lo": float(np.percentile(boot, 2.5)),
-            "ci_hi": float(np.percentile(boot, 97.5)), "wilcoxon_p": float(p),
-            "frac_positive": float((d > 0).mean())}
+    return {"contrast": f"{arm_a} - {arm_b}", **paired(a, b, n_boot=n_boot)}
 
 
 def main():
@@ -182,6 +133,7 @@ def main():
     ap.add_argument("--context-steps", type=int, default=8)
     ap.add_argument("--frame-stride", type=int, default=8)
     ap.add_argument("--seed", type=int, default=12345)
+    ap.add_argument("--n-boot", type=int, default=5000, help="bootstrap resamples for the CIs")
     ap.add_argument("--no-normalize-reps", action="store_true")
     ap.add_argument("--no-standardize", action="store_true")
     ap.add_argument("--encode-chunk", type=int, default=16)
@@ -189,12 +141,8 @@ def main():
     ap.add_argument("--out", default="results/rung_b1")
     args = ap.parse_args()
 
-    out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
-    logf = open(f"{out}.log", "w")
-
-    def log(msg):
-        print(msg, flush=True)
-        logf.write(msg + "\n"); logf.flush()
+    out = Path(args.out)
+    log = Logger(out)
 
     device = torch.device(args.device)
     normalize_reps = not args.no_normalize_reps
@@ -226,22 +174,20 @@ def main():
                                         encoder_key="target_encoder")
     stock_sd = {k: v.detach().clone() for k, v in predictor.state_dict().items()}
     predictor.eval()
-    HW = predictor.grid_height * predictor.grid_width
     log(f"[setup] models built in {time.time()-t0:.0f}s")
 
-    recs = discover(args.video_dir, args.gaze_dir, args.participants, args.recordings)
-    clips = enumerate_clips(recs, T, stride, args.clips, args.seed, standardize, device, log)
+    recs = find_recordings(args.video_dir, args.gaze_dir, args.participants,
+                           require_signal=True, limit_per_participant=args.recordings)
+    clips = fixed_clips(recs, T, stride, args.clips, args.seed, standardize, log)
     log(f"[clips] {len(clips)} clips from {args.participants}")
 
     # One encode pass, then both models scored on the cached encodings: the encoder
     # is the whole cost, and re-encoding per model would also let the two arms drift.
     cache = []
     for i, clip in enumerate(clips):
-        frames = load_frames(clip["rec"]["mp4"], clip["ctx_idx"] + [clip["fut_idx"]])
-        enc_ctx = encode_independent(encoder, frames[:T].unsqueeze(0), device,
-                                     normalize_reps, chunk=args.encode_chunk)
-        enc_fut = encode_independent(encoder, frames[T].unsqueeze(0).unsqueeze(0), device,
-                                     normalize_reps, chunk=args.encode_chunk)
+        frames = load_frames(clip.rec.mp4, clip.ctx_idx + [clip.fut_idx])
+        enc_ctx, enc_fut = encode_clip(encoder, frames, T, device, normalize_reps,
+                                       chunk=args.encode_chunk)
         cache.append((enc_ctx.cpu(), enc_fut.cpu(), clip))
         if (i + 1) % 20 == 0:
             log(f"  [encode {i+1}/{len(clips)}] {time.time()-t0:.0f}s")
@@ -259,11 +205,13 @@ def main():
         predictor.eval()
         for i, (enc_ctx, enc_fut, clip) in enumerate(cache):
             ec, ef = enc_ctx.to(device), enc_fut.to(device)
-            for vname, sig in make_variants(clip["sig"], g_mean_t, h_mean_t).items():
-                rows.append({"clip": i, "participant": clip["rec"]["participant"],
-                             "recording": clip["rec"]["stem"], "model": model_name,
+            variants = signals.no_signal_variants(signals.as_batch(clip.sig, device),
+                                                  g_mean_t, h_mean_t)
+            for vname, sig in variants.items():
+                rows.append({"clip": i, "participant": clip.rec.participant,
+                             "recording": clip.rec.stem, "model": model_name,
                              "variant": vname, "arm": f"{model_name}:{vname}",
-                             "mse": score(predictor, ec, ef, sig, HW, normalize_reps)})
+                             "mse": mse(predict_last(predictor, ec, sig, normalize_reps), ef)})
 
     import pandas as pd
     df = pd.DataFrame(rows)
@@ -285,7 +233,7 @@ def main():
         ("stock_ac:mask", "stock_ac:real"),
         ("finetuned:zeros", "finetuned:mask"),
     ]
-    stat_rows = [paired(df, a, b) for a, b in contrasts]
+    stat_rows = [contrast(df, a, b, args.n_boot) for a, b in contrasts]
     sdf = pd.DataFrame(stat_rows)
     sdf.to_csv(f"{out}_contrasts.csv", index=False)
     log("\nPaired contrasts (positive mean_delta = the SECOND arm predicts better)")
@@ -321,7 +269,7 @@ def main():
         json.dump({"config": vars(args), "signal_stats": stats,
                    "means": piv.to_dict(), "contrasts": stat_rows}, f, indent=2, default=str)
     log(f"[out] {out}.csv  {out}_contrasts.csv  {out}.json  {out}.log")
-    logf.close()
+    log.close()
 
 
 if __name__ == "__main__":

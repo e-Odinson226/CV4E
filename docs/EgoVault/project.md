@@ -89,7 +89,7 @@ These are the places where the paper does not yet follow the notes and the code.
    [[4-results#^t8|T8]] and [[4-results#^t10|T10]]. It credits the diagnostic-first approach
    to Parsa alone, but Erfan also tested the model before building anything larger.
 4. Neither the paper nor [[4-results#^t7|T7]] says which inputs the attention test hid.
-   `scripts/probe_attention_mass.py` runs three variants: real signals, gaze hidden alone,
+   `python -m ego attention` runs three variants: real signals, gaze hidden alone,
    and gaze and hand hidden together. T7 should say this first, then the paper.
 5. The text says "five diagnostics". Table 2 has six rows.
 

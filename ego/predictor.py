@@ -1,3 +1,13 @@
+"""
+The ego predictor: V-JEPA 2-AC's action-conditioned predictor with gaze and hand tokens
+in place of the robot's action and state tokens.
+
+Each frame is [gaze, hand, 256 image tokens], the same layout as the AC predictor's
+[action, state, image tokens]. So every transformer block of a pretrained AC
+checkpoint loads unchanged (ego.model.load_ac_weights_into_ego). Only gaze_proj,
+hand_proj and the two mask tokens are new.
+"""
+
 import math
 from functools import partial
 
@@ -228,36 +238,3 @@ def vit_ego_predictor(**kwargs):
         norm_layer=partial(nn.LayerNorm, eps=1e-6),
         **kwargs,
     )
-
-
-# from ego.ego_predictor import vit_ego_predictor
-# from ego.ego_finetune import (
-#     load_ac_weights_into_ego,
-#     freeze_for_ego_finetune,
-#     get_ego_finetune_param_groups,
-#     trainable_parameter_summary,
-# )
-
-# # 1. Build predictor
-# predictor = vit_ego_predictor(embed_dim=1024, predictor_embed_dim=1024, depth=24, ...)
-
-# # 2. Transfer pretrained AC weights (blocks, norm, proj — everything except action encoders)
-# transferred, skipped = load_ac_weights_into_ego(predictor, ac_ckpt['predictor'])
-
-# # 3. Freeze all but new projectors + last 6 blocks + output head
-# freeze_for_ego_finetune(predictor, unfreeze_last_n_blocks=6)
-# print(trainable_parameter_summary(predictor))   # sanity check
-
-# # 4. Optimizer with two LRs
-# param_groups = get_ego_finetune_param_groups(predictor, lr_proj=1e-3, lr_blocks=1e-4)
-# optimizer = torch.optim.AdamW(param_groups, weight_decay=1e-2)
-
-# # 5. Forward pass
-# out = predictor(encoder_tokens, gaze_vecs, gaze_valid, hand_vecs, left_valid, right_valid)
-# What gets frozen vs. trained
-# Layer	Status	Reason
-# gaze_proj, hand_proj, *_mask	Train @ 1e-3	Randomly init, must learn fast
-# Last 6 transformer blocks	Train @ 1e-4	Pretrained, adapt to ego signals
-# predictor_norm, predictor_proj	Train @ 1e-4	Output head needs calibration
-# predictor_embed	Frozen	Maps encoder tokens, no ego-specific change
-# First 18 transformer blocks	Frozen	Low-level feature processing stays fixed

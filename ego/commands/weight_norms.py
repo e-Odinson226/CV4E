@@ -8,7 +8,7 @@ happened here, the norm of gaze_proj.weight shrank relative to its value at the 
 
 Weight decay
 ------------
-finetune_ego.py uses AdamW with weight decay 0.01 on all trained parameters, so every
+Training uses AdamW with weight decay 0.01 on all trained parameters, so every
 trained weight shrinks, whatever the data. The shrinkage of gaze_proj alone says
 nothing. Each norm is therefore reported in three ways:
 
@@ -32,9 +32,9 @@ hardly depends on the seed.
 
 Usage
 -----
-    $PY scripts/probe_weight_norms.py \
+    python -m ego weight-norms \
         --checkpoint data/model_checkpoints/vjepa2-ac-vitg.pt \
-        --predictor-checkpoints checkpoints/ego_ft_v2/best.pt checkpoints/ego_ft_v2/final.pt \
+        --predictor-checkpoints checkpoints/ego_ft_v2/best.pt checkpoints/ego_sd1p0/best.pt \
         --out results/weight_norms
 
 It runs on the CPU by default, so it can run next to a GPU job.
@@ -42,17 +42,13 @@ It runs on the CPU by default, so it can run next to a GPU job.
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
 import torch
 
-sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
-
-from ego_common import load_models, strip_prefix
+from ego.model import load_models, strip_prefix
+from ego.runlog import Logger
 
 
 # Groups reported. Each is (label, predicate over parameter name).
@@ -95,14 +91,10 @@ def main():
     ap.add_argument("--out", default="results/weight_norms")
     args = ap.parse_args()
 
-    out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
-    logf = open(f"{out}.log", "w")
+    out = Path(args.out)
+    log = Logger(out)
 
-    def log(msg):
-        print(msg, flush=True)
-        logf.write(msg + "\n"); logf.flush()
-
-    # Rebuild the exact construction path finetune_ego.main() takes, so the
+    # Rebuild the exact construction path training takes, so the
     # projectors get the initialisation the runs actually started from.
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -130,7 +122,7 @@ def main():
             f"epochs={cfg.get('epochs','?')} clips/rec={cfg.get('clips_per_recording','?')}")
         for label, pred in GROUPS:
             nrm, npar = group_norm(sd, pred)
-            # Biases initialise to exactly 0 (ego_predictor._init_weights), so a
+            # Biases initialise to exactly 0 (predictor._init_weights), so a
             # ratio against init is a division by zero dressed up as a huge number.
             # Those groups are reported as absolute norms only.
             ratio = nrm / base[label] if base[label] > 1e-8 else float("nan")
@@ -182,7 +174,7 @@ def main():
     with open(f"{out}.json", "w") as f:
         json.dump({"config": vars(args), "rows": rows}, f, indent=2, default=str)
     log(f"[out] {out}.csv  {out}.json  {out}.log")
-    logf.close()
+    log.close()
 
 
 if __name__ == "__main__":

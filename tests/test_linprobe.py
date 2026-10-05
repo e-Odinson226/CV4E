@@ -1,14 +1,9 @@
-"""Self-test for the numerical core of gaze_recoverability.py (no GPU, no data)."""
+"""Self-test for the numerical core of the linear probe, ego/linprobe.py (no GPU, no data)."""
 import sys, tempfile, os
-from pathlib import Path
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
-
-from gaze_recoverability import (
+from ego.linprobe import (
     Ridge, ridge_cv, r2, ChannelPCA, angular_error_deg, yawpitch_to_unit,
     GazeSeries, sample_indices,
 )

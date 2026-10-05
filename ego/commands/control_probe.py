@@ -39,8 +39,7 @@ gaze and palm are compared on the same rows.
 
 Usage
 -----
-    PY=/mnt/data/home/zj2433/miniconda3/envs/VJEPA2-AC/bin/python
-    $PY scripts/control_recoverability.py \
+    python -m ego control-probe \
         --video-dir data/epic-kitchen/ek100-hd/HD-EPIC/Videos \
         --gaze-dir  data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze \
         --out results/control_recoverability
@@ -51,109 +50,36 @@ cache.
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
-
-from ego_common import video_info, read_vrs_times, find_csvs, find_ts_csv
-# Import the ORIGINAL sampler and probe rather than reimplementing them: any
-# divergence would silently invalidate the comparison this script exists to make.
-from gaze_recoverability import GazeSeries, sample_indices, Ridge, ridge_cv, r2
+from ego.data import find_csvs
+from ego.linprobe import HandSeries, Ridge, probe_samples, r2, ridge_cv
+from ego.runlog import Logger
 
 
 # ---------------------------------------------------------------------------
-# Hand series — searchsorted lookup with a tolerance, mirroring GazeSeries.
-#
-# The hand CSV runs at ~10 Hz against gaze's ~30-60 Hz, so the tolerance has to be
-# looser or every lookup would be rejected. Nearest-neighbour without a tolerance
-# would fabricate targets past the end of a recording, which is exactly the bug
-# GazeSeries was written to avoid.
-# ---------------------------------------------------------------------------
-
-class HandSeries:
-    COLS = ["tx_left_palm_device", "ty_left_palm_device", "tz_left_palm_device",
-            "tx_right_palm_device", "ty_right_palm_device", "tz_right_palm_device"]
-
-    def __init__(self, hand_csv, tol_ms=100.0):
-        df = pd.read_csv(hand_csv)
-        self.ts = df["tracking_timestamp_us"].values.astype(np.int64)
-        order = np.argsort(self.ts)
-        self.ts = self.ts[order]
-        self.xyz = df[self.COLS].values.astype(np.float32)[order]
-        self.lvalid = (df["left_tracking_confidence"].values != -1)[order]
-        self.rvalid = (df["right_tracking_confidence"].values != -1)[order]
-        self.tol_us = tol_ms * 1000.0
-
-    def at_ns(self, vrs_ns):
-        """(xyz6, left_valid, right_valid) at the nearest sample, or None if too far."""
-        t = int(vrs_ns) // 1000
-        i = int(np.searchsorted(self.ts, t))
-        best, bestd = -1, None
-        for j in (i - 1, i):
-            if 0 <= j < len(self.ts):
-                d = abs(int(self.ts[j]) - t)
-                if bestd is None or d < bestd:
-                    best, bestd = j, d
-        if best < 0 or bestd > self.tol_us:
-            return None
-        v = self.xyz[best]
-        return (v, bool(self.lvalid[best]), bool(self.rvalid[best])) if np.all(np.isfinite(v)) else None
-
-
-# ---------------------------------------------------------------------------
-# Replay of gaze_recoverability.collect()'s sampling, without encoding anything
+# T4's rows, rebuilt without encoding anything
 # ---------------------------------------------------------------------------
 
 def replay(cfg, participants, split_name, log):
     """
-    Returns per-row (participant, stem, frame_index, vrs_ns, gaze3), in the exact
-    order collect() produced them. The rng is created once per split and advanced
-    by one sample_indices() call per recording that survives the same guards, so
-    the order of those guards is load-bearing and copied verbatim.
+    The rows of the T4 cache, rebuilt with T4's sampler (ego.linprobe.probe_samples) and
+    the cache's own settings: per row (participant, stem, frame_index, vrs_ns, gaze3), in
+    the order gaze-probe produced them. No video is decoded.
     """
     rng = np.random.default_rng(cfg["seed"])
     rows = []
-    for p in participants:
-        vids = sorted((Path(cfg["video_dir"]) / p).glob("*.mp4")) + \
-               sorted((Path(cfg["video_dir"]) / p).glob("*.MP4"))
-        if cfg["recordings"]:
-            vids = vids[:cfg["recordings"]]
-        for vp in vids:
-            gaze_csv, _ = find_csvs(cfg["gaze_dir"], p, vp.stem)
-            ts_csv = find_ts_csv(str(vp))
-            if not gaze_csv or not ts_csv:
-                continue
-            try:
-                n_frames, fps = video_info(str(vp))
-                vrs = read_vrs_times(ts_csv)
-                gs = GazeSeries(gaze_csv, fps, tol_ms=cfg["tol_ms"])
-            except Exception as e:                                # noqa: BLE001
-                log(f"  [skip] {vp.name}: {e}")
-                continue
-            if not np.isfinite(fps) or fps <= 0 or n_frames <= 0 or len(vrs) < n_frames:
-                continue
-
-            idx = sample_indices(n_frames, fps, max(cfg["leads"]), cfg["windows"],
-                                 cfg["window_sec"], cfg["per_window"], rng)
-            kept = 0
-            for i in idx:
-                g0 = gs.at_ns(vrs[i])
-                if g0 is None:
-                    continue
-                gl = [gs.at_ns(vrs[i] + int(L * 1e9)) for L in cfg["leads"]]
-                if any(g is None for g in gl):
-                    continue
-                rows.append({"participant": p, "stem": vp.stem, "frame": int(i),
-                             "vrs_ns": int(vrs[i]), "gaze": g0})
-                kept += 1
-            if kept:
-                log(f"  {split_name} {p}/{vp.stem}: {kept} rows")
+    for p, vp, vrs, keep, g0s, _ in probe_samples(
+            cfg["video_dir"], cfg["gaze_dir"], participants, cfg["recordings"], cfg["windows"],
+            cfg["window_sec"], cfg["per_window"], cfg["leads"], cfg["tol_ms"], rng, log):
+        for i, g0 in zip(keep, g0s):
+            rows.append({"participant": p, "stem": vp.stem, "frame": int(i),
+                         "vrs_ns": int(vrs[i]), "gaze": g0})
+        if keep:
+            log(f"  {split_name} {p}/{vp.stem}: {len(keep)} rows")
     return rows
 
 
@@ -214,7 +140,7 @@ def hand_targets(rows, cfg, log):
 
 
 # ---------------------------------------------------------------------------
-# Probe: the same as in T4 (gaze_recoverability.py). Only the target differs.
+# Probe: the same as in T4 (gaze-probe). Only the target differs.
 # ---------------------------------------------------------------------------
 
 def per_col_mse(pred, true):
@@ -260,12 +186,8 @@ def main():
     ap.add_argument("--out", default="results/control_recoverability")
     args = ap.parse_args()
 
-    out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
-    logf = open(f"{out}.log", "w")
-
-    def log(msg):
-        print(msg, flush=True)
-        logf.write(msg + "\n"); logf.flush()
+    out = Path(args.out)
+    log = Logger(out)
 
     src = json.load(open(args.source_json))["config"]
     cfg = {k: src[k] for k in ("video_dir", "gaze_dir", "recordings", "windows", "window_sec",
@@ -293,7 +215,7 @@ def main():
     Yh_te, Vh_te = hand_targets(rows_te, cfg, log)
 
     # Pool the two splits once; the split logic below re-slices this pool exactly
-    # as gaze_recoverability.main() does, so "participant" is the original arrays.
+    # as gaze-probe does, so "participant" is the original arrays.
     Xg = np.concatenate([z["Xg_tr"], z["Xg_te"]])
     Xp = np.concatenate([z["Xp_tr"], z["Xp_te"]])
     Gl = np.concatenate([z["gl_tr"], z["gl_te"]])
@@ -433,7 +355,7 @@ def main():
         json.dump({"config": vars(args), "source_config": src,
                    "identity_accuracy": acc, "rows": rows}, f, indent=2, default=str)
     log(f"\n[out] {out}.csv  {out}.json  {out}.log")
-    logf.close()
+    log.close()
 
 
 if __name__ == "__main__":

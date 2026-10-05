@@ -5,21 +5,19 @@ Reads metrics.jsonl (preferred) or train.log from a run dir and produces a
 3-panel figure: (1) train loss, (2) held-out MSE_A vs MSE_B, (3) Δ = A−B with a
 zero baseline. Pass multiple --dir to overlay the Δ curves for comparison.
 
-    python scripts/plot_results.py --dir checkpoints/ego_ft_v2
-    python scripts/plot_results.py --dir checkpoints/ego_ft_v2 checkpoints/ego_finetune
+    python -m ego plot --dir checkpoints/ego_ft_v2
+    python -m ego plot --dir checkpoints/ego_ft_v2 checkpoints/ego_finetune
 """
 
 import argparse
 import json
-import re
 from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-VAL_RE = re.compile(r"\[val \w*(\d+)\].*?MSE_A\(masked\)=([\d.]+).*?MSE_B\(real\)=([\d.]+).*?Delta\(A-B\)=([-+\d.]+)")
-STEP_RE = re.compile(r"epoch (\d+)\s+step\s+(\d+)/(\d+).*?loss=([\d.]+)")
+from ego.runlog import parse_train_log
 
 
 def load(run_dir):
@@ -39,15 +37,13 @@ def load(run_dir):
             elif r.get("t") == "val":
                 vals.append({"epoch": r["epoch"], "A": r["mse_A"], "B": r["mse_B"], "delta": r["delta"]})
     if not steps and not vals:  # fall back to train.log
-        for line in (d / "train.log").read_text(errors="ignore").splitlines():
-            m = STEP_RE.search(line)
-            if m:
-                fe = (int(m.group(1)) - 1) + int(m.group(2)) / int(m.group(3))
-                steps.append((fe, float(m.group(4))))
-            m = VAL_RE.search(line)
-            if m:
-                vals.append({"epoch": int(m.group(1)), "A": float(m.group(2)),
-                             "B": float(m.group(3)), "delta": float(m.group(4))})
+        r = parse_train_log(d / "train.log")
+        for s in r["steps"]:
+            steps.append(((s["epoch"] - 1) + s["step"] / s["total"], s["loss"]))
+        for v in r["vals"]:
+            if v["epoch"] is not None:
+                vals.append({"epoch": v["epoch"], "A": v["mse_A"],
+                             "B": v["mse_B"], "delta": v["delta"]})
     return steps, vals
 
 

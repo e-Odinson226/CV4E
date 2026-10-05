@@ -3,7 +3,7 @@ Fine-tune VisionTransformerPredictorEgo on HD-EPIC with gaze and hand inputs.
 
     loss = MSE( norm(predictor(enc_ctx, gaze, hand)) , norm(enc_target) )
 
-The setup matches the original V-JEPA 2-AC training (see scripts/ego_common.py):
+The setup matches the original V-JEPA 2-AC training (see ego/model.py):
   * each frame is encoded on its own, with the EMA target encoder,
   * the model steps at a stride of 8 frames (about 4 fps), not on adjacent frames,
   * embeddings are layer-normalized before the loss (normalize_reps),
@@ -16,11 +16,11 @@ Two options change the signals during training:
   * --shuffle-signals breaks the match between signals and frames and keeps everything
     else the same. It gives a control model. No run has used it yet.
 
-After each epoch the script measures Delta on held-out clips (--val-participants), with
-the same code as eval_ego_mse.py.
+After each epoch the script measures Delta on the fixed held-out clips (ego/clips.py) of
+--val-participants.
 
 Usage (the command that trained ego_ft_v2):
-    python scripts/finetune_ego.py \
+    python -m ego train \
         --checkpoint data/model_checkpoints/vjepa2-ac-vitg.pt \
         --video-dir  data/epic-kitchen/ek100-hd/HD-EPIC/Videos \
         --gaze-dir   data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze \
@@ -31,7 +31,7 @@ Usage (the command that trained ego_ft_v2):
         --out-dir checkpoints/ego_ft_v2
 
     # Dry run (no gaze data needed — uses null signals):
-    python scripts/finetune_ego.py ... --participants P01 --epochs 1 \
+    python -m ego train ... --participants P01 --epochs 1 \
         --clips-per-recording 5 --batch-size 2 --out-dir checkpoints/dry_run
 """
 
@@ -47,23 +47,15 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
-sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
-
-from ego_common import (
-    load_models, encode_independent, maybe_norm,
-    load_frames, read_vrs_times, find_csvs, find_ts_csv,
+from ego import signals
+from ego.clips import VAL_SEED, fixed_clips, paired_mse
+from ego.data import find_recordings, load_frames, open_loaders, read_vrs_times
+from ego.model import (
+    encode_independent, freeze_for_ego_finetune, get_ego_finetune_param_groups,
+    load_models, log_finetuned_layers, maybe_norm,
 )
-from eval_ego_mse import eval_clip, _real_signals
-from ego.ego_finetune import (
-    freeze_for_ego_finetune,
-    get_ego_finetune_param_groups,
-    log_finetuned_layers,
-)
-from ego.ego_loaders import GazeTokenLoader, HandTokenLoader
 
-log = logging.getLogger("finetune_ego")
+log = logging.getLogger("ego.train")
 
 
 # ---------------------------------------------------------------------------
@@ -116,12 +108,11 @@ class HDEpicClipDataset(Dataset):
         self.signal_dropout = signal_dropout
         self.standardize = standardize
 
-        self.recordings = []
-        self._discover(video_dir, gaze_dir, participants)
+        self.recordings = find_recordings(video_dir, gaze_dir, participants)
         self._cache = {}   # per-recording (vrs_ts, gaze_loader, hand_loader)
 
-        n_gaze = sum(1 for r in self.recordings if r["gaze_csv"])
-        n_hand = sum(1 for r in self.recordings if r["hand_csv"])
+        n_gaze = sum(1 for r in self.recordings if r.gaze_csv)
+        n_hand = sum(1 for r in self.recordings if r.hand_csv)
         log.info(f"[dataset] participants={participants}")
         log.info(f"[dataset] recordings found:    {len(self.recordings)}")
         log.info(f"[dataset] with gaze CSV:        {n_gaze}/{len(self.recordings)}")
@@ -135,26 +126,10 @@ class HDEpicClipDataset(Dataset):
             log.warning("[dataset] No gaze CSVs found — training with NULL signals only. "
                         "Condition B is impossible until GAZE_HAND zips are downloaded.")
 
-    def _discover(self, video_dir, gaze_dir, participants):
-        for p in participants:
-            for mp4 in sorted(Path(video_dir, p).glob("*.mp4")):
-                ts_csv = find_ts_csv(str(mp4))
-                if ts_csv is None:
-                    continue
-                gaze_csv, hand_csv = find_csvs(gaze_dir, p, mp4.stem)
-                self.recordings.append({
-                    "mp4": str(mp4), "ts_csv": ts_csv,
-                    "gaze_csv": gaze_csv, "hand_csv": hand_csv,
-                })
-
     def _get_cached(self, rec):
-        key = rec["mp4"]
-        if key not in self._cache:
-            vrs_ts = read_vrs_times(rec["ts_csv"])
-            gl = GazeTokenLoader(rec["gaze_csv"], 30.0, standardize=self.standardize) if rec["gaze_csv"] else None
-            hl = HandTokenLoader(rec["hand_csv"], 30.0, standardize=self.standardize) if rec["hand_csv"] else None
-            self._cache[key] = (vrs_ts, gl, hl)
-        return self._cache[key]
+        if rec.mp4 not in self._cache:
+            self._cache[rec.mp4] = (read_vrs_times(rec.ts_csv), *open_loaders(rec, self.standardize))
+        return self._cache[rec.mp4]
 
     def __len__(self):
         return len(self.recordings) * self.clips_per_rec
@@ -164,7 +139,7 @@ class HDEpicClipDataset(Dataset):
         try:
             return self._sample_clip(rec)
         except Exception as e:
-            log.warning(f"[dataset] clip sample failed for {Path(rec['mp4']).name}: {e}")
+            log.warning(f"[dataset] clip sample failed for {Path(rec.mp4).name}: {e}")
             return self._null_item()
 
     def _sample_clip(self, rec):
@@ -179,34 +154,15 @@ class HDEpicClipDataset(Dataset):
         tgt_idx = [start + (i + 1) * self.stride for i in range(self.T)]
         all_idx = sorted(set(ctx_idx + tgt_idx))
 
-        frames = load_frames(rec["mp4"], all_idx, size=self.img_size)
+        frames = load_frames(rec.mp4, all_idx, size=self.img_size)
         pos = {j: k for k, j in enumerate(all_idx)}
         ctx_frames = frames[[pos[j] for j in ctx_idx]]
         tgt_frames = frames[[pos[j] for j in tgt_idx]]
 
         drop = np.random.rand() < self.signal_dropout
         ctx_vrs = [int(vrs_ts[j]) for j in ctx_idx]
-        gaze_v, gaze_val, hand_v, h_l, h_r = self._load_signals(gl, hl, ctx_vrs, drop)
-
-        return ctx_frames, tgt_frames, gaze_v, gaze_val, hand_v, h_l, h_r
-
-    def _load_signals(self, gl, hl, ctx_vrs_ns, drop):
-        T = self.T
-        gaze_vecs  = np.zeros((T, 3),  dtype=np.float32)
-        gaze_valid = np.zeros(T,        dtype=bool)
-        hand_vecs  = np.zeros((T, 12), dtype=np.float32)
-        h_left     = np.zeros(T,        dtype=bool)
-        h_right    = np.zeros(T,        dtype=bool)
-
-        if not drop and gl is not None:
-            for t, vrs_ns in enumerate(ctx_vrs_ns):
-                gaze_vecs[t], gaze_valid[t] = gl.get_token_for_vrs_ns(vrs_ns)
-        if not drop and hl is not None:
-            for t, vrs_ns in enumerate(ctx_vrs_ns):
-                hand_vecs[t], h_left[t], h_right[t] = hl.get_token_for_vrs_ns(vrs_ns)
-
-        return (torch.from_numpy(gaze_vecs), torch.from_numpy(gaze_valid),
-                torch.from_numpy(hand_vecs), torch.from_numpy(h_left), torch.from_numpy(h_right))
+        sig = signals.read(None if drop else gl, None if drop else hl, ctx_vrs, self.T)
+        return (ctx_frames, tgt_frames, *(torch.from_numpy(x) for x in sig))
 
     def _null_item(self):
         T, sz = self.T, self.img_size
@@ -287,7 +243,6 @@ def train_one_epoch(encoder, predictor, loader, optimizer, device, epoch,
                     normalize_reps=True, amp_dtype=None, encode_chunk=16,
                     log_every=10, jsonl=None):
     predictor.train()
-    HW = predictor.grid_height * predictor.grid_width
 
     total_loss = total_grad = 0.0
     ema = None                       # smoothed instantaneous loss
@@ -346,62 +301,25 @@ def train_one_epoch(encoder, predictor, loader, optimizer, device, epoch,
     return total_loss / max(n_batches, 1), total_grad / max(n_batches, 1), time.time() - t_epoch
 
 
-# ---------------------------------------------------------------------------
-# Held-out validation: paired MSE_A (masked) vs MSE_B (real signals)
-# ---------------------------------------------------------------------------
-
-def discover_recordings(video_dir, gaze_dir, participants, require_signal=True, limit=None):
-    recs = []
-    for p in participants:
-        for mp4 in sorted(Path(video_dir, p).glob("*.mp4")):
-            ts = find_ts_csv(str(mp4))
-            if ts is None:
-                continue
-            g, h = find_csvs(gaze_dir, p, mp4.stem)
-            if require_signal and not (g or h):
-                continue
-            recs.append({"mp4": str(mp4), "ts_csv": ts, "gaze_csv": g, "hand_csv": h})
-            if limit and len(recs) >= limit:
-                return recs
-    return recs
-
-
 @torch.no_grad()
-def validate(encoder, predictor, recordings, device, T, stride, n_clips,
-             normalize_reps, standardize, seed=12345):
+def validate(encoder, predictor, clips, device, T, normalize_reps):
     """
-    Paired held-out eval. For a FIXED set of clips (seeded), score the future
-    step with signals masked (A) and with real signals (B). Same clips every
-    epoch, so the Delta trend is comparable across epochs.
+    Paired held-out eval on the fixed clips: the future step with the signals hidden (A)
+    and with the real signals (B). The same clips every epoch, so the Delta trend is
+    comparable across epochs.
     """
     was_training = predictor.training
     predictor.eval()
-    rng = np.random.RandomState(seed)
-    span = T * stride
     A, B = [], []
-
-    for rec in recordings:
-        vrs = read_vrs_times(rec["ts_csv"])
-        n = len(vrs)
-        if n < span + 1:
-            continue
-        gl = GazeTokenLoader(rec["gaze_csv"], 30.0, standardize=standardize) if rec["gaze_csv"] else None
-        hl = HandTokenLoader(rec["hand_csv"], 30.0, standardize=standardize) if rec["hand_csv"] else None
-        if gl is None and hl is None:
-            continue
-        for _ in range(n_clips):
-            start = int(rng.randint(0, n - span))
-            ctx_idx = [start + i * stride for i in range(T)]
-            fut = start + T * stride
-            try:
-                frames = load_frames(rec["mp4"], ctx_idx + [fut])
-                ctx, futf = frames[:T], frames[T]
-                real = _real_signals(gl, hl, [int(vrs[j]) for j in ctx_idx], T, device)
-                a, b = eval_clip(encoder, predictor, ctx, futf, device,
-                                 real_signals=real, normalize_reps=normalize_reps)
-                A.append(a); B.append(b)
-            except Exception as e:
-                log.warning(f"[val] clip error: {e}")
+    for clip in clips:
+        try:
+            frames = load_frames(clip.rec.mp4, clip.ctx_idx + [clip.fut_idx])
+            a, b = paired_mse(encoder, predictor, frames, T, device,
+                              real_sig=signals.as_batch(clip.sig, device),
+                              normalize_reps=normalize_reps)
+            A.append(a); B.append(b)
+        except Exception as e:
+            log.warning(f"[val] clip error: {e}")
 
     if was_training:
         predictor.train()
@@ -504,26 +422,24 @@ def main():
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
 
     # Held-out validation set (fixed clips, scored every epoch)
-    val_recordings = []
+    val_clips = []
     if args.val_participants:
-        val_recordings = discover_recordings(
-            args.video_dir, args.gaze_dir, args.val_participants,
-            require_signal=True, limit=args.val_recordings,
-        )
+        val_recordings = find_recordings(args.video_dir, args.gaze_dir, args.val_participants,
+                                         require_signal=True, limit=args.val_recordings)
         log.info(f"[val] {len(val_recordings)} held-out recordings from {args.val_participants} "
                  f"({args.val_clips} clips each, fixed seed)")
         if not val_recordings:
             log.warning("[val] no held-out recordings with signals found — validation disabled")
+        val_clips = fixed_clips(val_recordings, args.context_steps, args.frame_stride,
+                                args.val_clips, VAL_SEED, not args.no_standardize)
 
     jsonl = open(Path(args.out_dir) / "metrics.jsonl", "a", encoding="utf-8")
     _prev_delta: dict = {"v": None}
 
     def run_val(tag, epoch_idx):
-        if not val_recordings:
+        if not val_clips:
             return
-        r = validate(encoder, predictor, val_recordings, device,
-                     args.context_steps, args.frame_stride, args.val_clips,
-                     normalize_reps, not args.no_standardize)
+        r = validate(encoder, predictor, val_clips, device, args.context_steps, normalize_reps)
         if r:
             mA, mB, d, n = r
             prev = _prev_delta["v"]

@@ -1,19 +1,17 @@
 """
-Live terminal dashboard for finetune_ego.py runs.
+Live terminal dashboard for a running `python -m ego train` job.
 
-Reads the run's train.log (regex) — and metrics.jsonl if present — and renders a
+Reads the run's train.log and renders a
 live-updating view: training-loss sparkline, the per-epoch held-out
 MSE_A / MSE_B / Delta table (the metric that matters), throughput, and GPU stats.
 
 Works on an ALREADY-RUNNING job (it only reads the log), so no restart needed.
 
-    python scripts/watch_progress.py                       # default checkpoints/ego_ft_quick
-    python scripts/watch_progress.py --dir checkpoints/ego_finetune
-    python scripts/watch_progress.py --once                # one snapshot, no live loop
+    python -m ego watch --dir checkpoints/ego_ft_v2
+    python -m ego watch --dir checkpoints/ego_ft_v2 --once   # one snapshot, no live loop
 """
 
 import argparse
-import re
 import subprocess
 import time
 from pathlib import Path
@@ -21,21 +19,13 @@ from pathlib import Path
 from rich.console import Console, Group
 from rich.live import Live
 from rich.panel import Panel
+from rich.progress_bar import ProgressBar
 from rich.table import Table
 from rich.text import Text
-from rich.progress_bar import ProgressBar
+
+from ego.runlog import parse_train_log
 
 SPARK = "▁▂▃▄▅▆▇█"
-
-STEP_RE = re.compile(
-    r"epoch (\d+)\s+step\s+(\d+)/(\d+).*?loss=([\d.]+).*?(?:ema=([\d.]+).*?)?grad=\s*([\d.]+).*?"
-    r"(?:it/s=([\d.]+).*?)?ETA=(\d+)s"
-)
-EPOCH_RE = re.compile(r"\[epoch\s+(\d+)/(\d+)\]\s+loss=([\d.]+)(\*?).*?time=(\d+)s\s+ETA=(\d+)s")
-VAL_RE = re.compile(
-    r"\[val (\w+)\]\s+MSE_A\(masked\)=([\d.]+)\s+MSE_B\(real\)=([\d.]+)\s+Delta\(A-B\)=([-+\d.]+)"
-)
-DONE_RE = re.compile(r"Training complete")
 
 
 def sparkline(vals, width=48):
@@ -60,34 +50,10 @@ def gpu_stats():
 
 
 def parse(log_path):
-    steps, epochs, vals = [], [], []
-    done = False
-    if not log_path.exists():
-        return steps, epochs, vals, done
-    for line in log_path.read_text(errors="ignore").splitlines():
-        m = STEP_RE.search(line)
-        if m:
-            steps.append({"epoch": int(m.group(1)), "step": int(m.group(2)),
-                          "total": int(m.group(3)), "loss": float(m.group(4)),
-                          "ema": float(m.group(5)) if m.group(5) else float(m.group(4)),
-                          "grad": float(m.group(6)),
-                          "it_s": float(m.group(7)) if m.group(7) else None,
-                          "eta": int(m.group(8))})
-            continue
-        m = EPOCH_RE.search(line)
-        if m:
-            epochs.append({"epoch": int(m.group(1)), "total": int(m.group(2)),
-                           "loss": float(m.group(3)), "best": m.group(4) == "*",
-                           "time": int(m.group(5)), "eta": int(m.group(6))})
-            continue
-        m = VAL_RE.search(line)
-        if m:
-            vals.append({"tag": m.group(1), "mse_A": float(m.group(2)),
-                         "mse_B": float(m.group(3)), "delta": float(m.group(4))})
-            continue
-        if DONE_RE.search(line):
-            done = True
-    return steps, epochs, vals, done
+    r = parse_train_log(log_path)
+    steps = [dict(s, ema=s["ema"] if s["ema"] is not None else s["loss"])
+             for s in r["steps"] if s["grad"] is not None]
+    return steps, r["epochs"], r["vals"], r["done"]
 
 
 def render(log_path):

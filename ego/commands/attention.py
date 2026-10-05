@@ -2,7 +2,7 @@
 T7: how much attention goes to the gaze token?
 
 Gaze enters the predictor as a token (see VisionTransformerPredictorEgo.forward in
-ego/ego_predictor.py). It is not added to the hidden states. So it can affect an image
+ego/predictor.py). It is not added to the hidden states. So it can affect an image
 token only through attention. The attention weight that image tokens put on the gaze
 and hand positions measures how much the model reads them. T6 shows whether the model
 reacts to gaze. This script shows in which of the 24 blocks it reads gaze, and how much.
@@ -28,7 +28,7 @@ the two outputs are compared, and a mismatch raises an error.
 
 Usage
 -----
-    $PY scripts/probe_attention_mass.py \
+    python -m ego attention \
         --checkpoint data/model_checkpoints/vjepa2-ac-vitg.pt \
         --predictor-checkpoint checkpoints/ego_ft_v2/best.pt \
         --video-dir data/epic-kitchen/ek100-hd/HD-EPIC/Videos \
@@ -38,20 +38,17 @@ Usage
 
 import argparse
 import json
-import sys
 import time
 from pathlib import Path
 
 import numpy as np
 import torch
 
-sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
-
-from ego_common import load_models, encode_independent, load_frames
-from eval_ego_mse import load_finetuned
-from probe_sensitivity import discover, enumerate_clips, mask_gaze, mask_hand
+from ego import signals
+from ego.clips import fixed_clips
+from ego.data import find_recordings, load_frames
+from ego.model import encode_independent, load_finetuned, load_models
+from ego.runlog import Logger
 
 _ORIG_SDPA = torch.nn.functional.scaled_dot_product_attention
 
@@ -148,12 +145,8 @@ def main():
     ap.add_argument("--out", default="results/attention_mass")
     args = ap.parse_args()
 
-    out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
-    logf = open(f"{out}.log", "w")
-
-    def log(msg):
-        print(msg, flush=True)
-        logf.write(msg + "\n"); logf.flush()
+    out = Path(args.out)
+    log = Logger(out)
 
     device = torch.device(args.device)
     normalize_reps = not args.no_normalize_reps
@@ -176,26 +169,26 @@ def main():
     HW = predictor.grid_height * predictor.grid_width
     log(f"[setup] {time.time()-t0:.0f}s  T={T}  HW={HW}  seq={T*(2+HW)}")
 
-    recs = discover(args.video_dir, args.gaze_dir, args.participants, args.recordings)
-    clips = enumerate_clips(recs, T, stride, args.clips, args.seed,
-                            not args.no_standardize, device, log)
+    recs = find_recordings(args.video_dir, args.gaze_dir, args.participants,
+                           require_signal=True, limit_per_participant=args.recordings)
+    clips = fixed_clips(recs, T, stride, args.clips, args.seed, not args.no_standardize, log)
     log(f"[clips] {len(clips)} clips")
 
     rec = AttentionRecorder(2, HW, T, head_chunk=args.head_chunk)
     torch.nn.functional.scaled_dot_product_attention = rec
 
-    variants = {"real": lambda s: s, "gaze_masked": mask_gaze,
-                "both_masked": lambda s: mask_hand(mask_gaze(s))}
+    variants = {"real": lambda s: s, "gaze_masked": signals.mask_gaze,
+                "both_masked": signals.mask_both}
     acc = {name: [] for name in variants}
     try:
         for i, clip in enumerate(clips):
-            frames = load_frames(clip["rec"]["mp4"], clip["ctx_idx"])
+            frames = load_frames(clip.rec.mp4, clip.ctx_idx)
             enc_ctx = encode_independent(encoder, frames.unsqueeze(0), device,
                                          normalize_reps, chunk=args.encode_chunk)
             for name, fn in variants.items():
                 rec.reset(); rec.enabled = True
                 with torch.no_grad():
-                    predictor(enc_ctx, *fn(clip["sig"]))
+                    predictor(enc_ctx, *fn(signals.as_batch(clip.sig, device)))
                 rec.enabled = False
                 acc[name].append(rec.records)
             if (i + 1) % 5 == 0:
@@ -264,7 +257,7 @@ def main():
                    "sdpa_check_max_abs_err": rec.max_abs_err, "rows": rows},
                   f, indent=2, default=str)
     log(f"[out] {out}.csv  {out}.json  {out}.log")
-    logf.close()
+    log.close()
 
 
 if __name__ == "__main__":

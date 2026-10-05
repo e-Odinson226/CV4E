@@ -18,8 +18,8 @@ run has not been done yet. The thesis notes, with every test and its result, are
 
 | Path | Contents |
 |---|---|
-| `scripts/` | Training, evaluation and test scripts. |
-| `ego/` | Our model code: the ego predictor, its fine-tuning helpers, and the gaze and hand loaders. |
+| `ego/` | The code: the model, the data handling, and one command for training and for each test. |
+| `tests/` | Self-tests. They need no GPU and no data. |
 | `vjepa2/` | Meta's V-JEPA 2 code. Not tracked: clone it here (see Setup). |
 | `docs/EgoVault/` | The thesis notes, an Obsidian vault. The paper as submitted and the literature notes are in `docs/EgoVault/papers/`. |
 | `notebooks/` | `playground.ipynb`: a first look at the Aria gaze data and at a V-JEPA 2 model from Hugging Face. |
@@ -28,7 +28,7 @@ run has not been done yet. The thesis notes, with every test and its result, are
 
 ## Who wrote the code
 
-- Erfan wrote everything in `scripts/` and `ego/`, apart from the first gaze and hand loaders
+- Erfan wrote everything in `ego/` and `tests/`, apart from the first gaze and hand loaders
   and projection layers, which Ioana wrote. Erfan moved the projection layers into the
   predictor and extended them to all time steps. Erfan added timestamp matching and scaling to
   the loaders.
@@ -53,12 +53,12 @@ The environment is the conda environment `VJEPA2-AC`, with Python 3.12. It has t
 ```sh
 PY=/mnt/data/home/zj2433/miniconda3/envs/VJEPA2-AC/bin/python
 cd /mnt/data/home/zj2433/Projects/Ego/CV4Egocentric
+$PY -m ego            # lists the commands
 ```
 
-- Run every script from the repository root. The default input and output paths are relative
-  to it.
-- The scripts add the repository root and `vjepa2/` to the Python path themselves. Neither
-  needs to be installed.
+- Run every command from the repository root, as `$PY -m ego <command>`. The default input
+  and output paths are relative to the root.
+- The `ego` package puts `vjepa2/` on the Python path itself. Nothing needs to be installed.
 - On a shared GPU, put `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` before the command.
 
 ### Data
@@ -79,26 +79,44 @@ To download and extract the data:
 ```sh
 $PY data/epic-kitchen/hd-epic-downloader/hd-epic-downloader.py \
     data/epic-kitchen/ek100-hd --videos --slam-gaze --participants 1,2,3,4,5,6,7,8,9
-$PY scripts/extract_gaze_hand.py --gaze-dir data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze
+$PY -m ego extract-csvs --gaze-dir data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze
 ```
 
-## How the code fits together
+## How the code is organized
 
-Training and every evaluation script handle a clip in the same steps:
+`ego/` has two kinds of module. The library modules hold the code that more than one
+command uses. Each command, in `ego/commands/`, is one thing you run.
 
-1. **Models.** `ego_common.load_models` reads the V-JEPA 2-AC checkpoint. It builds the ViT-g
+| Module | Contents |
+|---|---|
+| `predictor.py` | `VisionTransformerPredictorEgo` and its builder `vit_ego_predictor`. The blocks are the same as in the AC predictor. `gaze_proj` (3 → 1024) and `hand_proj` (12 → 1024) replace the action and state encoders. `gaze_mask` and `hand_mask` are the learned tokens for missing signals. |
+| `model.py` | `load_models` builds the frozen ViT-g encoder and the ego predictor from the V-JEPA 2-AC checkpoint, and copies in the AC weights. `load_finetuned` loads a checkpoint written by `train`. `freeze_for_ego_finetune` and `get_ego_finetune_param_groups` choose what trains and at which learning rate. `encode_independent` encodes each frame on its own. |
+| `data.py` | `find_recordings` lists recordings in a fixed order, which every seeded sampler depends on. `GazeTokenLoader` and `HandTokenLoader` read the gaze and hand CSVs. `load_frames` reads video frames, and `read_vrs_times` reads each frame's timestamp. The scaling constants `GAZE_MEAN`, `GAZE_STD` and `HAND_STD` are rough guesses. They need to be recomputed from P01–P07 before the next training run. |
+| `signals.py` | The gaze and hand inputs of a clip: reading them at the frame timestamps, and every variant the tests use (hidden, zero, average, shifted, swapped with another clip, shuffled in time). |
+| `clips.py` | `fixed_clips`: the fixed evaluation clips (seed 12345) shared by the checks during training, T6, T7, T10 and T11. With the defaults these are the 96 P08 clips. `paired_mse` scores one clip with the signals hidden and with the real signals. |
+| `stats.py` | `paired`: the paired comparison behind every Δ. It gives the mean difference, a bootstrap 95% confidence interval and the Wilcoxon p-value. |
+| `linprobe.py` | The linear probe of T4 and T5: ridge regression, channel PCA, gaze and palm lookups, and the seeded frame sampler. T5 uses the sampler to rebuild T4's rows from its cache. |
+| `runlog.py` | `Logger` prints each line and writes it to `<out>.log`. `parse_train_log` reads a `train.log` for `summarize`, `plot` and `watch`. |
+
+What is trained, and with which learning rates, is in `docs/EgoVault/3-method.md`.
+
+### How a clip is processed
+
+Training and every evaluation command handle a clip in the same steps:
+
+1. **Models.** `model.load_models` reads the V-JEPA 2-AC checkpoint. It builds the ViT-g
    encoder from the EMA target encoder weights and freezes it. It builds the ego predictor and
    copies in all AC predictor weights except the action, state and extrinsics encoders.
-2. **Frames.** `ego_common.load_frames` reads the frames of a clip from the mp4 file. The
-   scripts take every 8th frame, about 4 frames per second, and use 8 such frames as context.
-   Each frame is resized to 256 × 256 pixels and normalized with the ImageNet mean and
-   standard deviation.
-3. **Signals.** `ego_common.find_csvs` finds a recording's gaze and hand CSV files.
-   `ego_common.find_ts_csv` finds the file that gives each video frame's Aria (VRS) timestamp.
-   `GazeTokenLoader` and `HandTokenLoader` take the sample nearest to each frame's timestamp,
-   scale it, and return a flag that says whether it is valid.
-4. **Encoding.** `ego_common.encode_independent` encodes each frame on its own, as a 2-frame
-   tubelet of the same image, and layer-normalizes the result. Each frame gives 256 tokens.
+2. **Frames.** `data.load_frames` reads the frames of a clip from the mp4 file. The commands
+   take every 8th frame, about 4 frames per second, and use 8 such frames as context. Each
+   frame is resized to 256 × 256 pixels and normalized with the ImageNet mean and standard
+   deviation.
+3. **Signals.** `data.find_recordings` finds a recording's gaze and hand CSV files and the file
+   that gives each video frame's Aria (VRS) timestamp. `signals.read` takes, through
+   `GazeTokenLoader` and `HandTokenLoader`, the sample nearest to each frame's timestamp,
+   scaled, with a flag that says whether it is valid.
+4. **Encoding.** `model.encode_independent` encodes each frame on its own, as a 2-frame tubelet
+   of the same image, and layer-normalizes the result. Each frame gives 256 tokens.
 5. **Prediction.** The predictor turns the gaze and hand values into one token each. A missing
    signal is replaced by a learned mask token. Each frame becomes [gaze, hand, 256 image
    tokens]. The 24 transformer blocks attend causally over frames. The two signal tokens are
@@ -106,92 +124,36 @@ Training and every evaluation script handle a clip in the same steps:
 6. **Error.** The prediction for step t is compared with the encoding of step t + 1. Both are
    layer-normalized. The error is the mean squared error.
 
-All GPU scripts import `scripts/ego_common.py`, so training and testing align, encode and
-normalize clips in the same way. Some scripts also import from each other:
+## Commands
 
-- `eval_ego_mse.py` provides the paired evaluation of one clip and the loading of a fine-tuned
-  checkpoint. `finetune_ego.py` uses it for the checks after each epoch. The probe scripts use
-  it to load models.
-- `probe_sensitivity.py` provides the clip sampler. `probe_attention_mass.py` and
-  `eval_rung_b1.py` use it too.
-- `gaze_recoverability.py` provides the frame sampler and the ridge regression probe.
-  `control_recoverability.py` reuses both.
+`$PY -m ego <command> --help` shows a command's options.
 
-## Model code in `ego/`
-
-| File | Contents |
-|---|---|
-| `ego_predictor.py` | `VisionTransformerPredictorEgo` and its builder `vit_ego_predictor`. The blocks are the same as in the AC predictor. `gaze_proj` (3 → 1024) and `hand_proj` (12 → 1024) replace the action and state encoders. `gaze_mask` and `hand_mask` are the learned tokens for missing signals. |
-| `ego_finetune.py` | `load_ac_weights_into_ego` copies the pretrained AC weights. `freeze_for_ego_finetune` freezes everything except the new layers, the last 6 blocks and the output layers. `get_ego_finetune_param_groups` gives the new layers and the pretrained layers separate learning rates. The other functions list and log the trainable parameters. |
-| `ego_loaders.py` | `GazeTokenLoader` (yaw, pitch, depth) and `HandTokenLoader` (wrist and palm positions of both hands). The scaling constants `GAZE_MEAN`, `GAZE_STD` and `HAND_STD` are rough guesses. They need to be recomputed from P01–P07 before the next training run. |
-
-What is trained, and with which learning rates, is in `docs/EgoVault/3-method.md`.
-
-## Scripts
-
-### Shared code and data preparation
-
-| Script | What it does |
-|---|---|
-| `ego_common.py` | Model loading, per-frame encoding, frame reading, and lookup of the timestamp and CSV files. It is imported by the other scripts and not run directly. |
-| `extract_gaze_hand.py` | Extracts the gaze and hand CSV files from each recording's `mps_<rec>_vrs.zip`, in place. It skips zip files that are already extracted, empty or damaged. |
-
-### Training
-
-| Script | What it does |
-|---|---|
-| `finetune_ego.py` | Fine-tunes the ego predictor. After each epoch it measures Δ on held-out clips. It writes `train.log`, `metrics.jsonl` and checkpoints to `--out-dir`. |
-
-### Evaluation
-
-| Script | Test | What it does |
+| Command | Test | What it does |
 |---|---|---|
-| `eval_ego_mse.py` | | The paired comparison on any participants: the error with the signals hidden and with real signals, on the same clips. It writes `results/mse_paired.csv`. |
-| `eval_rung_b1.py` | T10, T11 | Scores the predictor before and after fine-tuning on the same clips, with real signals and with each of the three "no signal" inputs (mask token, zeros, average). |
+| `extract-csvs` | | Extracts the gaze and hand CSV files from each recording's `mps_<rec>_vrs.zip`, in place. It skips zip files that are already extracted, empty or damaged. |
+| `train` | T2 | Fine-tunes the ego predictor. After each epoch it measures Δ on the fixed held-out clips. It writes `train.log`, `metrics.jsonl` and checkpoints to `--out-dir`. |
+| `evaluate` | | The paired comparison on any participants: the error with the signals hidden and with real signals, on the same clips. It samples its own clips. It writes `results/mse_paired.csv`. |
+| `gaze-probe` | T4 | A linear probe that predicts gaze from the frozen encoder's features. It caches the features in `results/gaze_features.npz`. |
+| `control-probe` | T5 | The same probe with palm position as the target. It reads the features cached by T4. |
+| `sensitivity` | T6 | Measures how much the prediction changes when the gaze or hand input changes. |
+| `attention` | T7 | Measures how much attention goes to the gaze and hand tokens. |
+| `weight-norms` | T8 | Divides the norm of each trained parameter by its norm at the start of training. |
+| `stock-vs-tuned` | T10, T11 | Scores the predictor before and after fine-tuning on the same clips, with real signals and with each of the three "no signal" inputs (mask token, zeros, average). |
+| `signal-dropout` | T11 | Compares `ego_ft_v2` and `ego_sd1p0` clip by clip, from the two `stock-vs-tuned` outputs. It needs no GPU. |
+| `summarize` | | Writes a JSON and a Markdown summary of a training run, to `results/<run>_summary.json` and `.md`. |
+| `plot` | | Plots the training loss, the held-out errors and Δ to `results/<run>_results.png`. With several `--dir` arguments it also writes `results/delta_compare.png`. |
+| `watch` | | A live terminal view of a running training job. It only reads the job's log. |
 
-### Probes on the frozen encoder
-
-| Script | Test | What it does |
-|---|---|---|
-| `gaze_recoverability.py` | T4 | A linear probe that predicts gaze from the frozen encoder's features. It caches the features in `results/gaze_features.npz`. |
-| `control_recoverability.py` | T5 | The same probe with palm position as the target. It reads the features cached by T4. |
-
-### Probes on the trained predictor
-
-| Script | Test | What it does |
-|---|---|---|
-| `probe_sensitivity.py` | T6 | Measures how much the prediction changes when the gaze or hand input changes. |
-| `probe_attention_mass.py` | T7 | Measures how much attention goes to the gaze and hand tokens. |
-| `probe_weight_norms.py` | T8 | Divides the norm of each trained parameter by its norm at the start of training. |
-
-### Monitoring and reports
-
-| Script | What it does |
-|---|---|
-| `watch_progress.py` | A live terminal view of a running training job. It only reads the job's log. |
-| `summarize_run.py` | Writes a JSON and a Markdown summary of a training run, to `results/<run>_summary.json` and `.md`. |
-| `plot_results.py` | Plots the training loss, the held-out errors and Δ to `results/<run>_results.png`. With several `--dir` arguments it also writes `results/delta_compare.png`. |
-
-### Self-tests
-
-These need no GPU and no data.
-
-| Script | What it checks |
-|---|---|
-| `test_gaze_recoverability.py` | The numerical parts of `gaze_recoverability.py`. |
-| `test_shuffle_signals.py` | That `--shuffle-signals` breaks the match between signals and frames and changes nothing else. |
-
-```sh
-$PY scripts/test_gaze_recoverability.py
-$PY scripts/test_shuffle_signals.py
-```
+The self-tests check the numerical parts of the linear probe, and that `--shuffle-signals`
+breaks the match between signals and frames and changes nothing else. Run them with
+`$PY -m tests`.
 
 ## Training
 
 This command trains `ego_ft_v2`, the model used in most tests:
 
 ```sh
-PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True $PY scripts/finetune_ego.py \
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True $PY -m ego train \
     --checkpoint data/model_checkpoints/vjepa2-ac-vitg.pt \
     --video-dir  data/epic-kitchen/ek100-hd/HD-EPIC/Videos \
     --gaze-dir   data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze \
@@ -208,11 +170,11 @@ PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True $PY scripts/finetune_ego.py \
   --val-clips 40`. That gives 240 test clips.
 - `--shuffle-signals time` or `--shuffle-signals batch` trains with real signals from the
   wrong time or the wrong clip.
-- `$PY scripts/watch_progress.py --dir <out-dir>` shows a live view of a running job.
+- `$PY -m ego watch --dir <out-dir>` shows a live view of a running job.
 
 ## Running the tests
 
-Most probe scripts take the same base arguments:
+Most test commands take the same base arguments:
 
 ```sh
 --checkpoint data/model_checkpoints/vjepa2-ac-vitg.pt \
@@ -224,23 +186,23 @@ Most probe scripts take the same base arguments:
 Without `--predictor-checkpoint`, they use the model before fine-tuning, with random gaze and
 hand layers.
 
-| Test | Script | Results |
+| Test | Command | Results |
 |---|---|---|
-| T2 | `scripts/finetune_ego.py` (checks after each epoch) | `checkpoints/ego_ft_v2/train.log` |
-| T4 | `scripts/gaze_recoverability.py --split participant` (or `recording`, `random`) | `results/gaze_recov_*.csv`. The encoder features are cached in `results/gaze_features.npz`. |
-| T5 | `scripts/control_recoverability.py` | `results/control_recoverability.csv` |
-| T6 | `scripts/probe_sensitivity.py` | `results/sensitivity_ego_ft_v2.csv`, `results/sensitivity_untrained.csv` |
-| T7 | `scripts/probe_attention_mass.py` | `results/attention_mass.csv`, `results/attention_mass_untrained.csv` |
-| T8 | `scripts/probe_weight_norms.py` | `results/weight_norms.csv` |
-| T10 | `scripts/eval_rung_b1.py` | `results/rung_b1.csv`, `results/rung_b1_contrasts.csv` |
-| T11 | `scripts/eval_rung_b1.py` with `--predictor-checkpoint checkpoints/ego_sd1p0/best.pt` | `results/rung_b1_sd1p0.csv`. The paired comparison is in `results/signal_dropout_contrasts.csv`. |
+| T2 | `train` (checks after each epoch) | `checkpoints/ego_ft_v2/train.log` |
+| T4 | `gaze-probe --split participant` (or `recording`, `random`) | `results/gaze_recov_*.csv`. The encoder features are cached in `results/gaze_features.npz`. |
+| T5 | `control-probe` | `results/control_recoverability.csv` |
+| T6 | `sensitivity` | `results/sensitivity_ego_ft_v2.csv`, `results/sensitivity_untrained.csv` |
+| T7 | `attention` | `results/attention_mass.csv`, `results/attention_mass_untrained.csv` |
+| T8 | `weight-norms` | `results/weight_norms.csv` |
+| T10 | `stock-vs-tuned` | `results/rung_b1.csv`, `results/rung_b1_contrasts.csv` |
+| T11 | `stock-vs-tuned` with `--predictor-checkpoint checkpoints/ego_sd1p0/best.pt --out results/rung_b1_sd1p0`, then `signal-dropout` | `results/rung_b1_sd1p0.csv`, `results/signal_dropout_contrasts.csv` |
 
 - T1, T3, T9 and T12 use Parsa's code. It is not in this repository.
 - T4 and T5 use only the frozen encoder. T5 reads the features cached by T4.
-- `probe_sensitivity.py`, `probe_attention_mass.py` and `eval_rung_b1.py` use the same P08
-  clips as the checks during training (seed 12345).
-- `scripts/eval_ego_mse.py` runs the same paired comparison on any participants. It samples
-  its own clips, so its numbers differ a little from the 96-clip set.
+- `sensitivity`, `attention` and `stock-vs-tuned` use the fixed clips of `ego/clips.py`, the
+  same P08 clips as the checks during training.
+- `evaluate` runs the same paired comparison on any participants. It samples its own clips,
+  so its numbers differ a little from the 96-clip set.
 
 ## Checkpoints
 
@@ -255,13 +217,12 @@ Each checkpoint file is 1.22 GB. The trainable weights alone are about 150 MB.
 ## Practical notes
 
 - If the GPU runs out of memory, lower `--encode-chunk`.
-- In `finetune_ego.py` and `gaze_recoverability.py`, the frozen encoder runs in bf16 by
-  default. This doubles the speed. `--no-amp` turns it off. `probe_sensitivity.py` uses bf16
-  only with `--amp`.
+- In `train` and `gaze-probe`, the frozen encoder runs in bf16 by default. This doubles the
+  speed. `--no-amp` turns it off. `sensitivity` uses bf16 only with `--amp`.
 - Video decoding needs a lot of RAM. Parsa's EK100 runs needed `num_workers: 4` and
   `pin_memory: false`.
 - `/mnt/data` is shared and has been full before. Write long outputs to scratch space first.
-- Scripts that build an untrained model set the random seed. Without it, the random gaze and
+- Commands that build an untrained model set the random seed. Without it, the random gaze and
   hand layers differ between runs.
 
 ## Notes

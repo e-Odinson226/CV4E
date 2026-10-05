@@ -1,21 +1,19 @@
 """
-Tests for --shuffle-signals (finetune_ego.make_collate).
+Tests for --shuffle-signals (ego.commands.train.make_collate).
 
 The control this flag implements is only valid if the shuffle destroys signal/frame
 alignment and NOTHING else. These checks pin down exactly that: same shapes, same
 multiset of values, same validity statistics, gaze and hand still aligned to each
 other, frames untouched — and, for "time", that the alignment really is broken.
 
-    $PY scripts/test_shuffle_signals.py
+    python -m tests.test_shuffle_signals
 """
 
 import sys
-from pathlib import Path
 
 import torch
 
-sys.path.insert(0, str(Path(__file__).parent))
-from finetune_ego import make_collate
+from ego.commands.train import make_collate
 
 T, B = 8, 4
 FAILS = []

@@ -1,5 +1,17 @@
+"""
+HD-EPIC data: recordings, frame timestamps, video frames, and the gaze and hand loaders.
+
+Gaze and hand samples are matched to video frames by each frame's absolute Aria (VRS)
+timestamp, read from <recording>_mp4_to_vrs_time_ns.csv next to the mp4.
+"""
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
+import torch
 
 # ---------------------------------------------------------------------------
 # Input standardisation (z-score) for the conditioning signals.
@@ -192,3 +204,131 @@ class HandTokenLoader:
             out.loc[~out['right_valid'], col] = 0.0
         out = out.sort_values('ts_us').reset_index(drop=True)
         return out, int(out['ts_us'].iloc[0])
+
+
+# ---------------------------------------------------------------------------
+# Recordings
+# ---------------------------------------------------------------------------
+
+@dataclass
+class Recording:
+    participant: str
+    stem: str
+    mp4: str
+    ts_csv: str | None
+    gaze_csv: str | None
+    hand_csv: str | None
+
+
+def find_recordings(video_dir, gaze_dir, participants, require_ts=True, require_signal=False,
+                    limit=None, limit_per_participant=None):
+    """
+    The recordings of `participants`, participant by participant, then by file name.
+    Every seeded sampler in this package depends on this order.
+
+    require_ts             skip recordings without a frame-timestamp CSV
+    require_signal         skip recordings with neither a gaze nor a hand CSV
+    limit                  stop after this many recordings in total
+    limit_per_participant  take at most this many recordings from each participant
+    """
+    recs = []
+    for p in participants:
+        n = 0
+        for mp4 in sorted(Path(video_dir, p).glob("*.mp4")):
+            ts = find_ts_csv(str(mp4))
+            if require_ts and ts is None:
+                continue
+            g, h = find_csvs(gaze_dir, p, mp4.stem) if gaze_dir else (None, None)
+            if require_signal and not (g or h):
+                continue
+            recs.append(Recording(p, mp4.stem, str(mp4), ts, g, h))
+            n += 1
+            if limit and len(recs) >= limit:
+                return recs
+            if limit_per_participant and n >= limit_per_participant:
+                break
+    return recs
+
+
+def open_loaders(rec, standardize=True):
+    """(GazeTokenLoader | None, HandTokenLoader | None) for a recording."""
+    gl = GazeTokenLoader(rec.gaze_csv, 30.0, standardize=standardize) if rec.gaze_csv else None
+    hl = HandTokenLoader(rec.hand_csv, 30.0, standardize=standardize) if rec.hand_csv else None
+    return gl, hl
+
+
+# Aria MPS standard output filenames (inside mps_<rec>_vrs.zip).
+# Older drafts referred to eye_gaze.csv / hand_tracking_results.csv — kept as aliases.
+_GAZE_NAMES = ("general_eye_gaze.csv", "eye_gaze.csv")
+_HAND_NAMES = ("wrist_and_palm_poses.csv", "hand_tracking_results.csv")
+
+
+def find_csvs(gaze_dir, participant, stem):
+    """Locate the gaze / hand MPS CSVs for a recording (extracted, size > 0 only)."""
+    base = Path(gaze_dir) / participant / "GAZE_HAND"
+    gaze_csv = hand_csv = None
+    if not base.exists():
+        return gaze_csv, hand_csv
+    for root, _, files in os.walk(base):
+        if stem not in str(root):
+            continue
+        for f in files:
+            fp = Path(root) / f
+            if f in _GAZE_NAMES and fp.stat().st_size > 0:
+                gaze_csv = str(fp)
+            elif f in _HAND_NAMES and fp.stat().st_size > 0:
+                hand_csv = str(fp)
+    return gaze_csv, hand_csv
+
+
+def find_ts_csv(video_path):
+    """The frame->VRS timestamp CSV that sits next to a recording's mp4."""
+    p = Path(video_path)
+    ts = p.parent / f"{p.stem}_mp4_to_vrs_time_ns.csv"
+    return str(ts) if ts.exists() else None
+
+
+def read_vrs_times(ts_csv):
+    """Return the per-frame absolute VRS device timestamps (ns) as an int64 array."""
+    df = pd.read_csv(ts_csv)
+    return df["vrs_device_time_ns"].values.astype(np.int64)
+
+
+# ---------------------------------------------------------------------------
+# Video frames
+# ---------------------------------------------------------------------------
+
+IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32).reshape(3, 1, 1)
+IMAGENET_STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(3, 1, 1)
+
+
+def load_frames(mp4_path, indices, size=256):
+    """Returns (N, 3, H, W) float32, ImageNet-normalised, in the order of `indices`."""
+    import cv2
+    cap = cv2.VideoCapture(mp4_path)
+    lo, hi = min(indices), max(indices)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, lo)          # seek so we don't decode from 0
+    target, buf, i = set(indices), {}, lo
+    while cap.isOpened() and len(buf) < len(target) and i <= hi:
+        ok, frame = cap.read()
+        if not ok:
+            break
+        if i in target:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = cv2.resize(frame, (size, size))
+            buf[i] = frame
+        i += 1
+    cap.release()
+    arr = np.stack([buf.get(j, np.zeros((size, size, 3), np.uint8)) for j in indices])
+    arr = arr.astype(np.float32).transpose(0, 3, 1, 2) / 255.0
+    arr = (arr - IMAGENET_MEAN) / IMAGENET_STD
+    return torch.from_numpy(arr)
+
+
+def video_info(mp4_path):
+    import cv2
+    cap = cv2.VideoCapture(mp4_path)
+    n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    cap.release()
+    return n, fps
