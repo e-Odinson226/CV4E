@@ -47,3 +47,6 @@ results/*.npz
 
 # render artifacts
 *_tmp.html
+
+# Meta's V-JEPA 2 code: clone facebookresearch/vjepa2 at 204698b here (see README.md)
+/vjepa2/

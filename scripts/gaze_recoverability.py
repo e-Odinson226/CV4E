@@ -1,57 +1,42 @@
 """
-Gaze-recoverability pretest — how much does the frozen encoder already know about
-where the person will look?
+T4: can gaze be read from the frozen encoder's features?
 
-THE QUESTION (Ash's Q1, 2026-07-16)
------------------------------------
-The gaze/hand conditioning experiments (EXP-001) and the EK100 probe (EXP-002)
-both landed on ~no effect at a ~2 s horizon. Two explanations survive:
+This tests hypothesis R in docs/EgoVault/1-introduction.md: the frozen image features
+already contain gaze, so a gaze token gives the predictor no new information.
 
-  (a) REDUNDANCY — gaze is recoverable from the visual embedding anyway (people
-      look at salient objects, which are visible), so a gaze conditioning token
-      carries no new information.
-  (b) HORIZON — 2 s is short enough that visual continuity alone predicts well,
-      leaving conditioning no room to help.
+Method
+------
+A linear probe predicts gaze at time t + lead from the encoder's features of the frame
+at time t. The script repeats this for each lead in --leads (0 to 2 s by default).
 
-This script distinguishes them, cheaply, before anything expensive is rebuilt.
+  * If the skill stays high as the lead grows, the features already contain future
+    gaze, and a gaze token adds little.
+  * If the skill falls as the lead grows, gaze carries information that the features
+    lack at longer horizons.
 
-It measures: can a *small* regressor recover gaze at time t+lead from the frozen
-ENCODER embedding at time t? Then it sweeps `lead`.
+The probe reads the frozen encoder, not the predictor. The predictor received gaze
+during training, so gaze can be read from it trivially. The encoder never saw gaze.
 
-  marginal information of the gaze token  ~=  1 - recoverability
+The probe is ridge regression: a linear map with L2 regularization. A linear map cannot
+build new features. It only reads information that the features hold in linear form.
 
-  * If recoverability stays HIGH as lead grows -> (a). The token is redundant and
-    the whole conditioning direction needs rethinking.
-  * If recoverability FALLS with lead -> (b). Gaze carries information the encoder
-    lacks precisely at longer horizons, which is where the effect was predicted to
-    live, and the horizon sweep becomes the priority.
+The main readout keeps all 256 patches, because gaze is a place in the image. PCA
+reduces the 1408 channels of each patch to --pca-dim. A readout that averages over the
+patches is computed for comparison. The gap between the two shows how much of gaze
+depends on where things are in the image.
 
-WHY THE ENCODER AND NOT THE PREDICTOR
--------------------------------------
-The predictor was *fed* gaze during training, so gaze is trivially recoverable
-from it. That would measure nothing. The encoder is frozen and never saw gaze,
-so it is the only honest place to ask this question. See
-docs/EgoVault/concepts/encoder-vs-predictor.md.
+Skill = 1 - MSE(probe) / MSE(guessing the training mean). 0 is chance and 1 is perfect.
 
-WHY A LINEAR PROBE ("small regressor")
---------------------------------------
-Ridge regression - a linear map plus L2 regularisation - has no capacity to
-*construct* features. It can only read off directions that already exist linearly
-in the representation. That is exactly the standard we want: if a linear map
-recovers gaze, the information is not merely present but readily available, which
-is what would make a conditioning token redundant. A deep probe would conflate
-"the information is there" with "a big enough model can dig it out", which is a
-weaker and much less actionable claim.
+Splits (--split)
+----------------
+  participant  Train on --train-participants and test on --test-participants. This is
+               the main split. The probe cannot learn one person's habits.
+  recording    Train and test on different recordings of the same people.
+  random       Random frames. Near-identical frames end up in both sets, so the score
+               is too high. Use it only for comparison.
 
-WHY THE READOUT KEEPS THE PATCH GRID
-------------------------------------
-Gaze is spatial: yaw/pitch says *where in the scene* the person is looking. The
-encoder emits a grid of patch tokens. Mean-pooling over that grid averages away
-spatial position and keeps only "what is in the scene", which would systematically
-understate recoverability. So the headline readout keeps the grid and reduces the
-CHANNEL dimension by PCA instead (1408 -> --pca-dim). The mean-pooled readout is
-still computed as an ablation: the gap between them is how much of gaze is
-explained by *where* rather than *what*.
+The encoder features are cached in --cache. control_recoverability.py (T5) reads this
+cache. The results are in docs/EgoVault/4-results.md, under T4.
 
 Usage
 -----
@@ -63,9 +48,6 @@ Usage
         --train-participants P01 P02 P03 P04 P05 \
         --test-participants  P06 P07 \
         --out results/gaze_recoverability
-
-Held-out PARTICIPANTS, not held-out clips: otherwise the probe can memorise one
-person's gaze habits and the number means nothing.
 """
 
 import argparse
@@ -78,13 +60,14 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
 
 from ego_common import (
     load_models, encode_independent, load_frames, video_info,
     read_vrs_times, find_csvs, find_ts_csv,
 )
-from src.datasets.ego_loaders import GazeTokenLoader
+from ego.ego_loaders import GazeTokenLoader
 
 
 # ---------------------------------------------------------------------------
@@ -577,18 +560,17 @@ def main():
         log("  underpowered fit first (check n_train, and that alpha is not pinned to the")
         log("  top of the grid).")
     elif s_first - s_last > 0.05:
-        log("  Skill FALLS with lead. Consistent with the HORIZON reading: marginal")
-        log("  information (~1 - skill) grows with horizon, so the null at ~2s may be a")
-        log("  horizon artefact. Prioritise the horizon sweep — see")
-        log("  docs/EgoVault/experiments/EXP-002-ek100-probe-null.md.")
+        log("  Skill FALLS with lead. Gaze carries information that the encoder lacks at")
+        log("  longer horizons (about 1 - skill), so the null result at about 2 s may be due")
+        log("  to the horizon. Test longer horizons next. See docs/EgoVault/6-next-steps.md.")
     elif s_last - s_first > 0.05:
         log("  Skill RISES with lead — unexpected, and no mechanism predicts it. Suspect")
         log("  noise (check n_test) or leakage before believing it.")
     else:
         log("  Skill is FLAT across lead. Consistent with REDUNDANCY: the encoder already")
         log("  carries future gaze about equally well at every horizon, so a gaze token")
-        log("  adds little anywhere. This weakens the behavioral-conditioning direction —")
-        log("  see docs/EgoVault/topics/path-2-behavioral-conditioning.md.")
+        log("  adds little anywhere. This supports hypothesis R. See")
+        log("  docs/EgoVault/1-introduction.md.")
     log("-" * 78)
 
     try:

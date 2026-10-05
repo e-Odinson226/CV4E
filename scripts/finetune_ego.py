@@ -1,28 +1,36 @@
 """
-Fine-tune VisionTransformerPredictorEgo on HD-EPIC with gaze + hand conditioning.
+Fine-tune VisionTransformerPredictorEgo on HD-EPIC with gaze and hand inputs.
 
     loss = MSE( norm(predictor(enc_ctx, gaze, hand)) , norm(enc_target) )
 
-Aligned with the original V-JEPA 2-AC droid training (see scripts/ego_common.py):
-  * frames are encoded per-frame-independently with the EMA target_encoder,
-  * the world model steps at a stride (~4 fps), not on adjacent frames,
-  * reps are LayerNorm'd before the loss (normalize_reps),
-  * every step is supervised: slot t predicts step t+1 (teacher forcing),
-  * gaze/hand are randomly dropped (--signal-dropout) so the mask tokens are
-    well trained and Condition A (no signal) is a FAIR baseline at eval time,
-  * --shuffle-signals destroys the signal/frame correspondence while preserving
-    everything else, giving the matched control arm the 2x2 rerun needs.
+The setup matches the original V-JEPA 2-AC training (see scripts/ego_common.py):
+  * each frame is encoded on its own, with the EMA target encoder,
+  * the model steps at a stride of 8 frames (about 4 fps), not on adjacent frames,
+  * embeddings are layer-normalized before the loss (normalize_reps),
+  * every step is supervised: slot t predicts step t+1 (teacher forcing).
 
-Usage:
+Two options change the signals during training:
+  * --signal-dropout hides gaze and hand for a random share of the clips. This trains
+    the mask tokens, so "signals hidden" is a case the model knows at test time. With
+    1.0 the model never sees real signals (ego_sd1p0, T11).
+  * --shuffle-signals breaks the match between signals and frames and keeps everything
+    else the same. It gives a control model. No run has used it yet.
+
+After each epoch the script measures Delta on held-out clips (--val-participants), with
+the same code as eval_ego_mse.py.
+
+Usage (the command that trained ego_ft_v2):
     python scripts/finetune_ego.py \
-        --checkpoint  data/model_checkpoints/vjepa2-ac-vitg.pt \
-        --video-dir   data/epic-kitchen/ek100-hd/HD-EPIC/Videos \
-        --gaze-dir    data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze \
+        --checkpoint data/model_checkpoints/vjepa2-ac-vitg.pt \
+        --video-dir  data/epic-kitchen/ek100-hd/HD-EPIC/Videos \
+        --gaze-dir   data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze \
         --participants P01 P02 P03 P04 P05 P06 P07 \
-        --out-dir     checkpoints/ego_finetune \
-        --epochs 20 --batch-size 8
+        --val-participants P08 --val-recordings 4 --val-clips 24 \
+        --epochs 3 --clips-per-recording 30 --batch-size 16 \
+        --num-workers 8 --encode-chunk 48 --save-every 3 \
+        --out-dir checkpoints/ego_ft_v2
 
-    # Dry-run (no gaze data needed — uses null signals):
+    # Dry run (no gaze data needed — uses null signals):
     python scripts/finetune_ego.py ... --participants P01 --epochs 1 \
         --clips-per-recording 5 --batch-size 2 --out-dir checkpoints/dry_run
 """
@@ -40,6 +48,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
 
 from ego_common import (
@@ -47,12 +56,12 @@ from ego_common import (
     load_frames, read_vrs_times, find_csvs, find_ts_csv,
 )
 from eval_ego_mse import eval_clip, _real_signals
-from src.models.ego_finetune import (
+from ego.ego_finetune import (
     freeze_for_ego_finetune,
     get_ego_finetune_param_groups,
     log_finetuned_layers,
 )
-from src.datasets.ego_loaders import GazeTokenLoader, HandTokenLoader
+from ego.ego_loaders import GazeTokenLoader, HandTokenLoader
 
 log = logging.getLogger("finetune_ego")
 
@@ -230,10 +239,10 @@ def make_collate(shuffle_signals: str = "off"):
       time   permute within the clip. Gaze and hand get the SAME permutation, so
              gaze/hand correspondence survives and only signal-to-frame alignment
              is destroyed. The permutation is redrawn per clip.
-             A clip spans T*stride frames (64 at the defaults, ~2.1 s), and
-             EXP-003 measured gaze persistence collapsing to skill -0.12 by 1 s, so
-             a within-clip permutation genuinely decorrelates the signal rather
-             than returning a near-copy of it.
+             A clip spans T*stride frames (64 at the defaults, ~2.1 s). In T4,
+             the current gaze predicted gaze 1 s later with skill -0.12, so a
+             within-clip permutation decorrelates the signal and does not return
+             a near-copy of it.
       batch  every clip receives ANOTHER clip's signals — a different moment, and
              usually a different person and kitchen. The stronger control, at the
              cost of also changing the signal's marginal distribution per clip.
@@ -426,8 +435,8 @@ def main():
                     help="Prob. of fully masking a clip's signals (trains mask tokens / fair Condition A)")
     ap.add_argument("--shuffle-signals",     choices=["off", "time", "batch"], default="off",
                     help="Destroy signal/frame alignment while holding shapes, token count, "
-                         "parameter count and validity statistics fixed. The matched control "
-                         "arm for the 2x2 rerun; validation is never shuffled.")
+                         "parameter count and validity statistics fixed. A control arm; "
+                         "validation is never shuffled.")
     ap.add_argument("--unfreeze-last-n",     type=int,   default=6)
     ap.add_argument("--lr-proj",             type=float, default=1e-3)
     ap.add_argument("--lr-blocks",           type=float, default=1e-4)

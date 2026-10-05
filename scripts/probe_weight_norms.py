@@ -1,40 +1,34 @@
 """
-A3 projector weight-norm trace — was the gaze pathway suppressed during training?
+T8: did training shrink the gaze layer?
 
-THE FAILURE MODE BEING TESTED (adoption plan step 15, measuring-signal-use.md A3)
----------------------------------------------------------------------------------
-[[gazeqwen]] describes it: a fresh module injects structured noise into a pretrained
-network, and the fastest way for training to reduce the damage is to suppress the new
-channel — drive its weights toward zero — after which the pathway may never come back.
-If that happened here, ||gaze_proj.weight|| shrank relative to its initialisation.
+A new module in a pretrained network adds noise at first. Training can reduce that
+noise by driving the module's weights toward zero, and the pathway may then never
+recover. GazeQwen describes this (docs/EgoVault/papers/literature/gazeqwen.md). If it
+happened here, the norm of gaze_proj.weight shrank relative to its value at the start.
 
-THE CONFOUND, AND HOW IT IS HANDLED
------------------------------------
-finetune_ego.py runs AdamW at --weight-decay 1e-2 over ALL trainable parameters, so
-every trainable weight shrinks whether or not the data asks for it. An absolute
-shrinkage of gaze_proj therefore means nothing on its own.
+Weight decay
+------------
+finetune_ego.py uses AdamW with weight decay 0.01 on all trained parameters, so every
+trained weight shrinks, whatever the data. The shrinkage of gaze_proj alone says
+nothing. Each norm is therefore reported in three ways:
 
-So every norm is reported three ways:
+  ratio_to_init   The norm divided by the norm at the start.
+  vs reference    The same ratio for parameters trained with the same decay and the
+                  same schedule: blocks 18-23 and the output layers. Suppression means
+                  that gaze_proj shrinks more than these.
+  frozen control  predictor_embed and blocks 0-17 were never trained, so their ratio
+                  must be exactly 1.000. Any other value means the checkpoint is not
+                  what it claims to be, and no other number can be read.
 
-  ratio_to_init   — raw shrinkage, uninterpretable alone
-  vs reference    — the same ratio for parameters that were trained under the SAME
-                    decay and the SAME schedule (the unfrozen blocks 18-23 and the
-                    output head). Suppression is gaze_proj shrinking MORE than these.
-  frozen control  — predictor_embed and blocks 0-17 were never trained, so their
-                    ratio must be exactly 1.000. Anything else means the checkpoint
-                    is not what it claims to be, and nothing else here is readable.
+Limits
+------
+The finished run saved checkpoints only at epoch 3 (--save-every 3 with --epochs 3).
+So the script compares the start with epoch 3. It cannot show the path in between. A
+trace over training needs a run that logs the norms.
 
-WHAT THIS CAN AND CANNOT SHOW
------------------------------
-Only three checkpoints of the completed run exist and all three are at epoch 3
-(--save-every 3 with --epochs 3), so there is no intra-training trace. This gives
-init -> epoch 3 endpoints, plus whatever the abandoned runs happen to add. A real
-per-step trace is A4 and needs the rerun to log it.
-
-The initialisation reference is rebuilt by running the same construction path with
-the same seed. That reference is robust even if the RNG stream has drifted: the
-Frobenius norm of a 3072-element i.i.d. draw is concentrated to about 1.3%, so the
-init norm is effectively deterministic regardless of seed.
+The starting values are rebuilt by running the same construction with the same seed.
+The norm of a 3072-element random draw varies by only about 1.3%, so the starting norm
+hardly depends on the seed.
 
 Usage
 -----
@@ -43,7 +37,7 @@ Usage
         --predictor-checkpoints checkpoints/ego_ft_v2/best.pt checkpoints/ego_ft_v2/final.pt \
         --out results/weight_norms
 
-CPU-only by default so it can run beside a GPU job.
+It runs on the CPU by default, so it can run next to a GPU job.
 """
 
 import argparse
@@ -55,6 +49,7 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
 
 from ego_common import load_models, strip_prefix
@@ -148,7 +143,7 @@ def main():
     df.to_csv(f"{out}.csv", index=False)
 
     log("\n" + "=" * 88)
-    log("A3 — parameter norm relative to initialisation (1.000 = unchanged)")
+    log("T8 — parameter norm relative to initialisation (1.000 = unchanged)")
     log("=" * 88)
     piv = df.pivot(index="group", columns="checkpoint", values="ratio_to_init") \
             .reindex([g for g, _ in GROUPS])
@@ -182,7 +177,7 @@ def main():
                 "beyond what weight decay alone produces.")
     log("-" * 88)
     log("\nCaveat: --save-every was >= --epochs on every completed run, so these are endpoints,")
-    log("not a trace. When it dies mid-pathway matters (A4) and needs per-step logging in the rerun.")
+    log("not a trace. A trace over training needs a run that logs the norms at each step.")
 
     with open(f"{out}.json", "w") as f:
         json.dump({"config": vars(args), "rows": rows}, f, indent=2, default=str)

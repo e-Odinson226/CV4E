@@ -19,23 +19,31 @@ run has not been done yet. The thesis notes, with every test and its result, are
 | Path | Contents |
 |---|---|
 | `scripts/` | Training, evaluation and test scripts. |
-| `vjepa2/` | Meta's V-JEPA 2 code, with three modules of ours added in `vjepa2/src/`. It is an ordinary folder, not a submodule. |
-| `docs/EgoVault/` | The thesis notes, an Obsidian vault. The submitted paper and the literature notes are in `docs/EgoVault/papers/`. |
+| `ego/` | Our model code: the ego predictor, its fine-tuning helpers, and the gaze and hand loaders. |
+| `vjepa2/` | Meta's V-JEPA 2 code. Not tracked: clone it here (see Setup). |
+| `docs/EgoVault/` | The thesis notes, an Obsidian vault. The paper's LaTeX source and the literature notes are in `docs/EgoVault/papers/`. |
 | `notebooks/` | `playground.ipynb`: a first look at the Aria gaze data and at a V-JEPA 2 model from Hugging Face. |
 | `data/`, `checkpoints/`, `results/` | Datasets, trained models and result files. Not tracked. |
 | `archive/` | Old files. Not tracked. |
 
 ## Who wrote the code
 
-- Erfan wrote everything in `scripts/` and the three modules in `vjepa2/src/` described below.
-  Ioana wrote the first gaze and hand projection layers. Erfan moved them into the predictor
-  and extended them to all time steps.
-- Meta wrote the rest of `vjepa2/`. Its licenses are `vjepa2/LICENSE` and
-  `vjepa2/APACHE-LICENSE`.
+- Erfan wrote everything in `scripts/` and `ego/`. Ioana wrote the first gaze and hand
+  projection layers. Erfan moved them into the predictor and extended them to all time steps.
+- Meta wrote V-JEPA 2, which the code imports from `vjepa2/`. Its licenses are in that
+  repository.
 - Parsa ran tests T1, T3, T9 and T12 with Parsa's own code. That code is not in this
   repository. The code in Appendix C of the paper is also from Parsa's codebase.
 
 ## Setup
+
+The code needs Meta's V-JEPA 2 repository in `vjepa2/`. This work used commit `204698b`
+(23 March 2026). Clone it from the repository root:
+
+```sh
+git clone https://github.com/facebookresearch/vjepa2 vjepa2
+git -C vjepa2 checkout 204698b
+```
 
 The environment is the conda environment `VJEPA2-AC`, with Python 3.12. It has the packages in
 `vjepa2/requirements.txt`, plus `scipy`, `matplotlib` and `rich`.
@@ -47,8 +55,8 @@ cd /mnt/data/home/zj2433/Projects/Ego/CV4Egocentric
 
 - Run every script from the repository root. The default input and output paths are relative
   to it.
-- The scripts add `vjepa2/` to the Python path themselves. `vjepa2` does not need to be
-  installed.
+- The scripts add the repository root and `vjepa2/` to the Python path themselves. Neither
+  needs to be installed.
 - On a shared GPU, put `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` before the command.
 
 ### Data
@@ -107,13 +115,13 @@ normalize clips in the same way. Some scripts also import from each other:
 - `gaze_recoverability.py` provides the frame sampler and the ridge regression probe.
   `control_recoverability.py` reuses both.
 
-## Model code in `vjepa2/src/`
+## Model code in `ego/`
 
 | File | Contents |
 |---|---|
-| `models/ego_predictor.py` | `VisionTransformerPredictorEgo` and its builder `vit_ego_predictor`. The blocks are the same as in the AC predictor. `gaze_proj` (3 → 1024) and `hand_proj` (12 → 1024) replace the action and state encoders. `gaze_mask` and `hand_mask` are the learned tokens for missing signals. |
-| `models/ego_finetune.py` | `load_ac_weights_into_ego` copies the pretrained AC weights. `freeze_for_ego_finetune` freezes everything except the new layers, the last 6 blocks and the output layers. `get_ego_finetune_param_groups` gives the new layers and the pretrained layers separate learning rates. The other functions list and log the trainable parameters. |
-| `datasets/ego_loaders.py` | `GazeTokenLoader` (yaw, pitch, depth) and `HandTokenLoader` (wrist and palm positions of both hands). The scaling constants `GAZE_MEAN`, `GAZE_STD` and `HAND_STD` are rough guesses. They need to be recomputed from P01–P07 before the next training run. |
+| `ego_predictor.py` | `VisionTransformerPredictorEgo` and its builder `vit_ego_predictor`. The blocks are the same as in the AC predictor. `gaze_proj` (3 → 1024) and `hand_proj` (12 → 1024) replace the action and state encoders. `gaze_mask` and `hand_mask` are the learned tokens for missing signals. |
+| `ego_finetune.py` | `load_ac_weights_into_ego` copies the pretrained AC weights. `freeze_for_ego_finetune` freezes everything except the new layers, the last 6 blocks and the output layers. `get_ego_finetune_param_groups` gives the new layers and the pretrained layers separate learning rates. The other functions list and log the trainable parameters. |
+| `ego_loaders.py` | `GazeTokenLoader` (yaw, pitch, depth) and `HandTokenLoader` (wrist and palm positions of both hands). The scaling constants `GAZE_MEAN`, `GAZE_STD` and `HAND_STD` are rough guesses. They need to be recomputed from P01–P07 before the next training run. |
 
 What is trained, and with which learning rates, is in `docs/EgoVault/3-method.md`.
 
@@ -175,23 +183,6 @@ These need no GPU and no data.
 $PY scripts/test_gaze_recoverability.py
 $PY scripts/test_shuffle_signals.py
 ```
-
-### Earlier test names in the scripts
-
-The docstrings in the scripts use earlier names for the tests. They also name notes that are no
-longer in the vault, such as `measuring-signal-use.md`. The tests are now numbered in
-`docs/EgoVault/4-results.md`:
-
-| Name in the scripts | Test |
-|---|---|
-| EXP-001 | T2 |
-| EXP-002 | T3 |
-| EXP-003 | T4 |
-| EXP-003 control probe | T5 |
-| A1 | T6 |
-| A2 | T7 |
-| A3 | T8 |
-| Rung B1 | T10 |
 
 ## Training
 
@@ -270,15 +261,6 @@ Each checkpoint file is 1.22 GB. The trainable weights alone are about 150 MB.
 - `/mnt/data` is shared and has been full before. Write long outputs to scratch space first.
 - Scripts that build an untrained model set the random seed. Without it, the random gaze and
   hand layers differ between runs.
-
-## Other code in the repository
-
-- The top level of `vjepa2/` holds early experiment files that are not part of V-JEPA 2:
-  `gaze_token.py`, `hand_token.py`, `gaze_frame.py`, `hand_frame.py`, `GuenQwen_Jepa.py`,
-  `integration.py`, `vjepa2_gaze_guidance.py`, `vjepa2_pipeline.py`, and others, with
-  `debug_frames/`, `workshop_notebooks/` and two notebooks. Nothing in `scripts/` or
-  `vjepa2/src/` imports them. Copies are in `archive/`.
-- `vjepa2/build/` is a build output of the V-JEPA 2 package. The scripts do not use it.
 
 ## Notes
 

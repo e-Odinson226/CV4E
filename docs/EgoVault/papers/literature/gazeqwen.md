@@ -225,7 +225,7 @@ When $\mathcal{A}_t = \emptyset$, we set $\mathbf{g}_t = \mathbf{0}$.
 > This is what §3.3's **(G)** ablation is measuring, and it is their largest reported effect.
 
 > [!tip]+ 🧵 This is the cheapest change available to your predictor
-> [ego_predictor.py:57](../../vjepa2/src/models/ego_predictor.py) is `self.gaze_proj = nn.Linear(gaze_dim, predictor_embed_dim)` — a **`Linear(3 → 384)`**, which is exactly the naive option above. It is **rank ≤ 3**: the entire gaze channel occupies a fixed 3-dimensional subspace of the predictor's hidden space, for every input, permanently.
+> [ego_predictor.py:57](../../../../ego/ego_predictor.py) is `self.gaze_proj = nn.Linear(gaze_dim, predictor_embed_dim)` — a **`Linear(3 → 384)`**, which is exactly the naive option above. It is **rank ≤ 3**: the entire gaze channel occupies a fixed 3-dimensional subspace of the predictor's hidden space, for every input, permanently.
 >
 > And your inputs are *angles*, which makes it worse — a linear map is close to the worst parameterization of an angle, since 30° vs 32° is a tiny displacement along one fixed direction that 24 attention blocks then have to amplify into a meaningful distinction.
 >
@@ -335,7 +335,7 @@ $$
 > Same trick as ControlNet's zero-convolutions, LoRA's `B = 0`, and AdaLN-Zero in DiT.
 
 > [!tip]+ 🧵 Your projectors are randomly initialised, and this may matter
-> [ego_predictor.py:57–62](../../vjepa2/src/models/ego_predictor.py) initialises `gaze_proj` and `hand_proj` via `trunc_normal_`, and the mask tokens as `randn * 0.02`. So at step 0 you inject structured noise into a pretrained predictor — and per [ego_finetune.py:88](../../vjepa2/src/models/ego_finetune.py) those params train at `lr_proj`, *higher* than everything else, because they are "randomly init, must learn fast". That is precisely the configuration where suppression-before-learning is most likely.
+> [ego_predictor.py:57–62](../../../../ego/ego_predictor.py) initialises `gaze_proj` and `hand_proj` via `trunc_normal_`, and the mask tokens as `randn * 0.02`. So at step 0 you inject structured noise into a pretrained predictor — and per [ego_finetune.py:88](../../../../ego/ego_finetune.py) those params train at `lr_proj`, *higher* than everything else, because they are "randomly init, must learn fast". That is precisely the configuration where suppression-before-learning is most likely.
 >
 > Zero-initialising the projector output plus a learned scalar gate `α_gaze` (init 0) makes "use gaze" strictly-improving from a no-op start. **[corrected 2026-08-18 — do not do both.** With `W = 0` and `α = 0`, the projector's gradient is `α · x = 0` exactly, and `α`'s gradient is input-independent: the pathway cannot learn to use gaze. And zero-init does not port here anyway — our gaze is a *token*, not a residual, so a zero projector yields a zero token rather than a no-op. Gate toward `gaze_mask` with the projector at normal init: see [[3-method]].** **And the scalar is free instrumentation:** log `α_gaze` over training and you can read off whether the model ever engaged the channel. Right now nothing in the architecture distinguishes *"gaze was tried and didn't help"* from *"gaze was never engaged"* — which are hypotheses H1 and H2 in [[1-introduction#^hypotheses|the hypotheses table]], currently indistinguishable.
 

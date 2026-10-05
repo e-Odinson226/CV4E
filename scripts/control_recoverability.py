@@ -1,52 +1,41 @@
 """
-EXP-003 control probe — is the collapse about GAZE, or about the ENCODER?
+T5: is the T4 result specific to gaze?
 
-THE CONFOUND (adoption plan step 13, found 2026-08-18)
-------------------------------------------------------
-EXP-003 regressed gaze from frozen encoder features and found skill 0.116 across
-held-out RECORDINGS but 0.001 across held-out PARTICIPANTS. That was read as
-"gaze does not transfer across people". But in HD-EPIC each participant has their
-own kitchen, so the participant split varies people AND scenes together. The same
-numbers are equally consistent with "the frozen encoder's features do not transfer
-across kitchens" — which would explain the EXP-001 near-null and the EXP-002 null
-with no reference to gaze at all.
+In T4, gaze could be read across recordings of the same people, but not across
+participants. In HD-EPIC each participant has their own kitchen, so the participant
+split changes the person and the kitchen together. The T4 result could mean that gaze
+does not transfer across people. It could also mean that the frozen features do not
+transfer across kitchens.
 
-One probe separates them: regress a DIFFERENT target from the SAME features across
-the SAME splits.
+This script runs the same probe on a different target, with the same features and the
+same splits:
 
-  control target TRANSFERS  -> features are fine cross-person; the gaze null is
-                               genuinely about gaze. EXP-003 stands, now defended.
-  control target COLLAPSES  -> the probe was measuring encoder scene-generalisation.
-                               EXP-003's headline needs restating and the project's
-                               central problem changes.
+  * If the control target transfers across participants, the features do transfer,
+    and the T4 result is about gaze.
+  * If the control target also fails across participants, T4 measured how well the
+    features transfer across kitchens.
 
-THE TARGET
-----------
-Palm position in the Aria device frame, from the same MPS recordings. It is the
-right control for three reasons: it is behavioural like gaze, it is *visible in
-the frame* so a transferring encoder should localise it, and it is sampled on the
-same clock so it needs no new alignment machinery.
+Target
+------
+Palm position (x, y, z) in the Aria device frame, from the same MPS recordings. Like
+gaze, it is behavioural. It is visible in the frame, so features that transfer should
+locate it. It is sampled on the same clock, so it needs no new alignment.
 
-RECOVERING THE ROWS
--------------------
-results/gaze_features.npz stores features and gaze but NOT the frame index each row
-came from, so a new target cannot be looked up naively. Rather than re-encode
-(~25 min), this replays gaze_recoverability.collect()'s sampler: it is seeded, and
-its rng is advanced by exactly one sample_indices() call per surviving recording.
-Replaying it with the cache's own config reproduces the frame indices.
-
-That replay is then PROVEN rather than assumed: the gaze vectors it recovers must
-equal the cached g0_tr / g0_te element-for-element, and the per-recording row counts
-must match meta_tr / meta_te. If either check fails the script aborts, because a
-silently misaligned row would produce a confident wrong answer — the single most
-dangerous failure mode available here.
-
-WHAT IS HELD FIXED
+Finding the frames
 ------------------
-Same cached features, same PCA, same ridge implementation, same alpha grid, same
-folds, same seed, same splits, same leads, same skill metric. Only the target
-changes. Hand validity forces some rows to be dropped, so gaze is ALSO re-scored on
-the reduced row set: the headline comparison is gaze-vs-hand on identical rows.
+The T4 cache (results/gaze_features.npz) stores the features and the gaze, but not the
+frame each row came from. The T4 sampler is seeded. The script replays it with the
+cache's own settings (--source-json), which gives the frame of each row without
+encoding the video again. It then checks that the gaze it finds equals the cached gaze
+in every row, and that the number of rows per recording matches. If a check fails, the
+script stops, because a misaligned row would give a wrong result without any warning.
+
+What stays the same as T4
+-------------------------
+The cached features, the PCA, the ridge probe, the regularization grid, the folds, the
+seed, the splits, the leads and the skill measure. Only the target changes. Rows
+without valid hand data are dropped. Gaze is scored again on the remaining rows, so
+gaze and palm are compared on the same rows.
 
 Usage
 -----
@@ -56,7 +45,8 @@ Usage
         --gaze-dir  data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze \
         --out results/control_recoverability
 
-No GPU and no video decoding: it reads mp4 headers, CSVs and the feature cache.
+It needs no GPU and decodes no video. It reads mp4 headers, CSV files and the feature
+cache.
 """
 
 import argparse
@@ -68,6 +58,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
 
 from ego_common import video_info, read_vrs_times, find_csvs, find_ts_csv
@@ -223,17 +214,17 @@ def hand_targets(rows, cfg, log):
 
 
 # ---------------------------------------------------------------------------
-# Probe — identical machinery to EXP-003, only the target differs
+# Probe: the same as in T4 (gaze_recoverability.py). Only the target differs.
 # ---------------------------------------------------------------------------
 
 def per_col_mse(pred, true):
     """
     Per-column mean squared error, the raw material for both skill definitions.
 
-    Pooled weights columns by their variance, which is what EXP-003 reported for
-    yaw/pitch. Per-column is scale-free and is the honest one when a target mixes
-    units or ranges; both are printed so a disagreement between them is visible
-    rather than buried.
+    Pooled weights columns by their variance. T4 reported pooled skill for yaw and
+    pitch. Per-column skill does not depend on scale, so it is the better measure when
+    a target mixes units or ranges. Both are printed, so a disagreement between them
+    is visible.
     """
     ss_res = ((true - pred) ** 2).mean(0)
     return ss_res
@@ -261,7 +252,7 @@ def main():
     ap.add_argument("--gaze-dir", required=True)
     ap.add_argument("--cache", default="results/gaze_features.npz")
     ap.add_argument("--source-json", default="results/gaze_recoverability.json",
-                    help="the EXP-003 run whose config built the cache")
+                    help="the T4 run whose settings built the cache")
     ap.add_argument("--hand-tol-ms", type=float, default=100.0,
                     help="hand CSVs run at ~10 Hz, so 50 ms would reject most lookups")
     ap.add_argument("--splits", nargs="+", default=["participant", "recording", "random"])
@@ -282,7 +273,7 @@ def main():
     cfg["video_dir"], cfg["gaze_dir"] = args.video_dir, args.gaze_dir
     cfg["hand_tol_ms"] = args.hand_tol_ms
     leads = cfg["leads"]
-    log(f"[setup] replaying EXP-003 sampler: seed={cfg['seed']} recordings={cfg['recordings']} "
+    log(f"[setup] replaying the T4 sampler: seed={cfg['seed']} recordings={cfg['recordings']} "
         f"windows={cfg['windows']} window_sec={cfg['window_sec']} per_window={cfg['per_window']}")
     log(f"[setup] leads={leads}  gaze tol={cfg['tol_ms']}ms  hand tol={cfg['hand_tol_ms']}ms")
 
@@ -340,7 +331,7 @@ def main():
                 tr_all = np.array([i for i, m in enumerate(M) if m not in held])
 
         # target -> (Y array, row mask). Gaze is scored twice: on all rows (the
-        # EXP-003 number) and on each hand's rows, so the comparison that decides
+        # T4 number) and on each hand's rows, so the comparison that decides
         # the confound is made on IDENTICAL samples.
         targets = {
             "gaze_yawpitch": (Gl[:, :, :2], np.ones(len(Xg), bool)),
@@ -386,7 +377,7 @@ def main():
         return float(d.skill.iloc[0]) if len(d) else np.nan
 
     log("\n" + "-" * 92)
-    log("READING — skill at lead 0, the number EXP-003's headline rests on")
+    log("READING — skill at lead 0, the number the T4 result rests on")
     tbl = []
     for t in ("gaze_yawpitch", "left_palm_xyz", "right_palm_xyz",
               "gaze_on_left_rows", "gaze_on_right_rows"):
@@ -404,16 +395,14 @@ def main():
     if not np.isfinite(hand_par):
         log("  Control target could not be scored — check hand CSV coverage above.")
     elif hand_par > 0.05:
-        log("  The CONTROL TARGET TRANSFERS across participants while gaze does not.")
-        log("  The frozen features carry information that survives the change of person and")
-        log("  kitchen, so EXP-003's collapse is not a generic encoder failure. Its headline")
-        log("  STANDS and is now defended against the confound.")
+        log("  The CONTROL TARGET TRANSFERS across participants, and gaze does not.")
+        log("  The frozen features carry information across people and kitchens, so the T4")
+        log("  result is not a general failure of the encoder. The T4 result HOLDS.")
     elif hand_rec > 0.05:
-        log("  The control target is recoverable WITHIN kitchens but COLLAPSES across them,")
-        log("  exactly like gaze. EXP-003 was measuring encoder scene-generalisation, not gaze")
-        log("  redundancy. Its headline needs restating and the project's central problem")
-        log("  changes: the substrate does not transfer, which explains both nulls without")
-        log("  mentioning gaze.")
+        log("  The control target can be read WITHIN kitchens but FAILS across them, like")
+        log("  gaze. T4 measured how well the encoder transfers across kitchens, not whether")
+        log("  gaze is redundant. This would explain the null results without reference to")
+        log("  gaze.")
     else:
         log("  The control target is not recoverable on ANY split, so it says nothing about")
         log("  the encoder. Either palm position is not linearly present in these features or")

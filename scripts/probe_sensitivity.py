@@ -1,49 +1,37 @@
 """
-A1 sensitivity probe — is the predictor's output a function of gaze at all?
+T6: does the prediction change when gaze changes?
 
-THE QUESTION (adoption plan step 14, concepts/measuring-signal-use.md A1)
--------------------------------------------------------------------------
-EXP-001 measured Delta = +0.0011 and EXP-002 measured a null. Two states of the
-world emit exactly that observable and demand opposite actions:
+This tests hypothesis H2 in docs/EgoVault/1-introduction.md: the model does not use the
+signals. The small Delta of T2 has two possible causes. The model may read gaze, and
+gaze may say little about the next step. Or the model may have learned to ignore the
+gaze token. This script separates the two without any training. It keeps the video
+fixed, changes the gaze input, and measures how far the prediction moves:
 
-  World A — the predictor reads gaze, and gaze just does not say much about the
-            latent 2 s ahead. Correct response: re-frame around horizon/substrate.
-  World B — the predictor learned to ignore the token early in training. Correct
-            response: fix the injection and try again.
+    rel = || z_pred(changed) - z_pred(real) ||_F / || z_pred(real) ||_F
 
-Nothing in the project distinguishes them. This does, with NO TRAINING: hold the
-video fixed, perturb the gaze input, and measure how far the prediction moves.
+  rel close to 0      -> the model ignores gaze.
+  rel clearly above 0 -> the model reads gaze.
 
-    rel = || z_pred(perturbed) - z_pred(real) ||_F / || z_pred(real) ||_F
+Reference values
+----------------
+Three reference values are measured on the same clips:
 
-  rel ~ 0            -> the gaze->prediction map is numerically dead. World B.
-  rel clearly > 0    -> the model IS reading gaze. World B eliminated.
+  identity    The same forward pass twice. It must be exactly 0. Otherwise the network
+              is not deterministic, and no other number can be read.
+  video_swap  The visual context of another clip, with the same gaze. This shows how
+              far apart two predictions are after a large input change.
+  both_mask   Gaze and hand replaced by their mask tokens. This is the "signals hidden"
+              condition of eval_ego_mse.py, so it links this result to Delta.
 
-WHY THIS IS UNCONFOUNDED
-------------------------
-It is a direct measurement of a functional dependency in a FIXED network. No
-learning rate, no schedule, no weight decay, no optimiser, no split. The only way
-to get it wrong is to compare against nothing, so three reference scales are
-measured on the same clips:
+The gaze change is swept over several sizes (--degrees, in degrees of yaw). A channel
+that does not react at any size differs from one that reacts a little at each size.
 
-  identity   — the same forward pass twice. MUST be exactly 0. If it is not, the
-               network is non-deterministic and no other number here is readable.
-  video_swap — swap the whole visual context for another clip's, gaze unchanged.
-               The scale of "a large input change", i.e. how far apart two
-               predictions are in the first place.
-  both_mask  — gaze AND hand routed to their mask tokens. This is exactly
-               Condition A of eval_ego_mse.py, so it ties the sensitivity number
-               back to the Delta = +0.0011 the project is trying to explain.
-
-The gaze perturbation is swept over magnitude (degrees of yaw) rather than run at
-one size, because "flat at every magnitude" and "small but growing" are different
-findings: the first is a dead channel, the second is a live channel with a small
-gain.
-
-Clips are drawn with the SAME recording discovery, the SAME seed and the SAME
-sampler as finetune_ego.validate(), so with the defaults this probe runs on the
-exact 96 held-out P08 clips that produced Delta = +0.0011. The MSE columns
-therefore reproduce that run's MSE_A / MSE_B as an end-to-end check.
+Clips
+-----
+The clips come from the same recordings, seed and sampler as the checks in
+finetune_ego.validate(). With the defaults these are the 96 P08 test clips of T2. The
+MSE columns then reproduce that run's MSE_A and MSE_B, which checks that the two
+pipelines match.
 
 Usage
 -----
@@ -55,8 +43,8 @@ Usage
         --gaze-dir  data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze \
         --participants P08 --out results/sensitivity_ego_ft_v2
 
-Everything runs in fp32 by default: `validate()` was fp32, the identity control
-has to be bit-exact, and the deltas being measured may be small.
+Everything runs in fp32 by default. validate() ran in fp32, the identity check must be
+exact, and the changes being measured can be small. --amp runs the encoder in bf16.
 """
 
 import argparse
@@ -70,6 +58,7 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
 
 from ego_common import (
@@ -77,7 +66,7 @@ from ego_common import (
     load_frames, read_vrs_times, find_csvs, find_ts_csv,
 )
 from eval_ego_mse import _real_signals, load_finetuned
-from src.datasets.ego_loaders import GazeTokenLoader, HandTokenLoader, GAZE_STD
+from ego.ego_loaders import GazeTokenLoader, HandTokenLoader, GAZE_STD
 
 
 # ---------------------------------------------------------------------------
@@ -347,7 +336,7 @@ def main():
     agg = agg.reindex([c for c in order if c in agg.index])
 
     log("\n" + "=" * 96)
-    log("A1 SENSITIVITY — relative movement of z_pred when the input is perturbed, video held fixed")
+    log("T6 SENSITIVITY — relative movement of z_pred when the input is perturbed, video held fixed")
     log("=" * 96)
     log(agg.to_string(float_format=lambda v: f"{v:11.6f}"))
 
@@ -367,19 +356,18 @@ def main():
     if ident != 0.0:
         log("  Identity control is non-zero. Fix determinism before reading anything else.")
     elif g_swap < 1e-4:
-        log("  The gaze->prediction map is effectively DEAD. Substituting a different clip's")
-        log("  gaze changes the prediction by <0.01% of its norm. WORLD B, demonstrated:")
-        log("  Hypothesis 2 (the model never learned to use gaze) is settled, and the")
-        log("  architecture programme in Phase 3 has a real target.")
+        log("  The model IGNORES gaze. Another clip's gaze changes the prediction by less")
+        log("  than 0.01% of its norm. This supports H2 (the model does not use the signals),")
+        log("  and changes to how gaze enters the model would have a real target.")
     elif g_swap / vs < 0.01:
-        log("  Gaze is READ but with a very small gain: the pathway is alive, yet a completely")
-        log("  different gaze moves the prediction less than 1% as far as a different video does.")
-        log("  World B is NOT established — the channel carries signal. Weigh H1/H3.")
+        log("  The model READS gaze, with a small effect: a completely different gaze moves")
+        log("  the prediction less than 1% as far as a different video does. H2 is not")
+        log("  supported. Weigh H1 and H3.")
     else:
-        log("  Gaze is clearly READ. World B is ELIMINATED: the predictor's output is a")
-        log("  substantial function of the gaze input, so Coord-PE / zero-init / the gate are")
-        log("  aimed at a problem that does not exist. Redirect to H1 (information not useful")
-        log("  at this horizon) or H3 (3-epoch checkpoint too under-trained to measure).")
+        log("  The model clearly READS gaze. H2 is rejected: the prediction depends on the")
+        log("  gaze input, so Coord-PE, zero initialization and the gate would address a")
+        log("  problem that does not exist. Look at H1 (the information does not help at")
+        log("  this horizon) or H3 (the 3-epoch model is undertrained).")
 
     # end-to-end check against the training log
     if "both_mask" in agg.index:

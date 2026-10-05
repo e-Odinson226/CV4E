@@ -1,44 +1,39 @@
 """
-Rung B1 — does the stock AC predictor, with no conditioning at all, already predict
-ego video as well as the fine-tuned ego predictor?
+T10 and T11: how much of the fine-tuning gain comes from the signals?
 
-WHY THIS RUNS BEFORE ANY RETRAIN (adoption plan step 16, no-signal-baselines.md)
---------------------------------------------------------------------------------
-EXP-001 designed a five-rung ablation ladder and ran only the top rung. B1 is the
-rung that asks what the fine-tune actually bought. If the stock AC predictor —
-pretrained on robot video, never shown a kitchen, conditioning suppressed — already
-matches the fine-tuned model, then the whole measured effect was architecture plus
-domain adaptation and never behavioural signal, which would explain the EXP-001
-near-null and the EXP-002 null at the same time. It costs one eval pass on
-checkpoints that already exist; the retrain is a separate, later step, and running
-B1 first is what stops that retrain from measuring noise.
+Fine-tuning does two things. The model adapts to kitchen video, and it learns to use
+gaze and hand. This script separates the two. It scores the predictor before
+fine-tuning (the stock AC predictor) and after fine-tuning on the same clips. Each is
+scored with real signals and with three kinds of "no signal" input. If the stock
+predictor without signals did as well as the fine-tuned one, fine-tuning would have
+gained nothing. If the fine-tuned model without signals does better than the stock
+one, that part of the gain is adaptation to the domain, not use of the signals.
 
-THREE WAYS TO SAY "NO GAZE", AND THEY ARE NOT EQUIVALENT
---------------------------------------------------------
-  zeros  the literal zero vector in the conditioning slot. NOT neutral for gaze:
-         GAZE_MEAN = [0, -0.25, 1.0] is non-zero, so zero in standardised space
-         decodes to pitch +0.83 sigma and depth -1.0 sigma — a specific, slightly
-         unusual gaze asserted with full confidence on every frame.
-  mean   the empirical mean of the standardised signal, measured here rather than
-         assumed. The gap between this and zeros is exactly how wrong the
-         never-recomputed GAZE_MEAN/GAZE_STD constants are.
-  mask   gaze_mask / hand_mask, the learned "no signal available" parameters. On
-         the fine-tuned model these were trained by --signal-dropout 0.4; on the
-         stock model they are still random, which is itself worth seeing.
+With --predictor-checkpoint checkpoints/ego_sd1p0/best.pt, the fine-tuned model is the
+one trained without signals. That is T11.
 
-All three are reported. If they agree the baseline is solid; if they disagree, the
-disagreement is a finding about how brittle the conditioning pathway is.
+Three "no signal" inputs
+------------------------
+They are not equivalent, so all three are reported:
 
-A NOTE ON WHAT eval_ego_mse.py's CONDITION A ACTUALLY IS
---------------------------------------------------------
-null_signals() (eval_ego_mse.py:49) returns zero vectors AND valid=False, and the
-predictor routes on the validity flag, so the existing Condition A is the MASK
-variant, not the zeros variant that no-signal-baselines.md describes B1 as using.
-Every arm here is labelled explicitly so that ambiguity cannot recur.
+  zeros  The zero vector in the signal slot, marked valid. After scaling, zero means
+         the gaze GAZE_MEAN = (yaw 0, pitch -0.25 rad, depth 1.0 m) on every frame.
+         GAZE_MEAN is a rough guess, so this is not the average gaze in the data.
+  mean   The average scaled signal, measured on --stats-participants. With perfect
+         scaling constants it would be 0. The gap between mean and zeros shows how far
+         off the constants are.
+  mask   The learned gaze_mask and hand_mask tokens. In the fine-tuned model they were
+         trained through --signal-dropout 0.4. In the stock model they are random.
 
-Every arm is scored on the SAME clips against the SAME target, so per-clip
-differences are paired and a Wilcoxon signed-rank test is meaningful — the test
-EXP-001 never ran.
+If the three agree, the baseline is reliable. If they disagree, Delta depends on which
+one is used.
+
+The "signals hidden" condition of eval_ego_mse.py returns zero vectors with
+valid=False. The predictor uses the validity flag, so that condition is the mask
+variant.
+
+Every variant is scored on the same clips against the same target. The per-clip
+differences are paired and tested with a Wilcoxon signed-rank test.
 
 Usage
 -----
@@ -61,6 +56,7 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
 
 from ego_common import (
@@ -69,7 +65,7 @@ from ego_common import (
 )
 from eval_ego_mse import load_finetuned
 from probe_sensitivity import discover, enumerate_clips
-from src.datasets.ego_loaders import GazeTokenLoader, HandTokenLoader
+from ego.ego_loaders import GazeTokenLoader, HandTokenLoader
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +96,7 @@ def signal_stats(video_dir, gaze_dir, participants, per_participant, standardize
                 v = df[["yaw", "pitch", "depth"]].values.astype(np.float64)
                 v[:, 2] = np.clip(np.where(v[:, 2] == 0, 1.0, v[:, 2]), 0.05, 10.0)
                 if standardize:
-                    from src.datasets.ego_loaders import GAZE_MEAN, GAZE_STD
+                    from ego.ego_loaders import GAZE_MEAN, GAZE_STD
                     v = (v - GAZE_MEAN) / GAZE_STD
                 g_sum += v.sum(0); g_sq += (v ** 2).sum(0); g_n += len(v)
             if h_csv:
@@ -110,7 +106,7 @@ def signal_stats(video_dir, gaze_dir, participants, per_participant, standardize
                         "tx_rw", "ty_rw", "tz_rw", "tx_rp", "ty_rp", "tz_rp"]
                 v = df[cols].values.astype(np.float64)
                 if standardize:
-                    from src.datasets.ego_loaders import HAND_MEAN, HAND_STD
+                    from ego.ego_loaders import HAND_MEAN, HAND_STD
                     v = (v - HAND_MEAN) / HAND_STD
                 h_sum += v.sum(0); h_sq += (v ** 2).sum(0); h_n += len(v)
             seen += 1
@@ -274,7 +270,7 @@ def main():
     df.to_csv(f"{out}.csv", index=False)
 
     log("\n" + "=" * 78)
-    log("RUNG B1 — mean feature-prediction MSE, every arm on the same clips")
+    log("STOCK vs FINE-TUNED (T10, T11) — mean feature-prediction MSE, every arm on the same clips")
     log("=" * 78)
     piv = df.pivot_table(index="model", columns="variant", values="mse", aggfunc="mean")
     log(piv[["real", "mask", "zeros", "mean"]].to_string(float_format=lambda v: f"{v:9.4f}"))
@@ -301,26 +297,24 @@ def main():
     spread = float(piv.loc["finetuned", ["mask", "zeros", "mean"]].max() -
                    piv.loc["finetuned", ["mask", "zeros", "mean"]].min())
     log("\n" + "-" * 78)
-    log(f"[B1 vs H] best no-signal stock arm  = {b1_best:.4f}")
-    log(f"[B1 vs H] best no-signal tuned arm  = {h_best:.4f}")
-    log(f"[B1 vs H] tuned WITH real signals   = {h_real:.4f}")
+    log(f"[stock vs tuned] best no-signal stock arm  = {b1_best:.4f}")
+    log(f"[stock vs tuned] best no-signal tuned arm  = {h_best:.4f}")
+    log(f"[stock vs tuned] tuned WITH real signals   = {h_real:.4f}")
     log(f"[baselines] spread across the three no-signal definitions on the tuned model: "
         f"{spread:.4f}")
     log(f"[baselines] compare with the gaze effect itself, {h_best - h_real:+.4f}")
     log("\nREADING:")
     if b1_best <= h_best:
-        log("  The STOCK AC predictor with no conditioning matches or beats the fine-tuned one.")
-        log("  The fine-tune bought nothing measurable, so the reported effect was architecture")
-        log("  plus domain adaptation. This explains the EXP-001 near-null and the EXP-002 null")
-        log("  at once, and the retrain would be measuring noise as specified.")
+        log("  The STOCK AC predictor with no signals matches or beats the fine-tuned one.")
+        log("  Fine-tuning gained nothing measurable. This would explain the small Delta of T2")
+        log("  and the null result of T3 at once.")
     else:
         log(f"  Fine-tuning improves on the stock predictor by {b1_best - h_best:.4f} MSE with no")
         log("  signals at all. That gain is domain adaptation, not behavioural conditioning —")
-        log("  it is the part of the effect the ladder was built to separate out.")
+        log("  it is the part of the gain that this comparison separates out.")
     if spread > abs(h_best - h_real):
-        log("  The choice of no-signal baseline moves the number MORE than gaze does. Any Delta")
-        log("  quoted without naming its baseline is uninterpretable — which is what happened")
-        log("  to the +0.0011.")
+        log("  The choice of no-signal input moves the number MORE than gaze does. Every Delta")
+        log("  must say which no-signal input it uses.")
     log("-" * 78)
 
     with open(f"{out}.json", "w") as f:

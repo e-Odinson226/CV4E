@@ -24,7 +24,7 @@ Usage:
 
     # Fine-tuned predictor:
     python scripts/eval_ego_mse.py ... \
-        --predictor-checkpoint checkpoints/ego_finetune/best.pt
+        --predictor-checkpoint checkpoints/ego_ft_v2/best.pt
 """
 
 import argparse
@@ -37,13 +37,14 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
 
 from ego_common import (
     load_models, encode_independent, maybe_norm,
     load_frames, video_info, read_vrs_times, find_csvs, find_ts_csv, strip_prefix,
 )
-from src.datasets.ego_loaders import GazeTokenLoader, HandTokenLoader
+from ego.ego_loaders import GazeTokenLoader, HandTokenLoader
 
 
 def null_signals(T, device):
@@ -88,7 +89,7 @@ def load_finetuned(predictor, ckpt_path):
     # Report which layers this checkpoint fine-tuned (from its saved config)
     cfg = ck.get("config", {}) if isinstance(ck, dict) else {}
     n = cfg.get("unfreeze_last_n", 6)
-    from src.models.ego_finetune import describe_finetuned_layers
+    from ego.ego_finetune import describe_finetuned_layers
     d = describe_finetuned_layers(predictor, n)
     blk = d["unfrozen_block_ids"]
     print(f"[layers] fine-tuned: {', '.join(d['new_projectors'])} + "

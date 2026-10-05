@@ -1,34 +1,30 @@
 """
-A2 attention mass — WHERE in the predictor is gaze read, and how loudly?
+T7: how much attention goes to the gaze token?
 
-WHY ATTENTION IS THE RIGHT INSTRUMENT (adoption plan step 15, measuring-signal-use.md A2)
-------------------------------------------------------------------------------------------
-Gaze enters this predictor as a TOKEN, not as a residual added to hidden states
-(ego_predictor.py:185). A token can only influence a visual token through attention,
-so the attention weight that visual queries place on the conditioning positions is
-literally the bandwidth of the gaze channel. A1 says whether the channel carries
-anything; this says through which of the 24 blocks, and how much.
+Gaze enters the predictor as a token (see VisionTransformerPredictorEgo.forward in
+ego/ego_predictor.py). It is not added to the hidden states. So it can affect an image
+token only through attention. The attention weight that image tokens put on the gaze
+and hand positions measures how much the model reads them. T6 shows whether the model
+reacts to gaze. This script shows in which of the 24 blocks it reads gaze, and how much.
 
-THE REFERENCE NUMBER
---------------------
-Per frame the sequence is [gaze, hand, 256 visual tokens], and the block-causal mask
-lets a query at frame t see every token of frames 0..t — 258 keys per frame, of which
-2 are conditioning. Uniform attention therefore puts exactly 2/258 = 0.775% on the
-pair no matter which frame the query sits in, which makes it a clean floor:
+Reference value
+---------------
+Each frame is [gaze, hand, 256 image tokens]. The frame-causal mask lets a query at
+frame t see every token of frames 0 to t: 258 keys per frame, 2 of them gaze and hand.
+Equal attention to every key puts 2/258 = 0.775% on the pair, in every frame.
 
-  at or below 0.775%   the conditioning tokens are background
-  clearly above        the model is actively querying them
+  at or below 0.775%  the model treats gaze and hand like any other token
+  clearly above       the model attends to them
 
-Per-head maxima are reported alongside the mean, because one specialised head out of
-sixteen is a real mechanism that a mean over heads would hide.
+The largest single head is reported next to the mean over heads. One of the 16 heads
+can specialize, and a mean over heads would hide it.
 
-HOW IT IS MEASURED WITHOUT PERTURBING THE MODEL
------------------------------------------------
-F.scaled_dot_product_attention returns only the output, never the weights. Rather
-than reimplement the block, this wraps that function: the value the network receives
-is still the one the ORIGINAL kernel produced, and the explicit softmax is computed
-alongside it purely for the statistics. The two are checked against each other on the
-first call, so a mismatch surfaces as an error rather than as a plausible wrong number.
+How it is measured
+------------------
+F.scaled_dot_product_attention returns only the output, not the weights. The script
+wraps that function. The network still receives the output of the original function.
+The softmax weights are computed next to it, only for the statistics. On the first call
+the two outputs are compared, and a mismatch raises an error.
 
 Usage
 -----
@@ -50,6 +46,7 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
 
 from ego_common import load_models, encode_independent, load_frames
@@ -232,7 +229,7 @@ def main():
 
     d = df[df.variant == "real"].set_index("block")
     log("\n" + "=" * 92)
-    log("A2 — share of a visual token's attention landing on the conditioning positions (real gaze)")
+    log("T7 — share of a visual token's attention landing on the conditioning positions (real gaze)")
     log("   x/uniform: 1.0 = the token is indistinguishable from background")
     log("=" * 92)
     log(d[["gaze_mass", "gaze_vs_uniform", "gaze_mass_max_head", "gaze_max_head_vs_uniform",

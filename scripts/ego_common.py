@@ -1,9 +1,9 @@
 """
 Shared building blocks for ego-predictor fine-tuning and evaluation.
 
-Both finetune_ego.py and eval_ego_mse.py import from here so the two pipelines
-cannot drift apart (an earlier bug: training aligned gaze by VRS timestamp while
-eval aligned by frame/fps, silently sabotaging Condition B).
+Training and every evaluation script import from here, so they all align, encode
+and normalize clips in the same way. Gaze and hand are matched to frames by each
+frame's absolute VRS timestamp.
 
 Design decisions, matched to the original V-JEPA 2-AC droid training
 (configs/train/vitg16/droid-256px-8f.yaml + app/vjepa_droid/train.py):
@@ -26,11 +26,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vjepa2"))
 
 from src.models.vision_transformer import vit_giant_xformers
-from src.models.ego_predictor import vit_ego_predictor
-from src.models.ego_finetune import load_ac_weights_into_ego
+from ego.ego_predictor import vit_ego_predictor
+from ego.ego_finetune import load_ac_weights_into_ego
 
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32).reshape(3, 1, 1)
 IMAGENET_STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(3, 1, 1)
