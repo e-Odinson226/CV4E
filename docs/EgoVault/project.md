@@ -7,7 +7,7 @@ updated: 2026-10-05
 
 # Project
 
-People, timeline, the submitted paper and the final presentation.
+People, timeline, the paper and the final presentation.
 
 ## People
 
@@ -39,12 +39,16 @@ Babeș-Bolyai University. Each test in [[4-results]] names who ran it.
 
 ## Paper
 
+The paper is derived from the notes and the code in this repository. The notes and the code
+are the reference. Where the paper differs from them, the paper is changed.
+
 - Title: *Behavioral Conditioning of Video World-Model Predictors for Egocentric Action
   Anticipation*.
 - Submitted on 24 August 2026 as the EgoProject 2026 report, in NeurIPS format.
-- Authors on the title page: Seyyed Parsa Sharifi, Erfan Yekehzare, Ioana Marica.
-- The submitted PDF is `papers/overleaf/Semantic_Intention___Final_Report.pdf`. The LaTeX source
-  is in `papers/overleaf/`. The full text, with notes, is in [[final-report]].
+- Authors: Seyyed Parsa Sharifi and Erfan Yekehzare. Ioana Marica is a collaborator, not an
+  author.
+- The LaTeX source is in `papers/overleaf/`. The full text, with notes, is in
+  [[final-report]].
 - Main result: conditioning on gaze and hand does not improve prediction. A model trained
   without the signals does as well (Δ = +0.0003, p = 0.40,
   [[4-results#^t11|T11]]).
@@ -64,28 +68,32 @@ The paper's contribution statement (Appendix A) says:
 - **Ioana:** a collaborator, not an author of the report. Ideas, the first projection layers,
   and the PEVA readout.
 
-Section 4.4 also reports Erfan's sensitivity, weight-norm and untrained-model tests
-([[4-results#^t6|T6]], [[4-results#^t8|T8]],
-[[4-results#^t10|T10]]). Appendix A does not list them.
+### Open problems
 
-### Open problems in the submitted paper
+These are the places where the paper does not yet follow the notes and the code.
 
-1. The code link on the title page returns 404. The GitHub organization exists, but it has
-   only two unrelated public repositories.
-2. The title page lists three authors. Appendix A says that only Parsa and Erfan wrote the
-   report. The two need to agree.
-3. A comment in the LaTeX source says the sample size behind Table 3 is not confirmed. The two
-   candidate values are 762 and 243. The comment does not appear in the PDF.
-4. The code in Appendix C is from Parsa's codebase. It is not in this repository.
-5. The paper does not say whether the attention test hid gaze and hand together or one at a
-   time. Training always hid them together.
-6. The text says "five diagnostics". Table 2 has six rows.
-7. `papers/overleaf/report_PREVIEW.pdf` is an old draft. The submitted file is
-   `Semantic_Intention___Final_Report.pdf`.
+1. Parts of the paper come from code that is not in this repository: the results of
+   [[4-results#^t1|T1]], [[4-results#^t3|T3]], [[4-results#^t9|T9]] and
+   [[4-results#^t12|T12]], and the code in Appendix C. All of it is Parsa's. These parts
+   cannot be derived from this repository until the code is here. See
+   [[#Points to discuss with Parsa]].
+2. A comment in the LaTeX source says the sample size behind Table 3 is not confirmed. The two
+   candidate values are 762 and 243. The notes do not give it either. Parsa needs to confirm
+   it. Then [[4-results#^t3|T3]] records it, and the paper follows.
+3. Section 4.4 reports Erfan's sensitivity, weight-norm and untrained-model tests
+   ([[4-results#^t6|T6]], [[4-results#^t8|T8]], [[4-results#^t10|T10]]). Appendix A does
+   not list them under Erfan.
+4. Neither the paper nor [[4-results#^t7|T7]] says which inputs the attention test hid.
+   `scripts/probe_attention_mass.py` runs three variants: real signals, gaze hidden alone,
+   and gaze and hand hidden together. T7 should say this first, then the paper.
+5. The text says "five diagnostics". Table 2 has six rows.
+6. The PDFs in `papers/overleaf/` are older than the LaTeX source. The submitted PDF still
+   lists Ioana as an author. `report_PREVIEW.pdf` is an old draft. The PDF needs to be built
+   again from the source.
 
-### Results missing from the paper
+### Results in the notes that the paper lacks
 
-These results are in the notes but not in the paper:
+These results are in the notes. The next version of the paper should include them:
 
 - The encoding fix. Encoding each frame on its own lowered the error from 4.82 to 0.57. Every
   error value in the paper depends on this.
@@ -95,18 +103,27 @@ These results are in the notes but not in the paper:
   a possible reason for a weak signal.
 - Before training, real signals made the prediction worse by 0.0057.
 - Hiding gaze alone moves the prediction 2.3 times more than hiding both signals.
-- The right-palm results of T5.
+- The right-palm results of [[4-results#^t5|T5]].
 
 ### Points to discuss with Parsa
 
+In these points the paper and the notes differ, or the paper depends on Parsa's work. Each
+needs a decision with Parsa. The notes record the decision, and the paper follows.
+
+- Parsa's code. To derive the paper from this repository, the code behind T1, T3, T9, T12 and
+  Appendix C needs to be added here. If it stays in Parsa's codebase, the paper needs to say
+  where that code is.
 - Section 2.3 reports an early pilot on EK100. It compares two different encoders (ViT-L and
-  ViT-G), and EK100 has no gaze data. The paper calls it confounded. The comparison that
-  isolates gaze is T11. It could replace the pilot, or follow it.
+  ViT-G), and EK100 has no gaze data. The paper calls it confounded. In the notes, the
+  comparison that isolates gaze is [[4-results#^t11|T11]]. T11 could replace the pilot, or
+  follow it.
 - The feasibility figure in section 4.1 uses Parsa's ViT-L run (T1). The model behind the
-  results is `ego_ft_v2` (T2).
+  results is `ego_ft_v2` (T2). The figure could show the training curve of `ego_ft_v2`
+  instead.
 - The scope of the EK100 test is described in two ways. The paper says P01–P05 were requested
   and only P01's videos were on disk. Parsa's slides say all 32 participants were requested,
-  with no filter. Both agree that 870 clips from P01 were evaluated.
+  with no filter. Both agree that 870 clips from P01 were evaluated. T3 should record the
+  confirmed scope.
 
 ## Presentation
 
@@ -124,10 +141,9 @@ These results are in the notes but not in the paper:
 
 To fix before the presentation:
 
-1. The code link on the title slide and on the last slide returns 404.
-2. A backup slide says that P02–P08 data was absent. Training used P01–P07, and testing used
+1. A backup slide says that P02–P08 data was absent. Training used P01–P07, and testing used
    P08. The slide should say that the data was absent on the cluster used for the probes.
-3. The EK100 scope on the slides differs from the paper (see
+2. The EK100 scope on the slides differs from the paper (see
    [[#Points to discuss with Parsa]]).
-4. The feasibility slide in Erfan's section shows Parsa's ViT-L run. Either show the training
+3. The feasibility slide in Erfan's section shows Parsa's ViT-L run. Either show the training
    curve of `ego_ft_v2`, or label the slide as an early ViT-L run.
