@@ -19,6 +19,7 @@ COMMANDS = {
     "sensitivity":    ("sensitivity",    "Test 4a: does the prediction change when gaze changes?"),
     "attention":      ("attention",      "Test 4b: how much attention goes to the gaze token?"),
     "next-object":    ("next_object",    "Test 8: does the gaze point tell which object is picked up next?"),
+    "gaze-forms":     ("gaze_forms",     "Test 9: compare the gaze forms on P08 and P09 (every finished run)"),
     "weight-norms":   ("weight_norms",   "Test 4c: did training shrink the gaze layer?"),
     "stock-vs-tuned": ("stock_vs_tuned", "Test 2: the predictor before and after fine-tuning"),
     "signal-dropout": ("signal_dropout", "Test 2: ego_ft_v2 against the model trained without signals"),

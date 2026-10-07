@@ -103,17 +103,38 @@ def load_models(checkpoint, device, context_steps, tubelet=2, encoder_key="targe
     for p in encoder.parameters():
         p.requires_grad_(False)
 
-    predictor = vit_ego_predictor(
+    predictor = build_predictor(context_steps, tubelet, encoder.embed_dim, gaze_form)
+    transferred, skipped = load_ac_weights_into_ego(predictor, strip_prefix(ck["predictor"]))
+    predictor.to(device)
+    return encoder, predictor, (len(transferred), len(skipped))
+
+
+def load_trained_predictor(ckpt_path, device, context_steps=8):
+    """
+    A predictor written by `python -m ego train`, built with the gaze form saved in its
+    config, loaded, frozen and in eval mode. Returns (predictor, config). Checkpoints from
+    before the gaze forms have no gaze_form in their config; they are "angles".
+    """
+    cfg = dict(torch.load(ckpt_path, map_location="cpu", weights_only=False, mmap=True).get("config", {}))
+    cfg.setdefault("gaze_form", "angles")
+    predictor = build_predictor(context_steps, gaze_form=cfg["gaze_form"])
+    load_finetuned(predictor, ckpt_path)
+    predictor.to(device).eval()
+    for p in predictor.parameters():
+        p.requires_grad_(False)
+    return predictor, cfg
+
+
+def build_predictor(context_steps, tubelet=2, embed_dim=1408, gaze_form="angles"):
+    """The ego predictor with V-JEPA 2-AC's shape, randomly initialised, on the CPU."""
+    return vit_ego_predictor(
         img_size=(256, 256), patch_size=16,
         num_frames=context_steps * tubelet, tubelet_size=tubelet,
-        embed_dim=encoder.embed_dim, predictor_embed_dim=1024,
+        embed_dim=embed_dim, predictor_embed_dim=1024,
         depth=24, num_heads=16,
         use_silu=False, wide_silu=True,
         uniform_power=False, use_rope=True, gaze_form=gaze_form,
     )
-    transferred, skipped = load_ac_weights_into_ego(predictor, strip_prefix(ck["predictor"]))
-    predictor.to(device)
-    return encoder, predictor, (len(transferred), len(skipped))
 
 
 def load_finetuned(predictor, ckpt_path):
