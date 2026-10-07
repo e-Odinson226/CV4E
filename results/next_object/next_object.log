@@ -1,0 +1,246 @@
+[plan] 15551 picks of 50 classes; 153 recordings with gaze
+[plan] 288653 frames to encode, 15349 picks
+[plan] head point: column 8.86, row 9.91
+[pca] 64 of 1408 channels, 70.1% of the variance
+[encode] 0 recordings cached, 153 to do
+[encode] 1/153 P01-20240202-110250: 700 frames (0 unreadable), 37 picks
+[encode] 2/153 P01-20240202-161354: 721 frames (0 unreadable), 38 picks
+[encode] 3/153 P01-20240202-161948: 1366 frames (0 unreadable), 70 picks
+[encode] 4/153 P01-20240202-171220: 679 frames (0 unreadable), 38 picks
+[encode] 5/153 P01-20240202-175627: 360 frames (0 unreadable), 18 picks
+[encode] 6/153 P01-20240202-195538: 1318 frames (0 unreadable), 72 picks
+[encode] 7/153 P01-20240203-093333: 259 frames (0 unreadable), 13 picks
+[encode] 8/153 P01-20240203-121517: 1703 frames (0 unreadable), 92 picks
+[encode] 9/153 P01-20240203-123350: 2648 frames (0 unreadable), 139 picks
+[encode] 10/153 P01-20240203-130505: 2369 frames (0 unreadable), 128 picks
+[encode] 11/153 P01-20240203-132119: 2025 frames (0 unreadable), 104 picks
+[encode] 12/153 P01-20240203-135502: 3699 frames (0 unreadable), 201 picks
+[encode] 13/153 P01-20240203-150506: 1524 frames (0 unreadable), 80 picks
+[encode] 14/153 P01-20240203-152323: 245 frames (0 unreadable), 14 picks
+[encode] 15/153 P01-20240203-152956: 220 frames (0 unreadable), 11 picks
+[encode] 16/153 P01-20240203-161757: 511 frames (0 unreadable), 26 picks
+[encode] 17/153 P01-20240203-184045: 110 frames (0 unreadable), 6 picks
+[encode] 18/153 P01-20240203-184214: 2561 frames (0 unreadable), 147 picks
+[encode] 19/153 P01-20240204-095114: 260 frames (0 unreadable), 13 picks
+[encode] 20/153 P01-20240204-120411: 383 frames (0 unreadable), 21 picks
+[encode] 21/153 P01-20240204-121042: 3752 frames (0 unreadable), 194 picks
+[encode] 22/153 P01-20240204-124504: 140 frames (0 unreadable), 7 picks
+[encode] 23/153 P01-20240204-130448: 480 frames (0 unreadable), 24 picks
+[encode] 24/153 P01-20240204-142301: 2736 frames (0 unreadable), 145 picks
+[encode] 25/153 P01-20240204-145458: 2288 frames (0 unreadable), 118 picks
+[encode] 26/153 P01-20240204-152537: 654 frames (0 unreadable), 34 picks
+[encode] 27/153 P01-20240204-160230: 214 frames (0 unreadable), 12 picks
+[encode] 28/153 P02-20240209-184316: 4457 frames (0 unreadable), 239 picks
+[encode] 29/153 P02-20240209-194141: 1528 frames (0 unreadable), 83 picks
+[encode] 30/153 P02-20240209-231412: 20 frames (0 unreadable), 1 picks
+[encode] 31/153 P02-20240210-092616: 20 frames (0 unreadable), 1 picks
+[encode] 32/153 P02-20240210-100308: 637 frames (0 unreadable), 36 picks
+[encode] 33/153 P02-20240210-122334: 1187 frames (0 unreadable), 62 picks
+[encode] 34/153 P02-20240210-195833: 440 frames (0 unreadable), 22 picks
+[encode] 35/153 P02-20240210-220650: 80 frames (0 unreadable), 4 picks
+[encode] 36/153 P02-20240211-100250: 160 frames (0 unreadable), 8 picks
+[encode] 37/153 P02-20240211-104948: 891 frames (0 unreadable), 48 picks
+[encode] 38/153 P02-20240211-111219: 455 frames (0 unreadable), 23 picks
+[encode] 39/153 P02-20240211-111822: 3467 frames (0 unreadable), 186 picks
+[encode] 40/153 P02-20240211-115653: 480 frames (0 unreadable), 24 picks
+[encode] 41/153 P02-20240211-120927: 5119 frames (0 unreadable), 287 picks
+[encode] 42/153 P02-20240211-141313: 3348 frames (0 unreadable), 182 picks
+[encode] 43/153 P02-20240211-175138: 3987 frames (0 unreadable), 208 picks
+[encode] 44/153 P03-20240216-084005: 2590 frames (0 unreadable), 137 picks
+[encode] 45/153 P03-20240216-090759: 362 frames (0 unreadable), 19 picks
+[encode] 46/153 P03-20240216-185832: 8814 frames (0 unreadable), 476 picks
+[encode] 47/153 P03-20240216-205923: 3141 frames (0 unreadable), 164 picks
+[encode] 48/153 P03-20240216-223126: 320 frames (0 unreadable), 16 picks
+[encode] 49/153 P03-20240217-091657: 2339 frames (0 unreadable), 126 picks
+[encode] 50/153 P03-20240217-094713: 257 frames (0 unreadable), 13 picks
+[encode] 51/153 P03-20240217-100448: 614 frames (0 unreadable), 33 picks
+[encode] 52/153 P03-20240217-130208: 418 frames (0 unreadable), 22 picks
+[encode] 53/153 P03-20240217-131219: 5742 frames (0 unreadable), 299 picks
+[encode] 54/153 P03-20240217-150310: 1301 frames (0 unreadable), 68 picks
+[encode] 55/153 P03-20240217-152152: 27 frames (0 unreadable), 2 picks
+[encode] 56/153 P03-20240217-192543: 4758 frames (0 unreadable), 254 picks
+[encode] 57/153 P03-20240217-210126: 402 frames (0 unreadable), 22 picks
+[encode] 58/153 P03-20240217-210958: 1492 frames (0 unreadable), 78 picks
+[encode] 59/153 P03-20240218-094452: 3104 frames (0 unreadable), 176 picks
+[encode] 60/153 P03-20240218-101509: 467 frames (0 unreadable), 24 picks
+[encode] 61/153 P03-20240218-140054: 1621 frames (0 unreadable), 96 picks
+[encode] 62/153 P03-20240218-144430: 1557 frames (0 unreadable), 80 picks
+[encode] 63/153 P03-20240218-190556: 5742 frames (0 unreadable), 305 picks
+[encode] 64/153 P03-20240218-202148: 1456 frames (0 unreadable), 76 picks
+[encode] 65/153 P04-20240413-142619: 3148 frames (0 unreadable), 170 picks
+[encode] 66/153 P04-20240413-145245: 900 frames (0 unreadable), 45 picks
+[encode] 67/153 P04-20240413-151722: 2533 frames (0 unreadable), 136 picks
+[encode] 68/153 P04-20240414-064514: 480 frames (0 unreadable), 24 picks
+[encode] 69/153 P04-20240414-065311: 1607 frames (0 unreadable), 84 picks
+[encode] 70/153 P04-20240414-072251: 1849 frames (0 unreadable), 93 picks
+[encode] 71/153 P04-20240414-162242: 493 frames (0 unreadable), 26 picks
+[encode] 72/153 P04-20240414-162750: 1711 frames (0 unreadable), 93 picks
+[encode] 73/153 P04-20240414-164751: 440 frames (0 unreadable), 22 picks
+[encode] 74/153 P04-20240414-165333: 569 frames (0 unreadable), 29 picks
+[encode] 75/153 P04-20240414-170520: 1258 frames (0 unreadable), 65 picks
+[encode] 76/153 P04-20240414-172534: 292 frames (0 unreadable), 18 picks
+[encode] 77/153 P04-20240414-173337: 1788 frames (0 unreadable), 90 picks
+[encode] 78/153 P04-20240414-175337: 1131 frames (0 unreadable), 60 picks
+[encode] 79/153 P04-20240414-181030: 2208 frames (0 unreadable), 118 picks
+[encode] 80/153 P04-20240415-175615: 1412 frames (0 unreadable), 72 picks
+[encode] 81/153 P04-20240415-181212: 2856 frames (0 unreadable), 149 picks
+[encode] 82/153 P04-20240415-184003: 1848 frames (0 unreadable), 93 picks
+[encode] 83/153 P05-20240423-170021: 2296 frames (0 unreadable), 122 picks
+[encode] 84/153 P05-20240423-172243: 525 frames (0 unreadable), 29 picks
+[encode] 85/153 P05-20240423-175745: 114 frames (0 unreadable), 6 picks
+[encode] 86/153 P05-20240423-180529: 2530 frames (0 unreadable), 134 picks
+[encode] 87/153 P05-20240423-183358: 131 frames (0 unreadable), 10 picks
+[encode] 88/153 P05-20240424-085204: 329 frames (0 unreadable), 18 picks
+[encode] 89/153 P05-20240424-090812: 300 frames (0 unreadable), 15 picks
+[encode] 90/153 P05-20240424-130119: 607 frames (0 unreadable), 31 picks
+[encode] 91/153 P05-20240424-131231: 20 frames (0 unreadable), 1 picks
+[encode] 92/153 P05-20240424-171038: 2614 frames (0 unreadable), 135 picks
+[encode] 93/153 P05-20240424-175101: 1655 frames (0 unreadable), 90 picks
+[encode] 94/153 P05-20240425-082420: 499 frames (0 unreadable), 26 picks
+[encode] 95/153 P05-20240425-083515: 286 frames (0 unreadable), 15 picks
+[encode] 96/153 P05-20240425-124420: 387 frames (0 unreadable), 21 picks
+[encode] 97/153 P05-20240425-125459: 60 frames (0 unreadable), 3 picks
+[encode] 98/153 P05-20240425-171455: 2330 frames (0 unreadable), 122 picks
+[encode] 99/153 P05-20240425-173353: 1826 frames (0 unreadable), 95 picks
+[encode] 100/153 P05-20240425-180658: 500 frames (0 unreadable), 25 picks
+[encode] 101/153 P05-20240425-201444: 3468 frames (0 unreadable), 185 picks
+[encode] 102/153 P05-20240426-085333: 767 frames (0 unreadable), 39 picks
+[encode] 103/153 P05-20240426-091011: 120 frames (0 unreadable), 6 picks
+[encode] 104/153 P05-20240426-092000: 177 frames (0 unreadable), 11 picks
+[encode] 105/153 P05-20240427-143353: 2559 frames (0 unreadable), 130 picks
+[encode] 106/153 P05-20240427-145526: 1167 frames (0 unreadable), 60 picks
+[encode] 107/153 P05-20240427-150402: 453 frames (0 unreadable), 24 picks
+[encode] 108/153 P05-20240427-151808: 261 frames (0 unreadable), 15 picks
+[encode] 109/153 P06-20240510-090328: 4506 frames (0 unreadable), 235 picks
+[encode] 110/153 P06-20240510-094438: 380 frames (0 unreadable), 20 picks
+[encode] 111/153 P06-20240510-100047: 3144 frames (0 unreadable), 171 picks
+[encode] 112/153 P06-20240510-104642: 8388 frames (0 unreadable), 444 picks
+[encode] 113/153 P06-20240510-115307: 1981 frames (0 unreadable), 107 picks
+[encode] 114/153 P06-20240510-121619: 2028 frames (0 unreadable), 111 picks
+[encode] 115/153 P06-20240510-135423: 1047 frames (0 unreadable), 59 picks
+[encode] 116/153 P06-20240510-140459: 2448 frames (0 unreadable), 130 picks
+[encode] 117/153 P06-20240511-102207: 6146 frames (0 unreadable), 335 picks
+[encode] 118/153 P06-20240511-121048: 1322 frames (0 unreadable), 70 picks
+[encode] 119/153 P06-20240511-122221: 327 frames (0 unreadable), 18 picks
+[encode] 120/153 P07-20240529-102652: 2017 frames (0 unreadable), 110 picks
+[encode] 121/153 P07-20240529-131737: 1169 frames (0 unreadable), 59 picks
+[encode] 122/153 P07-20240529-134410: 1852 frames (0 unreadable), 97 picks
+[encode] 123/153 P07-20240529-191007: 3457 frames (0 unreadable), 184 picks
+[encode] 124/153 P07-20240529-194518: 2599 frames (0 unreadable), 134 picks
+[encode] 125/153 P07-20240530-102543: 3375 frames (0 unreadable), 179 picks
+[encode] 126/153 P07-20240530-111344: 312 frames (0 unreadable), 18 picks
+[encode] 127/153 P07-20240531-101357: 3322 frames (0 unreadable), 176 picks
+[encode] 128/153 P07-20240531-201703: 3654 frames (0 unreadable), 191 picks
+[encode] 129/153 P08-20240613-122900: 413 frames (0 unreadable), 21 picks
+[encode] 130/153 P08-20240613-123547: 2646 frames (0 unreadable), 137 picks
+[encode] 131/153 P08-20240614-085000: 3117 frames (0 unreadable), 163 picks
+[encode] 132/153 P08-20240614-125650: 2986 frames (0 unreadable), 159 picks
+[encode] 133/153 P08-20240614-132938: 422 frames (0 unreadable), 22 picks
+[encode] 134/153 P08-20240614-184945: 2477 frames (0 unreadable), 133 picks
+[encode] 135/153 P08-20240617-130401: 6168 frames (0 unreadable), 329 picks
+[encode] 136/153 P08-20240617-184909: 5979 frames (0 unreadable), 315 picks
+[encode] 137/153 P08-20240618-163547: 4961 frames (0 unreadable), 272 picks
+[encode] 138/153 P08-20240618-171546: 2651 frames (0 unreadable), 140 picks
+[encode] 139/153 P08-20240620-180825: 5438 frames (0 unreadable), 289 picks
+[encode] 140/153 P08-20240622-141902: 3236 frames (0 unreadable), 180 picks
+[encode] 141/153 P09-20240621-093545: 6405 frames (0 unreadable), 339 picks
+[encode] 142/153 P09-20240621-153208: 2422 frames (0 unreadable), 129 picks
+[encode] 143/153 P09-20240622-150155: 4621 frames (0 unreadable), 237 picks
+[encode] 144/153 P09-20240622-154652: 1792 frames (0 unreadable), 91 picks
+[encode] 145/153 P09-20240622-162302: 2417 frames (0 unreadable), 126 picks
+[encode] 146/153 P09-20240622-194642: 1087 frames (0 unreadable), 59 picks
+[encode] 147/153 P09-20240623-120359: 7826 frames (0 unreadable), 430 picks
+[encode] 148/153 P09-20240623-153253: 534 frames (0 unreadable), 27 picks
+[encode] 149/153 P09-20240623-153748: 596 frames (0 unreadable), 32 picks
+[encode] 150/153 P09-20240623-154547: 60 frames (0 unreadable), 3 picks
+[encode] 151/153 P09-20240624-160737: 4332 frames (0 unreadable), 231 picks
+[encode] 152/153 P09-20240624-165332: 2904 frames (0 unreadable), 154 picks
+[encode] 153/153 P09-20240625-103827: 460 frames (0 unreadable), 26 picks
+[fit] 153 cached recordings
+
+[fit] 0.5 s before the pick: 11305 training and 4044 test samples, 25 test recordings
+  scene              top-1  13.0%  top-5  37.9%   (cv top-1 19.9%, weight 0.0, alpha 3.0)
+  angles             top-1  12.1%  top-5  36.2%   (cv top-1 20.1%, weight 1.0, alpha 1.0)
+  gaze point         top-1  18.5%  top-5  43.5%   (cv top-1 27.2%, weight 3.0, alpha 1.0)
+  head point         top-1  14.1%  top-5  37.0%   (cv top-1 24.0%, weight 3.0, alpha 1.0)
+  gaze history 1 s   top-1  18.9%  top-5  42.5%   (cv top-1 27.2%, weight 3.0, alpha 1.0)
+  gaze history 3 s   top-1  18.8%  top-5  43.7%   (cv top-1 27.5%, weight 3.0, alpha 1.0)
+  gaze history 6 s   top-1  19.1%  top-5  43.8%   (cv top-1 27.2%, weight 3.0, alpha 1.0)
+  head history 1 s   top-1  13.6%  top-5  36.6%   (cv top-1 23.7%, weight 3.0, alpha 1.0)
+  head history 3 s   top-1  13.5%  top-5  36.4%   (cv top-1 23.9%, weight 3.0, alpha 1.0)
+  head history 6 s   top-1  13.3%  top-5  36.9%   (cv top-1 24.1%, weight 3.0, alpha 1.0)
+  gaze point - angles: +6.4% [+5.2%, +7.5%]  97.5%: [+5.0%, +7.7%]
+  gaze point - head point: +4.3% [+3.0%, +5.9%]  97.5%: [+2.8%, +6.2%]
+  gaze history 3 s - angles: +6.7% [+5.7%, +7.9%]  97.5%: [+5.5%, +8.1%]
+  gaze history 3 s - head history 3 s: +5.3% [+3.7%, +7.0%]  97.5%: [+3.5%, +7.3%]
+  gaze history 1 s - head history 1 s: +5.4% [+4.0%, +6.9%]  97.5%: [+3.8%, +7.1%]
+  gaze history 6 s - head history 6 s: +5.8% [+4.5%, +7.3%]  97.5%: [+4.3%, +7.5%]
+  angles - scene: -0.9% [-1.5%, -0.3%]  97.5%: [-1.6%, -0.2%]
+  gaze point - scene: +5.4% [+4.2%, +6.7%]  97.5%: [+4.0%, +6.9%]
+  head point - scene: +1.1% [+0.0%, +2.0%]  97.5%: [-0.1%, +2.1%]
+
+[fit] 1 s before the pick: 11303 training and 4044 test samples, 25 test recordings
+  scene              top-1  11.1%  top-5  34.4%   (cv top-1 16.7%, weight 0.0, alpha 3.0)
+  angles             top-1  10.9%  top-5  34.1%   (cv top-1 16.9%, weight 3.0, alpha 1.0)
+  gaze point         top-1  13.3%  top-5  35.4%   (cv top-1 20.1%, weight 3.0, alpha 1.0)
+  head point         top-1  10.9%  top-5  32.3%   (cv top-1 18.3%, weight 3.0, alpha 1.0)
+  gaze history 1 s   top-1  13.4%  top-5  36.0%   (cv top-1 20.1%, weight 3.0, alpha 1.0)
+  gaze history 3 s   top-1  13.4%  top-5  36.5%   (cv top-1 20.8%, weight 3.0, alpha 1.0)
+  gaze history 6 s   top-1  12.7%  top-5  36.6%   (cv top-1 20.9%, weight 3.0, alpha 1.0)
+  head history 1 s   top-1  11.6%  top-5  35.2%   (cv top-1 18.4%, weight 3.0, alpha 3.0)
+  head history 3 s   top-1  10.5%  top-5  33.4%   (cv top-1 18.6%, weight 3.0, alpha 1.0)
+  head history 6 s   top-1  11.6%  top-5  34.5%   (cv top-1 19.1%, weight 3.0, alpha 3.0)
+  gaze point - angles: +2.4% [+1.0%, +3.9%]  97.5%: [+0.9%, +4.1%]
+  gaze point - head point: +2.3% [+1.3%, +3.7%]  97.5%: [+1.2%, +3.9%]
+  gaze history 3 s - angles: +2.5% [+1.1%, +4.0%]  97.5%: [+0.9%, +4.3%]
+  gaze history 3 s - head history 3 s: +2.8% [+1.8%, +4.0%]  97.5%: [+1.7%, +4.2%]
+  gaze history 1 s - head history 1 s: +1.7% [+0.8%, +2.7%]  97.5%: [+0.7%, +2.9%]
+  gaze history 6 s - head history 6 s: +1.1% [-0.2%, +2.5%]  97.5%: [-0.3%, +2.7%]
+  angles - scene: -0.2% [-0.7%, +0.3%]  97.5%: [-0.8%, +0.4%]
+  gaze point - scene: +2.2% [+1.0%, +3.5%]  97.5%: [+0.9%, +3.7%]
+  head point - scene: -0.2% [-1.1%, +0.8%]  97.5%: [-1.2%, +0.9%]
+
+[fit] 2 s before the pick: 11305 training and 4044 test samples, 25 test recordings
+  scene              top-1   9.3%  top-5  31.3%   (cv top-1 13.3%, weight 0.0, alpha 3.0)
+  angles             top-1   9.4%  top-5  31.3%   (cv top-1 13.3%, weight 0.3, alpha 3.0)
+  gaze point         top-1  10.4%  top-5  32.4%   (cv top-1 15.0%, weight 1.0, alpha 3.0)
+  head point         top-1   9.1%  top-5  31.3%   (cv top-1 14.7%, weight 3.0, alpha 3.0)
+  gaze history 1 s   top-1  10.3%  top-5  32.5%   (cv top-1 15.5%, weight 3.0, alpha 3.0)
+  gaze history 3 s   top-1  11.1%  top-5  32.4%   (cv top-1 16.1%, weight 3.0, alpha 3.0)
+  gaze history 6 s   top-1  11.0%  top-5  32.5%   (cv top-1 15.9%, weight 3.0, alpha 3.0)
+  head history 1 s   top-1   8.8%  top-5  31.1%   (cv top-1 14.8%, weight 3.0, alpha 3.0)
+  head history 3 s   top-1   8.8%  top-5  31.9%   (cv top-1 15.6%, weight 3.0, alpha 3.0)
+  head history 6 s   top-1   8.8%  top-5  31.2%   (cv top-1 15.8%, weight 3.0, alpha 3.0)
+  gaze point - angles: +0.9% [-0.0%, +1.8%]  97.5%: [-0.2%, +1.9%]
+  gaze point - head point: +1.3% [+0.4%, +2.2%]  97.5%: [+0.3%, +2.4%]
+  gaze history 3 s - angles: +1.7% [+0.5%, +2.9%]  97.5%: [+0.3%, +3.1%]
+  gaze history 3 s - head history 3 s: +2.3% [+1.3%, +3.4%]  97.5%: [+1.2%, +3.6%]
+  gaze history 1 s - head history 1 s: +1.5% [+0.5%, +2.5%]  97.5%: [+0.3%, +2.7%]
+  gaze history 6 s - head history 6 s: +2.2% [+1.3%, +3.4%]  97.5%: [+1.1%, +3.6%]
+  angles - scene: +0.2% [-0.2%, +0.5%]  97.5%: [-0.2%, +0.6%]
+  gaze point - scene: +1.1% [+0.2%, +1.9%]  97.5%: [+0.1%, +2.1%]
+  head point - scene: -0.2% [-0.8%, +0.5%]  97.5%: [-0.9%, +0.5%]
+
+[fit] 4 s before the pick: 11303 training and 4042 test samples, 25 test recordings
+  scene              top-1   8.0%  top-5  30.0%   (cv top-1 11.9%, weight 0.0, alpha 3.0)
+  angles             top-1   8.5%  top-5  30.7%   (cv top-1 12.0%, weight 1.0, alpha 3.0)
+  gaze point         top-1   8.6%  top-5  30.3%   (cv top-1 12.4%, weight 3.0, alpha 3.0)
+  head point         top-1   7.9%  top-5  29.3%   (cv top-1 12.4%, weight 1.0, alpha 3.0)
+  gaze history 1 s   top-1   9.0%  top-5  30.2%   (cv top-1 12.8%, weight 1.0, alpha 3.0)
+  gaze history 3 s   top-1   8.9%  top-5  29.9%   (cv top-1 12.8%, weight 3.0, alpha 3.0)
+  gaze history 6 s   top-1   8.6%  top-5  30.2%   (cv top-1 13.6%, weight 3.0, alpha 3.0)
+  head history 1 s   top-1   7.8%  top-5  29.4%   (cv top-1 12.5%, weight 1.0, alpha 3.0)
+  head history 3 s   top-1   8.9%  top-5  30.2%   (cv top-1 12.8%, weight 3.0, alpha 10.0)
+  head history 6 s   top-1   8.1%  top-5  29.2%   (cv top-1 13.0%, weight 1.0, alpha 3.0)
+  gaze point - angles: +0.2% [-0.9%, +1.1%]  97.5%: [-1.0%, +1.2%]
+  gaze point - head point: +0.7% [-0.3%, +1.6%]  97.5%: [-0.4%, +1.8%]
+  gaze history 3 s - angles: +0.4% [-0.7%, +1.6%]  97.5%: [-0.9%, +1.7%]
+  gaze history 3 s - head history 3 s: -0.0% [-1.6%, +1.7%]  97.5%: [-1.8%, +1.9%]
+  gaze history 1 s - head history 1 s: +1.2% [+0.3%, +2.1%]  97.5%: [+0.1%, +2.3%]
+  gaze history 6 s - head history 6 s: +0.4% [-0.7%, +1.9%]  97.5%: [-0.9%, +2.1%]
+  angles - scene: +0.5% [+0.2%, +0.8%]  97.5%: [+0.2%, +0.8%]
+  gaze point - scene: +0.6% [-0.4%, +1.6%]  97.5%: [-0.6%, +1.7%]
+  head point - scene: -0.0% [-0.9%, +0.7%]  97.5%: [-1.0%, +0.8%]
+
+[decision] {'0.5 s': True, '1 s': True} -> Test 9 goes ahead
+[out] results/next_object/next_object.csv  next_object_contrasts.csv  next_object.json  next_object_predictions.npz

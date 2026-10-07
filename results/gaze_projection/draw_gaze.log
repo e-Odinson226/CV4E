@@ -1,0 +1,26 @@
+P01: 27 recordings, overlay -> results/gaze_projection/P01.jpg
+P02: 17 recordings, overlay -> results/gaze_projection/P02.jpg
+P03: 21 recordings, overlay -> results/gaze_projection/P03.jpg
+P04: 18 recordings, overlay -> results/gaze_projection/P04.jpg
+P05: 26 recordings, overlay -> results/gaze_projection/P05.jpg
+P06: 11 recordings, overlay -> results/gaze_projection/P06.jpg
+P07: 9 recordings, overlay -> results/gaze_projection/P07.jpg
+P08: 12 recordings, overlay -> results/gaze_projection/P08.jpg
+P09: 13 recordings, overlay -> results/gaze_projection/P09.jpg
+
+Gaze points per participant (patch units: 0-16, the centre is 8):
+             samples  in_frame  col_median  row_median  depth_median_m  shift_median_patch  shift_p90_patch  devices
+participant                                                                                                         
+P01             5400      1.00        9.09       10.43            0.38                1.15             1.64        4
+P02             3400      1.00        9.45        9.72            0.30                1.44             2.02        4
+P03             4200      1.00        9.05       10.05            0.47                0.92             1.38        4
+P04             3600      1.00        8.70        9.83            0.67                0.63             1.01        3
+P05             5199      1.00        8.74        8.98            0.84                0.49             1.01        4
+P06             2200      1.00        9.07       10.55            0.48                0.91             1.40        4
+P07             1800      1.00        8.12       10.76            0.76                0.57             1.12        4
+P08             2400      1.00        9.64       11.10            0.26                1.70             2.22        3
+P09             2599      1.00        8.34       11.65            0.58                0.78             1.38        4
+
+all: 30798 samples, 100.0% inside the frame, median shift from depth 0.90 patch (90th percentile 1.68)
+recordings using the closest recording's calibration: ['P06-20240510-140459']
+[out] results/gaze_projection/<participant>.jpg  results/gaze_projection/gaze_projection_samples.csv  results/gaze_projection/draw_gaze.log

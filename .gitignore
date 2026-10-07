@@ -44,6 +44,9 @@ results/archive/*
 .claude
 # feature caches are large and regenerable
 results/*.npz
+results/**/cache/
+# per-sample tables of the gaze checks, regenerated in about a minute
+results/gaze_projection/*.csv
 
 # render artifacts
 *_tmp.html

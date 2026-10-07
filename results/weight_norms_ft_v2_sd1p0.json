@@ -1,0 +1,290 @@
+{
+  "config": {
+    "checkpoint": "data/model_checkpoints/vjepa2-ac-vitg.pt",
+    "predictor_checkpoints": [
+      "checkpoints/ego_ft_v2/best.pt",
+      "checkpoints/ego_sd1p0/best.pt"
+    ],
+    "context_steps": 8,
+    "seed": 0,
+    "device": "cpu",
+    "out": "results/weight_norms_ft_v2_sd1p0"
+  },
+  "rows": [
+    {
+      "checkpoint": "init",
+      "group": "gaze_proj.weight",
+      "norm": 1.097638438884631,
+      "n_params": 3072,
+      "ratio_to_init": 1.0
+    },
+    {
+      "checkpoint": "init",
+      "group": "gaze_proj.bias",
+      "norm": 0.0,
+      "n_params": 1024,
+      "ratio_to_init": 1.0
+    },
+    {
+      "checkpoint": "init",
+      "group": "gaze_mask",
+      "norm": 0.666254867586029,
+      "n_params": 1024,
+      "ratio_to_init": 1.0
+    },
+    {
+      "checkpoint": "init",
+      "group": "hand_proj.weight",
+      "norm": 2.2159066046854226,
+      "n_params": 12288,
+      "ratio_to_init": 1.0
+    },
+    {
+      "checkpoint": "init",
+      "group": "hand_proj.bias",
+      "norm": 0.0,
+      "n_params": 1024,
+      "ratio_to_init": 1.0
+    },
+    {
+      "checkpoint": "init",
+      "group": "hand_mask",
+      "norm": 0.6233089457890323,
+      "n_params": 1024,
+      "ratio_to_init": 1.0
+    },
+    {
+      "checkpoint": "init",
+      "group": "blocks_18-23",
+      "norm": 474.75944163771686,
+      "n_params": 75577344,
+      "ratio_to_init": 1.0
+    },
+    {
+      "checkpoint": "init",
+      "group": "predictor_norm",
+      "norm": 35.35960914712973,
+      "n_params": 2048,
+      "ratio_to_init": 1.0
+    },
+    {
+      "checkpoint": "init",
+      "group": "predictor_proj",
+      "norm": 70.95026869276057,
+      "n_params": 1443200,
+      "ratio_to_init": 1.0
+    },
+    {
+      "checkpoint": "init",
+      "group": "blocks_0-17 [frozen]",
+      "norm": 823.2681384764369,
+      "n_params": 226732032,
+      "ratio_to_init": 1.0
+    },
+    {
+      "checkpoint": "init",
+      "group": "predictor_embed [frozen]",
+      "norm": 72.52372216798865,
+      "n_params": 1442816,
+      "ratio_to_init": 1.0
+    },
+    {
+      "checkpoint": "ego_ft_v2/best.pt",
+      "group": "gaze_proj.weight",
+      "norm": 1.2702585337907208,
+      "n_params": 3072,
+      "ratio_to_init": 1.1572649870767084,
+      "epoch": 3,
+      "loss": 0.5066320426610051
+    },
+    {
+      "checkpoint": "ego_ft_v2/best.pt",
+      "group": "gaze_proj.bias",
+      "norm": 0.5719362945227122,
+      "n_params": 1024,
+      "ratio_to_init": NaN,
+      "epoch": 3,
+      "loss": 0.5066320426610051
+    },
+    {
+      "checkpoint": "ego_ft_v2/best.pt",
+      "group": "gaze_mask",
+      "norm": 0.7834202948112485,
+      "n_params": 1024,
+      "ratio_to_init": 1.175856767320489,
+      "epoch": 3,
+      "loss": 0.5066320426610051
+    },
+    {
+      "checkpoint": "ego_ft_v2/best.pt",
+      "group": "hand_proj.weight",
+      "norm": 2.6036860416668053,
+      "n_params": 12288,
+      "ratio_to_init": 1.1749980961117417,
+      "epoch": 3,
+      "loss": 0.5066320426610051
+    },
+    {
+      "checkpoint": "ego_ft_v2/best.pt",
+      "group": "hand_proj.bias",
+      "norm": 0.5592685704769578,
+      "n_params": 1024,
+      "ratio_to_init": NaN,
+      "epoch": 3,
+      "loss": 0.5066320426610051
+    },
+    {
+      "checkpoint": "ego_ft_v2/best.pt",
+      "group": "hand_mask",
+      "norm": 0.7927619777244952,
+      "n_params": 1024,
+      "ratio_to_init": 1.271860420230222,
+      "epoch": 3,
+      "loss": 0.5066320426610051
+    },
+    {
+      "checkpoint": "ego_ft_v2/best.pt",
+      "group": "blocks_18-23",
+      "norm": 474.87443625030585,
+      "n_params": 75577344,
+      "ratio_to_init": 1.000242216589084,
+      "epoch": 3,
+      "loss": 0.5066320426610051
+    },
+    {
+      "checkpoint": "ego_ft_v2/best.pt",
+      "group": "predictor_norm",
+      "norm": 35.332202600134266,
+      "n_params": 2048,
+      "ratio_to_init": 0.9992249194022076,
+      "epoch": 3,
+      "loss": 0.5066320426610051
+    },
+    {
+      "checkpoint": "ego_ft_v2/best.pt",
+      "group": "predictor_proj",
+      "norm": 70.9466788567093,
+      "n_params": 1443200,
+      "ratio_to_init": 0.9999494034889872,
+      "epoch": 3,
+      "loss": 0.5066320426610051
+    },
+    {
+      "checkpoint": "ego_ft_v2/best.pt",
+      "group": "blocks_0-17 [frozen]",
+      "norm": 823.2681384764369,
+      "n_params": 226732032,
+      "ratio_to_init": 1.0,
+      "epoch": 3,
+      "loss": 0.5066320426610051
+    },
+    {
+      "checkpoint": "ego_ft_v2/best.pt",
+      "group": "predictor_embed [frozen]",
+      "norm": 72.52372216798865,
+      "n_params": 1442816,
+      "ratio_to_init": 1.0,
+      "epoch": 3,
+      "loss": 0.5066320426610051
+    },
+    {
+      "checkpoint": "ego_sd1p0/best.pt",
+      "group": "gaze_proj.weight",
+      "norm": 1.092265784168989,
+      "n_params": 3072,
+      "ratio_to_init": 0.9951052600516601,
+      "epoch": 3,
+      "loss": 0.506866621606204
+    },
+    {
+      "checkpoint": "ego_sd1p0/best.pt",
+      "group": "gaze_proj.bias",
+      "norm": 0.0,
+      "n_params": 1024,
+      "ratio_to_init": NaN,
+      "epoch": 3,
+      "loss": 0.506866621606204
+    },
+    {
+      "checkpoint": "ego_sd1p0/best.pt",
+      "group": "gaze_mask",
+      "norm": 0.7919554601918812,
+      "n_params": 1024,
+      "ratio_to_init": 1.188667428519194,
+      "epoch": 3,
+      "loss": 0.506866621606204
+    },
+    {
+      "checkpoint": "ego_sd1p0/best.pt",
+      "group": "hand_proj.weight",
+      "norm": 2.2050608253307216,
+      "n_params": 12288,
+      "ratio_to_init": 0.9951054889534748,
+      "epoch": 3,
+      "loss": 0.506866621606204
+    },
+    {
+      "checkpoint": "ego_sd1p0/best.pt",
+      "group": "hand_proj.bias",
+      "norm": 0.0,
+      "n_params": 1024,
+      "ratio_to_init": NaN,
+      "epoch": 3,
+      "loss": 0.506866621606204
+    },
+    {
+      "checkpoint": "ego_sd1p0/best.pt",
+      "group": "hand_mask",
+      "norm": 0.7509229861669369,
+      "n_params": 1024,
+      "ratio_to_init": 1.2047364172133948,
+      "epoch": 3,
+      "loss": 0.506866621606204
+    },
+    {
+      "checkpoint": "ego_sd1p0/best.pt",
+      "group": "blocks_18-23",
+      "norm": 474.87505430018916,
+      "n_params": 75577344,
+      "ratio_to_init": 1.0002435184060237,
+      "epoch": 3,
+      "loss": 0.506866621606204
+    },
+    {
+      "checkpoint": "ego_sd1p0/best.pt",
+      "group": "predictor_norm",
+      "norm": 35.33317885425075,
+      "n_params": 2048,
+      "ratio_to_init": 0.9992525287038946,
+      "epoch": 3,
+      "loss": 0.506866621606204
+    },
+    {
+      "checkpoint": "ego_sd1p0/best.pt",
+      "group": "predictor_proj",
+      "norm": 70.95071859506615,
+      "n_params": 1443200,
+      "ratio_to_init": 1.000006341093753,
+      "epoch": 3,
+      "loss": 0.506866621606204
+    },
+    {
+      "checkpoint": "ego_sd1p0/best.pt",
+      "group": "blocks_0-17 [frozen]",
+      "norm": 823.2681384764369,
+      "n_params": 226732032,
+      "ratio_to_init": 1.0,
+      "epoch": 3,
+      "loss": 0.506866621606204
+    },
+    {
+      "checkpoint": "ego_sd1p0/best.pt",
+      "group": "predictor_embed [frozen]",
+      "norm": 72.52372216798865,
+      "n_params": 1442816,
+      "ratio_to_init": 1.0,
+      "epoch": 3,
+      "loss": 0.506866621606204
+    }
+  ]
+}

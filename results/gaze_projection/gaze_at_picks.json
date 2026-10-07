@@ -1,0 +1,285 @@
+{
+  "picks": 19324,
+  "recordings": 154,
+  "skipped": {
+    "no box at the pick": 208,
+    "recording without gaze": 280
+  },
+  "picks_without_chance": 1,
+  "box_median_patch": [
+    1.641022727272727,
+    1.8324772727272731
+  ],
+  "measures": {
+    "at the pick": {
+      "inside": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.38801490374663633,
+        "ci_lo": 0.36688700360932225,
+        "ci_hi": 0.40944101457317933
+      },
+      "near": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.6845891119850962,
+        "ci_lo": 0.6683292137143262,
+        "ci_hi": 0.7018513091461506
+      },
+      "median_dist_patch": 0.2531155663627942
+    },
+    "chance (gaze at random times)": {
+      "inside": {
+        "n": 19323,
+        "recordings": 153,
+        "mean": 0.19692553460969614,
+        "ci_lo": 0.18760815051973825,
+        "ci_hi": 0.20691321696766743
+      },
+      "near": {
+        "n": 19323,
+        "recordings": 153,
+        "mean": 0.49919485096843963,
+        "ci_lo": 0.4854179420844198,
+        "ci_hi": 0.5131146550448519
+      },
+      "median_dist_patch": 0.9009095284778016
+    },
+    "without the 90-degree rotation": {
+      "inside": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.018112192092734423,
+        "ci_lo": 0.014559451207690161,
+        "ci_hi": 0.022073598351924646
+      },
+      "near": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.07803767335955289,
+        "ci_lo": 0.06507707994677156,
+        "ci_hi": 0.09218245091623978
+      },
+      "median_dist_patch": 3.459886367221726
+    },
+    "depth fixed at 1 m": {
+      "inside": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.33652452908300556,
+        "ci_lo": 0.3187211631817165,
+        "ci_hi": 0.35462938760430257
+      },
+      "near": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.6657006830883875,
+        "ci_lo": 0.6493669582344672,
+        "ci_hi": 0.6833342615631172
+      },
+      "median_dist_patch": 0.3284416289256469
+    },
+    "depth fixed at 100 m": {
+      "inside": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.2316290623059408,
+        "ci_lo": 0.2170266209018436,
+        "ci_hi": 0.24613711669602628
+      },
+      "near": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.6270440902504657,
+        "ci_lo": 0.6090172538341272,
+        "ci_hi": 0.645752437970756
+      },
+      "median_dist_patch": 0.6237554591383243
+    },
+    "gaze 0.25 s before the pick": {
+      "inside": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.37098944317946597,
+        "ci_lo": 0.35309109957286,
+        "ci_hi": 0.38934372225096225
+      },
+      "near": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.7311633202235562,
+        "ci_lo": 0.7153542519909695,
+        "ci_hi": 0.7475582284092785
+      },
+      "median_dist_patch": 0.24506384643935325
+    },
+    "gaze 0.5 s before the pick": {
+      "inside": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.3018526185054854,
+        "ci_lo": 0.28823418652738036,
+        "ci_hi": 0.31514238014153584
+      },
+      "near": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.6831918857379424,
+        "ci_lo": 0.6660760875551247,
+        "ci_hi": 0.7000751678215296
+      },
+      "median_dist_patch": 0.44469202971032346
+    },
+    "gaze 1 s before the pick": {
+      "inside": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.21677706478989858,
+        "ci_lo": 0.20702874374756447,
+        "ci_hi": 0.22686400015347383
+      },
+      "near": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.5471951976816394,
+        "ci_lo": 0.5328222124433849,
+        "ci_hi": 0.5613054959884837
+      },
+      "median_dist_patch": 0.8383572616140685
+    },
+    "gaze 2 s before the pick": {
+      "inside": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.19416269923411303,
+        "ci_lo": 0.18591723187460443,
+        "ci_hi": 0.20280394278239153
+      },
+      "near": {
+        "n": 19324,
+        "recordings": 154,
+        "mean": 0.5030014489753675,
+        "ci_lo": 0.4908887789918499,
+        "ci_hi": 0.5164447410453442
+      },
+      "median_dist_patch": 0.9850236144481858
+    }
+  },
+  "inside_minus_chance": {
+    "n": 19323,
+    "recordings": 153,
+    "mean": 0.1911094496060054,
+    "ci_lo": 0.172811660568587,
+    "ci_hi": 0.20978189506669706
+  },
+  "per_participant": [
+    {
+      "participant": "P01",
+      "picks": 2239,
+      "inside": 0.4466279589102278,
+      "chance_inside": 0.24285395265743637,
+      "near": 0.7601607860652076,
+      "chance_near": 0.5438142027690933,
+      "median_dist": 0.09395109501719291,
+      "shift_x": 0.25,
+      "shift_y": 0.75,
+      "inside_shifted": 0.5618579723090665
+    },
+    {
+      "participant": "P02",
+      "picks": 1883,
+      "inside": 0.36271906532129583,
+      "chance_inside": 0.23660998937300745,
+      "near": 0.7573021773765268,
+      "chance_near": 0.5636556854410202,
+      "median_dist": 0.3130764404278391,
+      "shift_x": -0.75,
+      "shift_y": -0.25,
+      "inside_shifted": 0.5395645246946362
+    },
+    {
+      "participant": "P03",
+      "picks": 3051,
+      "inside": 0.5090134382169781,
+      "chance_inside": 0.19818351187703773,
+      "near": 0.7495902982628646,
+      "chance_near": 0.5035484483085787,
+      "median_dist": 0.0,
+      "shift_x": 0.0,
+      "shift_y": 0.0,
+      "inside_shifted": 0.5090134382169781
+    },
+    {
+      "participant": "P04",
+      "picks": 1802,
+      "inside": 0.34739178690344064,
+      "chance_inside": 0.20075208832291605,
+      "near": 0.6725860155382908,
+      "chance_near": 0.5392721537472983,
+      "median_dist": 0.32148432495002444,
+      "shift_x": 0.25,
+      "shift_y": 0.5,
+      "inside_shifted": 0.4384017758046615
+    },
+    {
+      "participant": "P05",
+      "picks": 1624,
+      "inside": 0.41625615763546797,
+      "chance_inside": 0.18535941145968368,
+      "near": 0.7001231527093597,
+      "chance_near": 0.4803911718952554,
+      "median_dist": 0.17489233380727076,
+      "shift_x": 0.25,
+      "shift_y": 0.25,
+      "inside_shifted": 0.48091133004926107
+    },
+    {
+      "participant": "P06",
+      "picks": 1873,
+      "inside": 0.43406300053390284,
+      "chance_inside": 0.19430690982662208,
+      "near": 0.6705819540843566,
+      "chance_near": 0.5116587517913845,
+      "median_dist": 0.15149850788071847,
+      "shift_x": 0.0,
+      "shift_y": 0.25,
+      "inside_shifted": 0.4570208222103577
+    },
+    {
+      "participant": "P07",
+      "picks": 1513,
+      "inside": 0.3284864507600793,
+      "chance_inside": 0.17939437158660032,
+      "near": 0.634500991407799,
+      "chance_near": 0.464669356802449,
+      "median_dist": 0.4271806076357233,
+      "shift_x": 0.5,
+      "shift_y": 0.25,
+      "inside_shifted": 0.3965631196298744
+    },
+    {
+      "participant": "P08",
+      "picks": 2816,
+      "inside": 0.29829545454545453,
+      "chance_inside": 0.1923529081937799,
+      "near": 0.6136363636363636,
+      "chance_near": 0.4789632550837321,
+      "median_dist": 0.511532290324191,
+      "shift_x": -0.5,
+      "shift_y": 0.25,
+      "inside_shifted": 0.3977272727272727
+    },
+    {
+      "participant": "P09",
+      "picks": 2523,
+      "inside": 0.3210463733650416,
+      "chance_inside": 0.14731626927008365,
+      "near": 0.6028537455410226,
+      "chance_near": 0.42376139516448674,
+      "median_dist": 0.501277266909005,
+      "shift_x": 0.25,
+      "shift_y": 0.0,
+      "inside_shifted": 0.3234244946492271
+    }
+  ]
+}
