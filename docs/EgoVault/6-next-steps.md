@@ -12,70 +12,39 @@ What to do next, in order. Each planned test names the hypothesis it addresses
 ([[5-discussion#Weak points of the design]]). When a test is run, its section moves to
 [[4-results]] under the same number.
 
-Erfan decided to test the gaze form before the full training run (October 2026). The order of
-Tests 8 and 9 is a proposal.
+Erfan decided to test the gaze form before the full training run (October 2026). Test 8 came
+first, as a check without training. Its result decided that Test 9 goes ahead.
 
 | Order | Work | Hypothesis | Weak points addressed | Training runs | Status |
 |---|---|---|---|---|---|
-| 1 | Gaze position in the image | H4 | gaze cannot point | none | Done, except the check against pick events ([[3-method#Gaze position in the image]]) |
-| 2 | Test 8. Does the gaze point tell what comes next? | H4, R | gaze cannot point, short horizon | none | Planned |
+| 1 | Gaze position in the image | H4 | gaze cannot point | none | Done and checked ([[3-method#Gaze position in the image]]) |
+| 2 | Test 8. Does the gaze point tell what comes next? | H4, R | gaze cannot point, short horizon | none | Done ([[4-results#^test8\|Test 8]]): the decision rule was met |
 | 3 | Test 9. Does gaze as a position in the image improve the prediction? | H4, M | gaze cannot point, no positive control, too little evidence | 19 runs of about 40 min | Planned |
 | 4 | Test 10. The full training run | H3 | too little evidence | 3 or more longer runs | Planned |
 
 ## 1. Gaze position in the image
 
 Done. How the gaze point is computed, the calibration and the checks are in
-[[3-method#Gaze position in the image]]. Still open: the check against HD-EPIC's annotations
-of pick events, which are not on this machine yet. In the seconds before a pick, the gaze
-point should lie in or near the box of the picked object.
+[[3-method#Gaze position in the image]]. At the moment of a pick, the gaze point lies in the
+box of the object in 38.8% of picks, against 19.7% by chance. Its error is about half a patch
+for most people.
 
-## 2. Test 8 (planned). Does the gaze point tell what comes next?
+## 2. Test 8 (done). Does the gaze point tell what comes next?
 
-**Question.** Does knowing what the person looks at help predict what happens in the next
-seconds, beyond the image and beyond the three gaze numbers that the model receives now?
-
-**Why before Test 9.** Test 9 needs 19 training runs. Test 8 trains no predictor. It needs one
-encoding pass over a few thousand frames, as in Test 3, and some linear fits: about an hour. If
-the gaze point carries no usable information about the next seconds, Test 9 is unlikely to show
-a gain. Test 8 also asks R in the form that matters: does gaze add information about the
-future, beyond the frame?
-
-**Hypothesis and prediction.** H4 needs the gaze point to carry information about the future.
-If it does, a probe that also sees the features at the gaze point predicts the future better
-than a probe that sees the scene and the three gaze numbers.
-
-**Method.**
-
-- *Moments.* Frames sampled from HD-EPIC recordings, as in Test 3. Train on P01–P07, test on
-  P08 and P09.
-- *The probe.* Ridge regression on the frozen encoder's features, as in Test 3.
-- *Inputs* for the same moments:
-
-| Input | What it contains | What it stands for |
-|---|---|---|
-| Scene | the encoder's features of the frame, averaged over the 256 patches | what is in view |
-| Scene + angles | Scene, plus yaw, pitch and depth | what the current model receives |
-| Scene + gaze point | Scene, plus the features of the patches around the gaze point, weighted by their distance from $(u, v)$ | what the person looks at |
-| Scene + gaze history | Scene + gaze point, plus the gaze-point features of the last 2–4 s | what the person looked at recently |
-| Scene + random point | Scene, plus the features around a random point | control: the same number of extra features, without gaze |
-
-  The gaze history is included because objects are looked at on average 4.0 s before they are
-  picked up (Perrett et al., CVPR 2025).
-- *Targets,* 0.5, 1, 2 and 4 s after the frame: the position of each palm in the frame, from
-  the hand file; and, once HD-EPIC's annotations are on this machine, the next object picked up
-  and the time until the pick.
-- *Score.* For positions, skill as in Test 3. For the next object, top-5 accuracy against a
-  guess based on class frequency.
-
-**Decision rule, fixed before the result.** If "Scene + gaze point" or "Scene + gaze history"
-beats both "Scene + angles" and "Scene + random point" on the held-out people at 0.5–2 s, by
-more than the spread across resampled recordings, Test 9 goes ahead. If not, Test 9 is
-postponed and Erfan decides how to continue.
+Run on 7 October 2026: [[4-results#^test8|Test 8]]. The features at the gaze point tell which
+object is picked up next, beyond the scene, the three gaze numbers and the head point. The
+decision rule was met at 0.5 s and at 1 s, so Test 9 goes ahead.
 
 ## 3. Test 9 (planned). Does gaze as a position in the image improve the prediction?
 
 **Question.** Does the predictor make better predictions when gaze tells it where in the image
 the person looks?
+
+**What Test 8 decided.** Test 9 goes ahead ([[4-results#^test8|Test 8]]). The features at the
+gaze point told which object comes next, and the three gaze numbers did not. This supports the
+forms that give gaze a position. The gain was largest 0.5 s before the pick, and the gaze
+history added nothing beyond the current gaze point. So the step stays at 0.27 s, the context
+at 8 frames, and no gaze memory is added ([[3-method#Design choices]]).
 
 **Two ways to give gaze a position** ([[3-method#Design choices]]):
 
@@ -107,7 +76,8 @@ If pe does better than rope, this reasoning is wrong, and the notes must say why
 
 **Models.** Each model uses the recipe of `ego_ft_v2`: 3 epochs, P01–P07, 30 clips per
 recording, signal dropout 0.4, the same layers and learning rates, and the current scaling
-constants. Only the gaze input differs.
+constants. Only the gaze input differs. The step stays at 8 frames, so the prediction is
+measured 0.27 s ahead and the results compare directly with Tests 1–4.
 
 | Model | Content of the gaze token | Position of the gaze token | Role |
 |---|---|---|---|
@@ -156,8 +126,18 @@ changes them (H3). It runs after Test 9, with the best gaze form of Test 9.
 
 ## 5. Later tests
 
-- A test that predicts further ahead than 0.27 s, with a larger frame stride or several
-  predicted steps. (H1)
+- A test that predicts further ahead than 0.27 s. (H1) Two ways:
+  - *A larger step,* for example every 30th frame for 1 s. The pretrained predictor knows steps
+    of 0.25 s, so it needs more training to adapt.
+  - *Several steps in a row.* The model predicts one step and uses its prediction as the input
+    for the next; four steps reach about 1.1 s. This needs no new training and can be run on
+    `ego_ft_v2` and `ego_sd1p0`. There is no measured gaze for the predicted steps, so the last
+    measured gaze would be reused. The pretraining used two such steps; the fine-tuning here
+    uses one. A training loss over several steps is part of the proposal in
+    [[3-method#Design choices]].
+
+  In Test 8, the information of the gaze point about the next object was largest 0.5 s ahead
+  and gone at 4 s. So this test stays after Test 9.
 - Hand position in the image, built like the gaze position. (H4)
 - Error bars for Test 3, by resampling recordings. (R)
 - Set the gaze layer's bias to zero at test time, to see how much of the effect is a constant.
@@ -167,7 +147,7 @@ changes them (H3). It runs after Test 9, with the best gaze form of Test 9.
 
 ## 6. Path 3: language alignment (postponed)
 
-Postponed until Tests 8–10 are done. The design choices below came from Ash's review in July
+Postponed until Tests 9 and 10 are done. The design choices below came from Ash's review in July
 2026.
 
 - Idea: align the predictor's embedding space with text, so that it predicts concepts such as

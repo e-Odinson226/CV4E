@@ -9,10 +9,11 @@ updated: 2026-10-07
 
 Erfan's tests, in the order of the argument. Test 1 shows that the predictor can learn with
 gaze and hand inputs. Test 2 gives the main result: the inputs do not improve the prediction.
-Tests 3 and 4 check two explanations for it. Each test addresses a hypothesis from
-[[1-introduction#^hypotheses|the introduction]]. How each measure works is in [[3-method]].
-The weak points that limit all four tests are in [[5-discussion#Weak points of the design]].
-The planned Tests 8–10 are in [[6-next-steps]].
+Tests 3 and 4 check two explanations for it. Test 8 asks whether what the person looks at
+tells what comes next, before gaze is given to the predictor as a position. Each test addresses
+a hypothesis from [[1-introduction#^hypotheses|the introduction]]. How each measure works is in
+[[3-method]]. The weak points that limit Tests 1–4 are in
+[[5-discussion#Weak points of the design]]. The planned Tests 9 and 10 are in [[6-next-steps]].
 
 ## Test 1. Can the predictor learn with gaze and hand inputs?
 
@@ -292,6 +293,137 @@ how the model reacts to gaze, not whether gaze helps.
 **Reproduce.** `python -m ego sensitivity`, `python -m ego attention`,
 `python -m ego weight-norms`. Files: `results/sensitivity_*.csv`, `results/attention_mass*.csv`,
 `results/weight_norms_ft_v2_sd1p0.csv`.
+
+## Test 8. Does the gaze point tell what comes next?
+
+Run by Claude Code at Erfan's request, 7 October 2026. Uses the frozen encoder of V-JEPA 2-AC
+(no predictor), HD-EPIC's annotations of picks and the gaze point in the image
+([[3-method#Gaze position in the image]]). ^test8
+
+**Question.** Does what the person looks at tell which object they will pick up next, beyond
+what is in view, beyond the three gaze numbers that the model receives now, and beyond where the
+head points? It is asked before Test 9 because it needs no training (about 1.5 hours) and shows
+whether a gaze position is worth giving the predictor, and over which horizon and history.
+
+**Hypothesis and prediction.** H4 needs the gaze point to carry information about the future.
+Written before the run: if it does, a probe that also sees the features at the gaze point names
+the next object more often than a probe that sees the three gaze numbers, and more often than a
+probe that sees the features where the head points. The decision rule, also fixed before the
+run: Test 9 goes ahead if, at 0.5 s or at 1 s before the pick, "+ gaze point" beats both
+"+ angles" and "+ head point", or "+ gaze history, 3 s" beats both "+ angles" and "+ head
+history, 3 s", in top-1 accuracy, each paired difference with a 97.5% interval above 0. Two
+horizons are allowed, so each interval is 97.5% in place of 95%.
+
+**Method.**
+
+- *Picks.* HD-EPIC's annotated picks. The free-form name of each object is mapped to HD-EPIC's
+  noun classes ("spoon2" → spoon), which works for 93% of the movements. The 50 most frequent
+  classes in training are kept: 15,349 picks in recordings with gaze. Train on P01–P07 (11,305
+  picks), test on P08 and P09 (4,044 picks in 25 recordings), people and kitchens the probe has
+  not seen.
+- *Moments.* For each pick, the frame 0.5, 1, 2 or 4 s before it, encoded on its own by the
+  frozen encoder. No predictor is used. A moment counts only if the gaze is valid in its frame.
+- *Inputs.* Each input is the scene plus one block:
+
+| Input | What it contains | What it stands for |
+|---|---|---|
+| Scene | the 256 patches of the frame, each reduced from 1408 to 64 numbers (PCA), plus the patch average of each of the frames 0.5, 1, 1.5 and 2 s earlier | what is in view, where, and the last 2 s |
+| + angles | yaw, pitch and depth | what the current model receives |
+| + gaze point | the features of the patches around the gaze point, with Gaussian weights of width 1 patch | what the person looks at |
+| + head point | the features around a fixed point, the average gaze point of the training moments (column 8.86, row 9.91) | control: where the head points |
+| + gaze history, 1, 3 or 6 s | the gaze point, plus the gaze-point features of the frames in the last 1, 3 or 6 s, every 0.5 s, averaged | what the person looked at recently |
+| + head history, 1, 3 or 6 s | the head point, plus the head-point features of the same frames, averaged | control: the same frames, without the eyes |
+
+- *Why these controls.* Gaze stays close to one place in the frame, so much of what lies at the
+  gaze point also lies where the head points. Only a gain over the head point shows that the
+  eyes add something. A longer history also adds more frames, so each gaze history is compared
+  with the head history of the same length. The scene keeps the patch grid and the last 2 s,
+  because an average over the patches loses where things are, and a weak scene would let any
+  local features look useful.
+- *The probe.* Ridge regression, a linear map with one output per class. Its guess is the class
+  with the highest output; its top-5 guess, the five highest. Each block is scaled to the same
+  total variance. The weight of the added block (0.3, 1 or 3 times the scene) and the penalty
+  are chosen by 3-fold cross-validation over training recordings, on top-1 accuracy. Every
+  input, the controls included, goes through the same procedure.
+- *Score.* Top-1 accuracy (the right object) and top-5 accuracy (the right object among five
+  guesses) on P08 and P09, with 95% intervals from a bootstrap over the 25 test recordings. The
+  floor is the frequency guess, the most frequent training classes: 9.3% top-1, 33.6% top-5.
+
+**Checks.**
+
+- A trial on one recording of each participant ran through every step before the full run.
+- All 288,653 frames were read; none was unreadable. The PCA keeps 70.1% of the variance.
+- The scene alone beats the frequency guess at 0.5 s and 1 s (13.0% and 11.1% top-1, against
+  9.3%), not at 2 s and 4 s.
+
+**Result.** Top-1 accuracy on P08 and P09, in %. 4,044 test picks at each horizon (4,042 at
+4 s). Frequency guess: 9.3%.
+
+| Input | 0.5 s | 1 s | 2 s | 4 s |
+|---|---|---|---|---|
+| Scene | 13.0 | 11.1 | 9.3 | 8.0 |
+| + angles | 12.1 | 10.9 | 9.4 | 8.5 |
+| + head point | 14.1 | 10.9 | 9.1 | 7.9 |
+| + gaze point | **18.5** | **13.3** | 10.4 | 8.6 |
+| + head history, 3 s | 13.5 | 10.5 | 8.8 | 8.9 |
+| + gaze history, 3 s | **18.8** | **13.4** | 11.1 | 8.9 |
+
+Paired differences in top-1, in percentage points, with 95% intervals:
+
+| Difference | 0.5 s | 1 s | 2 s | 4 s |
+|---|---|---|---|---|
+| gaze point − head point | +4.3 [+3.0, +5.9] | +2.3 [+1.3, +3.7] | +1.3 [+0.4, +2.2] | +0.7 [−0.3, +1.6] |
+| gaze point − angles | +6.4 [+5.2, +7.5] | +2.4 [+1.0, +3.9] | +0.9 [−0.0, +1.8] | +0.2 [−0.9, +1.1] |
+| gaze history 3 s − head history 3 s | +5.3 [+3.7, +7.0] | +2.8 [+1.8, +4.0] | +2.3 [+1.3, +3.4] | −0.0 [−1.6, +1.7] |
+| gaze history 3 s − angles | +6.7 [+5.7, +7.9] | +2.5 [+1.1, +4.0] | +1.7 [+0.5, +2.9] | +0.4 [−0.7, +1.6] |
+| head point − scene | +1.1 [+0.0, +2.0] | −0.2 [−1.1, +0.8] | −0.2 [−0.8, +0.5] | −0.0 [−0.9, +0.7] |
+| angles − scene | −0.9 [−1.5, −0.3] | −0.2 [−0.7, +0.3] | +0.2 [−0.2, +0.5] | +0.5 [+0.2, +0.8] |
+
+- *Decision.* At 0.5 s and at 1 s, all four deciding differences have 97.5% intervals above 0.
+  The smallest lower bound is +0.9 points (gaze point − angles at 1 s). Test 9 goes ahead.
+- *Top-5.* The same pattern, smaller in relative terms: at 0.5 s, 43.5% with the gaze point
+  against 37.9% for the scene and 37.0% with the head point.
+- *Both test people.* Gaze point − head point at 0.5 s: P08 +3.4 [+1.7, +5.4], P09 +5.4 [+3.7,
+  +7.9]. At 1 s: +2.3 and +2.4.
+- *History, an analysis after the run.* The gaze history adds nothing beyond the current gaze
+  point. At every horizon, "gaze history, 3 s" − "gaze point" lies between +0.1 and +0.8 points
+  and "gaze history, 6 s" − "gaze history, 3 s" between −0.6 and +0.3, with every interval
+  including 0.
+
+**Conclusion.**
+
+- The features at the gaze point tell which object comes next. They add to the scene with its
+  full grid and the last 2 s, to the three gaze numbers, and to the features where the head
+  points. 0.5 s before the pick they raise the top-1 accuracy from 13–14% to 18.5%.
+- R, in the form that matters, is not supported: gaze adds information about the near future
+  that the frame and the last 2 s do not show, also for people the probe has not seen.
+- H4 is supported in part. The information is in the content at the gaze point, not in the
+  three numbers: added as numbers, the angles do not help (−0.9 to +0.5 points). This is the
+  difference H4 is about. Whether the predictor can use a gaze position is Test 9.
+- The information is short-lived. It is largest 0.5 s before the pick, smaller at 1 s, small at
+  2 s and gone at 4 s. This matches the lead of gaze over the hand (0.5–1 s). For the next
+  object it does not support the idea that gaze helps more at longer horizons (H1).
+- What the person looked at in the last 1–6 s adds nothing beyond where they look now.
+
+**Limits.**
+
+- A linear probe on one frame and summaries of 2 s, not the predictor. It shows that the
+  information exists, not that the predictor will use it.
+- Every moment is followed by a pick. The test asks which object, not whether a pick comes.
+- For new kitchens, the scene alone barely beats the frequency guess, and not at all at 2 s and
+  4 s. A stronger probe might take more from the scene, and also more from the gaze point.
+- Cross-validation chose the largest block weight on offer (3) for most gaze inputs and most
+  head-point inputs. A wider range might give both more weight.
+- The gaze history is an average. A history that keeps the order of the looks might add more.
+- Two test people. Object names that do not map to a class (7% of the movements) are left out.
+
+**Reproduce.** `python -m ego next-object --video-dir data/epic-kitchen/ek100-hd/HD-EPIC/Videos
+--gaze-dir data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze --annotations
+data/epic-kitchen/ek100-hd/HD-EPIC/annotations`. Files in `results/next_object/`:
+`next_object.csv` (accuracy per input and horizon), `next_object_contrasts.csv` (paired
+differences), `next_object.json` (the decision), `next_object_predictions.npz` (the result of
+every test pick, used for the history and per-person analyses), `next_object.log`. The encoder
+features are cached in `results/next_object/cache/` (4.2 GB); `--stage fit` refits from it.
 
 ## Is the model undertrained? (H3)
 

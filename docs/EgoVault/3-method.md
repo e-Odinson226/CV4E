@@ -82,9 +82,19 @@ The AC predictor was trained on frames encoded one at a time. The code does the 
 - Each frame is encoded on its own, as a 2-frame tubelet of the same image.
 - The EMA target encoder encodes both the context frames and the target frame.
 - Frames are resized to 256 × 256 pixels. This gives 16 × 16 = 256 patches per frame.
-- The model uses every 8th frame, about 4 frames per second. It sees 8 such frames.
+- The model uses every 8th frame, about 4 frames per second. It sees 8 such frames, about 2 s
+  of video.
 - Embeddings are layer-normalized before the loss.
-- In training, each step predicts the next step.
+- In training, each step predicts the next step: the frame 8 frames later, which at 30
+  frames per second is $8 / 30 \approx 0.27$ s ahead. All tests so far measure the prediction
+  at this horizon. The pretraining of V-JEPA 2-AC also predicted two steps in a row, each
+  prediction the input for the next (`auto_steps: 2` in its configuration). The fine-tuning
+  here uses only the one-step loss.
+
+The step of 8 frames matches the pretraining. V-JEPA 2-AC was trained on robot video (DROID)
+at 4 frames per second, a step of 0.25 s, and its predictor learned how much a scene changes in
+one such step. A step of a different length would have to be learned again. (Part of Erfan's
+training setup, `--frame-stride` in `train`.)
 
 Encoding a whole clip at once gave an error of 4.82 before fine-tuning, on 36 clips from 12 P08
 recordings. The format above gives 0.58, on 48 clips from the same recordings. (Found by Erfan,
@@ -94,9 +104,10 @@ May 2026.)
 
 The model receives gaze as two angles and a depth. The encoder's output is a grid of patch
 embeddings, one per region of the frame. To relate gaze to this grid, gaze has to be a point in
-the frame. `ego/gaze_geometry.py` computes this point, and `python -m ego draw-gaze` checks it.
-The trained models `ego_ft_v2` and `ego_sd1p0` do not use it. Tests 8 and 9 will
-([[6-next-steps]]). (Built by Claude Code at Erfan's request, October 2026.)
+the frame. `ego/gaze_geometry.py` computes this point. `python -m ego draw-gaze` and
+`python -m ego gaze-at-picks` check it.
+The trained models `ego_ft_v2` and `ego_sd1p0` do not use it. Test 8 uses it
+([[4-results#^test8|Test 8]]), and Test 9 will ([[6-next-steps]]). (Built by Claude Code at Erfan's request, October 2026.)
 
 ### Steps
 
@@ -147,7 +158,68 @@ error in that depth moves the point.
 | Where the points fall | Around column 9 and row 10–12 of the 16 × 16 grid: near the centre and below it, where the hands work. |
 | Shift caused by the depth (gaze depth against the same direction at 100 m) | Median 0.9 patch, 90th percentile 1.7 patches. Largest for P08 (median 1.7 patches), who works closest to the camera (median depth 0.26 m). |
 | The gaze values of `ego.data` against the two-eye combination of `projectaria_tools` | Yaw differs by 0.05° (median); pitch and depth are the same. |
-| Gaze point against the box of the picked object, in the seconds before a pick | Not done. HD-EPIC's annotations of pick events are not on this machine yet. |
+| Gaze point against the box of the object being picked up (19,324 picks) | Inside the box in 38.8% of picks, against 19.7% by chance. Details below. |
+
+### Gaze on the object being picked up
+
+HD-EPIC's annotators drew a box around each object in the frame where its movement starts. For
+each of these picks, `python -m ego gaze-at-picks` projects the gaze at that frame and compares
+the point with the box. The data are 19,324 picks with a box and gaze, in 154 recordings of all
+nine participants. The median box is 1.6 × 1.8 patches. As chance, the same box is compared
+with the gaze of 20 random moments of the same recording, at least 10 s away from the pick.
+Gaze and objects both lie mostly near the centre of the frame, so a point can land in a box
+without the person looking at the object. The intervals are 95% intervals from a bootstrap
+over recordings. (Run by Claude Code at Erfan's request, October 2026.)
+
+| Gaze point | Inside the box | Within 1 patch of the box | Median distance (patches) |
+|---|---|---|---|
+| at the pick | 38.8% [36.7, 40.9] | 68.5% [66.8, 70.2] | 0.25 |
+| chance: gaze at random moments | 19.7% [18.8, 20.7] | 49.9% [48.5, 51.3] | 0.90 |
+| without the 90° rotation | 1.8% | 7.8% | 3.46 |
+| depth fixed at 1 m | 33.7% | 66.6% | 0.33 |
+| depth fixed at 100 m | 23.2% | 62.7% | 0.62 |
+| 0.25 s before the pick | 37.1% | 73.1% | 0.25 |
+| 0.5 s before the pick | 30.2% | 68.3% | 0.44 |
+| 1 s before the pick | 21.7% | 54.7% | 0.84 |
+| 2 s before the pick | 19.4% | 50.3% | 0.99 |
+
+- At the pick, the gaze point lies in the box twice as often as by chance: 19.1 percentage
+  points more [17.3, 21.0]. Every participant is above chance, from 32.1% (P09, chance 14.7%)
+  to 50.9% (P03, chance 19.8%).
+- Without the rotation, the point almost never lands in the box. The rotation is right.
+- The measured depth gives more hits than a fixed depth of 1 m or 100 m. The depth and the
+  distance between eyes and camera are applied correctly.
+- In the overlays (`results/gaze_projection/picks.jpg`), most misses lie on what the hands
+  work on at that moment: the board being cut on, the other hand, a pan.
+- Before the pick, the share inside the box is about the same 0.25 s before, and close to
+  chance from 1 s before. The head moves in between, and the box is from the pick frame. So this
+  decline mixes gaze moving to the object with the object moving in the image. HD-EPIC's own
+  analysis follows the objects in 3D. Of the picks it can check, 94.8% are preceded by a look at
+  the object within the 10 s before, on average 4.0 s before (Perrett et al., CVPR 2025). The
+  released file, `eye-gaze-priming/priming_info.json`, gives 94.0% of 13,285 picks.
+
+**Offset for each person.** For each participant, the command also finds the shift of all gaze
+points that puts the most of them in the boxes:
+
+| | P01 | P02 | P03 | P04 | P05 | P06 | P07 | P08 | P09 |
+|---|---|---|---|---|---|---|---|---|---|
+| Shift right, in patches | 0.25 | −0.75 | 0 | 0.25 | 0.25 | 0 | 0.5 | −0.5 | 0.25 |
+| Shift down, in patches | 0.75 | −0.25 | 0 | 0.5 | 0.25 | 0.25 | 0.25 | 0.25 | 0 |
+| Inside, as projected | 44.7% | 36.3% | 50.9% | 34.7% | 41.6% | 43.4% | 32.8% | 29.8% | 32.1% |
+| Inside, after the shift | 56.2% | 54.0% | 50.9% | 43.8% | 48.1% | 45.7% | 39.7% | 39.8% | 32.3% |
+
+The shifts are smaller than one patch and point in different directions for different people.
+This fits a bias of the eye tracker for each person. HD-EPIC gives the output of Aria's general
+gaze model only, not the version calibrated for each person. Six of the nine shifts are
+downward and one is upward, so people may also look at the upper part of an object before they
+pick it up. The shifts are fitted on the same picks they are scored on, so the gains after the
+shift are an upper bound. The projection does not apply them.
+
+**What this means for the tests.** The gaze point is right to within about half a patch for most
+people, and it lies on the object about to be picked up far more often than by chance. Test 8
+therefore takes the features around the gaze point over a radius of about one patch, not from a
+single patch. In Test 9, an error of half a patch moves the gaze token's position at most
+to the neighbouring patch.
 
 ## Training
 
@@ -241,7 +313,7 @@ and the checks during training use. (Decided by Erfan, August 2026.)
 
 ## Design choices
 
-These ideas came from studying GazeQwen ([[2-background]]). None of them is built yet. The gaze
+Most of these ideas came from studying GazeQwen ([[2-background]]). None of them is built yet. The gaze
 form is tested before the full training run, as Test 9 in [[6-next-steps]], because the gaze
 token cannot point at the image and the model makes little use of the gaze value. (Decided by
 Erfan, October 2026.)
@@ -260,6 +332,78 @@ Erfan, October 2026.)
 Coord-PE alone may not be enough. Patches carry their position only through the rotations, not
 in their content. To find the patch at $(u, v)$ from content features, the frozen heads would
 have to match those features against rotated keys.
+
+**Step, context and horizon.** (Proposed by Claude Code, October 2026. Test 8 settled the
+context; Erfan decides on the rest.)
+
+Gaze carries information at three time scales:
+
+- *About 0.1–0.5 s: where the head turns next.* The eyes usually move to a new target first,
+  and the head follows. This is known from studies of eye and head movement. It has not been
+  measured in HD-EPIC.
+- *About 0.5–1 s: which object the hand reaches for.* Gaze leads the hand by about this much
+  ([[2-background]]). The gaze point lies on the object at the pick and 0.25 s before
+  ([[#Gaze on the object being picked up]]).
+- *About 1–10 s: which objects belong to the current task.* A picked object is first looked at
+  on average 4 s before the pick.
+
+*Horizon.* At 0.27 s the scene changes little, the past frames already show most of that
+change, and the hand has not reached the object yet. Only the first time scale applies. About
+1 s covers the second. Beyond about 2 s the model has a difficulty: it predicts one future, not
+several, so when the future is uncertain it predicts a mix of the possible futures, and head
+motion dominates the error over the whole frame. The best single horizon is therefore about
+1 s. The error should also be measured on the patches of the object about to be picked, because
+the object covers about 3 of the 256 patches.
+
+*Context.* The third time scale would need about 4–6 s of gaze history. In Test 8, however,
+the gaze history of the last 1–6 s added nothing to the current gaze point in telling the next
+object ([[4-results#^test8|Test 8]]). The model sees 8 frames, about 2 s. Each frame has its own gaze token, so the context length is also the length of the
+gaze history. Each further frame adds 258 tokens.
+
+*Options for the step:*
+
+| Step | Context with 8 frames | One step ahead | Fit to the pretraining | Gaze samples per second |
+|---|---|---|---|---|
+| 8 frames, 0.27 s (now) | 2.1 s | 0.27 s | the same | 3.75 |
+| 15 frames, 0.5 s | 4 s | 0.5 s | twice as long | 2 |
+| 30 frames, 1 s | 8 s | 1 s | four times as long | 1 |
+| 8 frames, with 16 context frames | 4.3 s | 0.27 s | the same, with twice the tokens | 3.75 |
+
+People make about 2–4 fixations per second. The current step samples gaze at about this rate.
+Longer steps miss most fixations.
+
+*One step per fixation.* A step for each fixation, in place of a fixed step, would follow how
+people take in a scene. It is not proposed as the step of the model, for five reasons:
+
+1. The predictor's time positions count steps, and its frozen blocks learned that one step is
+   0.25 s. Steps of 0.1–1 s would need positions in seconds, which the frozen blocks have not
+   seen.
+2. The next step would be the next fixation. The time of the target would then depend on the
+   future gaze.
+3. Fixations cannot be found reliably in the gaze of P01–P03, which is sampled 10 times per
+   second. A saccade lasts 20–80 ms.
+4. The gaze is given relative to the head. When the head turns while the eyes stay on an
+   object, the gaze moves in the head's frame. Finding fixations therefore needs the head
+   motion from the SLAM output, which is downloaded for some participants only.
+5. Several fixations on one object give nearly identical frames, and with 2–4 fixations per
+   second the number of tokens grows.
+
+What a step per fixation offers can be kept another way: fixed steps for the frames, plus a
+gaze memory with one token for each recent gaze sample or fixation. Each token holds the
+encoder's features at that gaze point, with its position and time. One token per look costs
+far less than 258 tokens per frame.
+
+*Proposal:*
+
+- Keep the step of 8 frames and the 8 context frames. This matches the pretraining and samples
+  gaze at about the fixation rate.
+- Predict 1 s ahead with four steps in a row. Train with a loss over several steps, as the
+  pretraining did with two ([[#Input format]]).
+- No gaze memory for now. In Test 8 the gaze history added nothing to the current gaze point,
+  and the gain of the gaze point was largest 0.5 s ahead.
+- The simpler alternative is a step of 15 frames (0.5 s). It gives 4 s of context and gaze
+  history at the same cost, but differs from the pretraining. The error before fine-tuning at
+  both steps shows how large that difference is.
 
 **Zero initialization of the projection layers: rejected.** A zero token is a new kind of input
 for the model. If the projection and a gate both start at 0, both gradients are 0 and the

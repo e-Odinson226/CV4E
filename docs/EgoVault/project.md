@@ -13,8 +13,8 @@ People, Erfan's work and its timeline, the paper, and the final presentation.
 
 | Person | Role | Contribution to this work |
 |---|---|---|
-| Erfan Yekehzare (University of Rostock) | Author. The project is part of Erfan's master's thesis. | The ego predictor, all code in this repository, and Tests 1–4. |
-| Seyyed Parsa Sharifi (University of Rostock) | Co-author of the paper | Proposed the matched model without signals used in Test 2. Parsa's own tests are described in the paper and are not part of these notes. |
+| Erfan Yekehzare (University of Rostock) | Author. The project is part of Erfan's master's thesis. | The ego predictor, all code in this repository, and Tests 1–4 and 8. |
+| Seyyed Parsa Sharifi (University of Rostock) | Co-author of the paper | Proposed the matched model without signals used in Test 2. Parsa's own work is summarised in [[parsa]]. |
 | Ioana Marica (Babeș-Bolyai University, Cluj) | Collaborator | Wrote the first gaze and hand loaders and projection layers. Raised the concern that the frozen features may be weak, which the palm control of Test 3 tests. Suggested using the signals to supervise the representation. |
 | Ashwin Nedungadi (Ash) | Supervisor | Asked whether gaze can already be read from the image (Test 3). The Path 3 design choices came from Ash's review. |
 
@@ -29,6 +29,7 @@ Babeș-Bolyai University.
 | [[4-results#^test2\|Test 2]] | Do gaze and hand improve the prediction? | 31 May – 1 June and 19 August 2026 |
 | [[4-results#^test3\|Test 3]] | Is gaze already in the image features? | 28–30 July and 19 August 2026 |
 | [[4-results#^test4\|Test 4]] | Does the model use the signals? | 19 August 2026 |
+| [[4-results#^test8\|Test 8]] | Does the gaze point tell what comes next? | 7 October 2026, run by Claude Code at Erfan's request |
 
 Other work:
 
@@ -42,8 +43,8 @@ Other work:
 - Sections 2.1, 4.4 and 4.8 of the paper.
 - With Claude Code, October 2026: a review of the research logic (the weak points in
   [[5-discussion#Weak points of the design]] and the new hypothesis H4), the camera
-  calibrations of all recordings, and the gaze position in the image
-  ([[3-method#Gaze position in the image]]).
+  calibrations of all recordings, the gaze position in the image, and its check against
+  HD-EPIC's annotations of picks ([[3-method#Gaze position in the image]]).
 
 ## Timeline
 
@@ -56,7 +57,7 @@ Other work:
 | August | Studied GazeQwen. Proposed design changes, based on the idea that the model ignores gaze. | Not built then. Now planned as the gaze forms of Test 9. |
 | 19 August | Palm control of Test 3. Tested whether the model uses gaze ([[4-results#^test4\|Test 4]]). Trained the matched model without signals ([[4-results#^test2\|Test 2]]). | The model reacts to whether gaze is present, and little to where the person looks. A model trained without gaze and hand predicts as well. |
 | 24 August | The paper was submitted, with Parsa. | |
-| October | Review of the research logic. Camera calibrations fetched. Gaze projected into the image and checked. | Next: Tests 8–10 ([[6-next-steps]]). |
+| October | Review of the research logic. Camera calibrations fetched. Gaze projected into the image and checked. Test 8 run ([[4-results#^test8\|Test 8]]). | What the person looks at tells which object is picked up next; the three gaze numbers do not. Next: Tests 9 and 10 ([[6-next-steps]]). |
 
 ## Paper
 

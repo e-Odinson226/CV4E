@@ -22,15 +22,23 @@ limit them. The planned tests that address these weak points are in [[6-next-ste
 - **For a new person, a linear probe cannot read gaze from one frame.** Palm position can be
   read, so this is specific to gaze ([[4-results#^test3|Test 3]]). The image features describe
   what is where. They do not say which of those things the person looks at.
+- **What the person looks at tells what comes next; the three gaze numbers do not.** For new
+  people, the features at the gaze point raise the share of correct guesses of the next object
+  0.5 s before the pick from 13–14% to 18.5%, beyond the scene and where the head points. The
+  angles, added as numbers, do not help. The gain is short-lived: smaller at 1 s, gone at 4 s
+  ([[4-results#^test8|Test 8]]).
 
 ## Interpretation
 
 - The model makes little use of where the person looks. A likely reason is the form of the
-  input: the gaze token cannot point at the image (first weak point below). H4 states this, and
-  Tests 8 and 9 test it.
-- The prediction looks 0.27 s ahead. Gaze looks much further ahead: in HD-EPIC, objects are
-  looked at on average 4.0 s before they are picked up. Whether the signals help at longer
-  horizons (H1) has not been tested.
+  input: the gaze token cannot point at the image (first weak point below). H4 states this.
+  Test 8 supports it: the information is in what lies at the gaze point, and a linear readout
+  of the three numbers finds none of it. Test 9 tests whether the predictor gains when gaze is
+  given as a position.
+- The prediction looks 0.27 s ahead. In HD-EPIC, objects are first looked at on average 4.0 s
+  before they are picked up. But in Test 8 the gaze point told the next object best 0.5 s
+  ahead, and not at all 4 s ahead. So the useful information of gaze lies within about 1–2 s.
+  For the predictor, horizons longer than 0.27 s have not been tested (H1).
 - All conclusions hold for models trained for 3 epochs, once each (H3).
 
 ## Weak points of the design
@@ -49,8 +57,11 @@ of the robot's pose from frame t to frame t+1. It carries information about the 
 the past frames cannot contain. Here both tokens are measured at frame t, and the hands are
 mostly visible in the frame. A small effect is expected from this alone.
 
-**Short horizon, coarse measure.** The error is measured 0.27 s ahead, while gaze leads the
-hand by 0.5–1 s and precedes a pick-up by about 4 s. The error is averaged over all 256
+**Short horizon, coarse measure.** The error is measured 0.27 s ahead, one step of the
+pretrained model ([[3-method#Input format]]), while gaze leads the hand by 0.5–1 s and precedes
+a pick-up by about 4 s. In 0.27 s the scene changes little, and the past frames already show
+most of that change. A model could use gaze well and still gain almost nothing at this horizon
+(H1). The error is averaged over all 256
 patches, and most of it comes from head motion and the whole scene; the hands and the target
 object are a small part. The Δ of +0.0011 is 0.2% of the error.
 
