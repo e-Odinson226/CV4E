@@ -356,9 +356,10 @@ motion dominates the error over the whole frame. The best single horizon is ther
 the object covers about 3 of the 256 patches.
 
 *Context.* The third time scale would need about 4–6 s of gaze history. In Test 8, however,
-the gaze history of the last 1–6 s added nothing to the current gaze point in telling the next
-object ([[4-results#^test8|Test 8]]). The model sees 8 frames, about 2 s. Each frame has its own gaze token, so the context length is also the length of the
-gaze history. Each further frame adds 258 tokens.
+the gaze history of the last 1–3 s added at most about 1 point to the current gaze point in
+telling the next object, and 6 s nothing more than 3 s ([[4-results#^test8|Test 8]]). The model
+sees 8 frames, about 2 s. Each frame has its own gaze token, so the context length is also the
+length of the gaze history. Each further frame adds 258 tokens.
 
 *Options for the step:*
 
@@ -399,8 +400,9 @@ far less than 258 tokens per frame.
   gaze at about the fixation rate.
 - Predict 1 s ahead with four steps in a row. Train with a loss over several steps, as the
   pretraining did with two ([[#Input format]]).
-- No gaze memory for now. In Test 8 the gaze history added nothing to the current gaze point,
-  and the gain of the gaze point was largest 0.5 s ahead.
+- No gaze memory for now. In Test 8 the useful history lay within the last 1–3 s, which the
+  8 context frames with their gaze tokens already cover, and the gain of the gaze point was
+  largest 0.5 s ahead.
 - The simpler alternative is a step of 15 frames (0.5 s). It gives 4 s of context and gaze
   history at the same cost, but differs from the pretraining. The error before fine-tuning at
   both steps shows how large that difference is.

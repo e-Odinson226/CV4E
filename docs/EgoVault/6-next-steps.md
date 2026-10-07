@@ -42,9 +42,11 @@ the person looks?
 
 **What Test 8 decided.** Test 9 goes ahead ([[4-results#^test8|Test 8]]). The features at the
 gaze point told which object comes next, and the three gaze numbers did not. This supports the
-forms that give gaze a position. The gain was largest 0.5 s before the pick, and the gaze
-history added nothing beyond the current gaze point. So the step stays at 0.27 s, the context
-at 8 frames, and no gaze memory is added ([[3-method#Design choices]]).
+forms that give gaze a position. The gain was largest 0.5 s before the pick. The gaze history
+of the last 1–3 s added at most about 1 point beyond the current gaze point, and a longer
+history nothing more. The 8 context frames, each with its own gaze token, already cover the
+last 2 s. So the step stays at 0.27 s, the context at 8 frames, and no gaze memory is added
+([[3-method#Design choices]]).
 
 **Two ways to give gaze a position** ([[3-method#Design choices]]):
 

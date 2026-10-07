@@ -1,0 +1,88 @@
+[fit] 153 cached recordings
+
+[fit] 0.5 s before the pick: 11305 training and 4044 test samples, 25 test recordings
+  scene              top-1  13.0%  top-5  37.9%   (cv top-1 19.9%, weight 0.0, alpha 3.0)
+  angles             top-1  12.1%  top-5  36.2%   (cv top-1 20.1%, weight 1.0, alpha 1.0)
+  gaze point         top-1  18.5%  top-5  43.5%   (cv top-1 27.2%, weight 3.0, alpha 1.0)
+  head point         top-1  14.1%  top-5  37.0%   (cv top-1 24.0%, weight 3.0, alpha 1.0)
+  gaze history 1 s   top-1  20.0%  top-5  43.5%   (cv top-1 27.6%, weight 10.0, alpha 1.0)
+  gaze history 3 s   top-1  19.3%  top-5  44.1%   (cv top-1 28.1%, weight 10.0, alpha 1.0)
+  gaze history 6 s   top-1  19.5%  top-5  44.4%   (cv top-1 27.9%, weight 10.0, alpha 1.0)
+  head history 1 s   top-1  13.6%  top-5  36.6%   (cv top-1 23.7%, weight 3.0, alpha 1.0)
+  head history 3 s   top-1  13.4%  top-5  37.3%   (cv top-1 24.2%, weight 10.0, alpha 1.0)
+  head history 6 s   top-1  13.8%  top-5  37.5%   (cv top-1 24.4%, weight 10.0, alpha 1.0)
+  gaze point - angles: +6.4% [+5.2%, +7.5%]  97.5%: [+5.0%, +7.7%]
+  gaze point - head point: +4.3% [+3.0%, +5.9%]  97.5%: [+2.8%, +6.2%]
+  gaze history 3 s - angles: +7.2% [+6.0%, +8.5%]  97.5%: [+5.8%, +8.7%]
+  gaze history 3 s - head history 3 s: +5.9% [+4.5%, +7.8%]  97.5%: [+4.4%, +8.0%]
+  gaze history 1 s - head history 1 s: +6.5% [+5.1%, +8.1%]  97.5%: [+4.9%, +8.3%]
+  gaze history 6 s - head history 6 s: +5.7% [+3.9%, +7.5%]  97.5%: [+3.6%, +7.7%]
+  angles - scene: -0.9% [-1.5%, -0.3%]  97.5%: [-1.6%, -0.2%]
+  gaze point - scene: +5.4% [+4.2%, +6.7%]  97.5%: [+4.0%, +6.9%]
+  head point - scene: +1.1% [+0.0%, +2.0%]  97.5%: [-0.1%, +2.1%]
+
+[fit] 1 s before the pick: 11303 training and 4044 test samples, 25 test recordings
+  scene              top-1  11.1%  top-5  34.4%   (cv top-1 16.7%, weight 0.0, alpha 3.0)
+  angles             top-1  10.9%  top-5  34.1%   (cv top-1 16.9%, weight 3.0, alpha 1.0)
+  gaze point         top-1  13.0%  top-5  36.4%   (cv top-1 20.2%, weight 10.0, alpha 1.0)
+  head point         top-1  10.9%  top-5  32.3%   (cv top-1 18.3%, weight 3.0, alpha 1.0)
+  gaze history 1 s   top-1  13.4%  top-5  36.1%   (cv top-1 20.6%, weight 30.0, alpha 1.0)
+  gaze history 3 s   top-1  13.7%  top-5  37.4%   (cv top-1 21.2%, weight 30.0, alpha 1.0)
+  gaze history 6 s   top-1  12.9%  top-5  37.2%   (cv top-1 21.1%, weight 10.0, alpha 1.0)
+  head history 1 s   top-1  11.6%  top-5  35.2%   (cv top-1 18.4%, weight 3.0, alpha 3.0)
+  head history 3 s   top-1  10.2%  top-5  32.5%   (cv top-1 18.8%, weight 30.0, alpha 1.0)
+  head history 6 s   top-1  10.7%  top-5  32.2%   (cv top-1 19.3%, weight 30.0, alpha 1.0)
+  gaze point - angles: +2.1% [+0.6%, +3.7%]  97.5%: [+0.4%, +3.9%]
+  gaze point - head point: +2.1% [+0.9%, +3.5%]  97.5%: [+0.7%, +3.7%]
+  gaze history 3 s - angles: +2.9% [+1.3%, +4.4%]  97.5%: [+1.1%, +4.6%]
+  gaze history 3 s - head history 3 s: +3.5% [+2.5%, +4.6%]  97.5%: [+2.4%, +4.7%]
+  gaze history 1 s - head history 1 s: +1.8% [+0.7%, +3.1%]  97.5%: [+0.6%, +3.3%]
+  gaze history 6 s - head history 6 s: +2.2% [+1.2%, +3.3%]  97.5%: [+1.1%, +3.4%]
+  angles - scene: -0.2% [-0.7%, +0.3%]  97.5%: [-0.8%, +0.4%]
+  gaze point - scene: +1.9% [+0.6%, +3.3%]  97.5%: [+0.5%, +3.6%]
+  head point - scene: -0.2% [-1.1%, +0.8%]  97.5%: [-1.2%, +0.9%]
+
+[fit] 2 s before the pick: 11305 training and 4044 test samples, 25 test recordings
+  scene              top-1   9.3%  top-5  31.3%   (cv top-1 13.3%, weight 0.0, alpha 3.0)
+  angles             top-1   9.4%  top-5  31.3%   (cv top-1 13.3%, weight 0.3, alpha 3.0)
+  gaze point         top-1  10.4%  top-5  32.4%   (cv top-1 15.0%, weight 1.0, alpha 3.0)
+  head point         top-1   9.1%  top-5  31.3%   (cv top-1 14.7%, weight 3.0, alpha 3.0)
+  gaze history 1 s   top-1  10.3%  top-5  32.5%   (cv top-1 15.5%, weight 3.0, alpha 3.0)
+  gaze history 3 s   top-1  11.4%  top-5  32.8%   (cv top-1 16.2%, weight 30.0, alpha 3.0)
+  gaze history 6 s   top-1  11.1%  top-5  32.4%   (cv top-1 16.2%, weight 10.0, alpha 3.0)
+  head history 1 s   top-1   8.8%  top-5  31.1%   (cv top-1 14.8%, weight 3.0, alpha 3.0)
+  head history 3 s   top-1   8.3%  top-5  32.0%   (cv top-1 15.7%, weight 10.0, alpha 3.0)
+  head history 6 s   top-1   8.7%  top-5  31.1%   (cv top-1 15.8%, weight 10.0, alpha 3.0)
+  gaze point - angles: +0.9% [-0.0%, +1.8%]  97.5%: [-0.2%, +1.9%]
+  gaze point - head point: +1.3% [+0.4%, +2.2%]  97.5%: [+0.3%, +2.4%]
+  gaze history 3 s - angles: +1.9% [+0.3%, +3.5%]  97.5%: [+0.1%, +3.7%]
+  gaze history 3 s - head history 3 s: +3.0% [+1.8%, +4.3%]  97.5%: [+1.6%, +4.5%]
+  gaze history 1 s - head history 1 s: +1.5% [+0.5%, +2.5%]  97.5%: [+0.3%, +2.7%]
+  gaze history 6 s - head history 6 s: +2.4% [+1.3%, +3.6%]  97.5%: [+1.2%, +3.8%]
+  angles - scene: +0.2% [-0.2%, +0.5%]  97.5%: [-0.2%, +0.6%]
+  gaze point - scene: +1.1% [+0.2%, +1.9%]  97.5%: [+0.1%, +2.1%]
+  head point - scene: -0.2% [-0.8%, +0.5%]  97.5%: [-0.9%, +0.5%]
+
+[fit] 4 s before the pick: 11303 training and 4042 test samples, 25 test recordings
+  scene              top-1   8.0%  top-5  30.0%   (cv top-1 11.9%, weight 0.0, alpha 3.0)
+  angles             top-1   8.5%  top-5  30.7%   (cv top-1 12.0%, weight 1.0, alpha 3.0)
+  gaze point         top-1   8.6%  top-5  30.3%   (cv top-1 12.4%, weight 3.0, alpha 3.0)
+  head point         top-1   7.9%  top-5  29.3%   (cv top-1 12.4%, weight 1.0, alpha 3.0)
+  gaze history 1 s   top-1   9.0%  top-5  30.2%   (cv top-1 12.8%, weight 1.0, alpha 3.0)
+  gaze history 3 s   top-1   9.1%  top-5  29.8%   (cv top-1 13.0%, weight 10.0, alpha 3.0)
+  gaze history 6 s   top-1   8.6%  top-5  30.2%   (cv top-1 13.6%, weight 3.0, alpha 3.0)
+  head history 1 s   top-1   7.8%  top-5  29.4%   (cv top-1 12.5%, weight 1.0, alpha 3.0)
+  head history 3 s   top-1   8.7%  top-5  29.9%   (cv top-1 12.9%, weight 10.0, alpha 10.0)
+  head history 6 s   top-1   7.6%  top-5  28.6%   (cv top-1 13.0%, weight 30.0, alpha 3.0)
+  gaze point - angles: +0.2% [-0.9%, +1.1%]  97.5%: [-1.0%, +1.2%]
+  gaze point - head point: +0.7% [-0.3%, +1.6%]  97.5%: [-0.4%, +1.8%]
+  gaze history 3 s - angles: +0.6% [-0.4%, +1.6%]  97.5%: [-0.6%, +1.7%]
+  gaze history 3 s - head history 3 s: +0.4% [-1.1%, +2.0%]  97.5%: [-1.3%, +2.2%]
+  gaze history 1 s - head history 1 s: +1.2% [+0.3%, +2.1%]  97.5%: [+0.1%, +2.3%]
+  gaze history 6 s - head history 6 s: +0.9% [-0.1%, +2.1%]  97.5%: [-0.2%, +2.2%]
+  angles - scene: +0.5% [+0.2%, +0.8%]  97.5%: [+0.2%, +0.8%]
+  gaze point - scene: +0.6% [-0.4%, +1.6%]  97.5%: [-0.6%, +1.7%]
+  head point - scene: -0.0% [-0.9%, +0.7%]  97.5%: [-1.0%, +0.8%]
+
+[decision] {'0.5 s': True, '1 s': True} -> Test 9 goes ahead
+[out] results/next_object_wide/next_object.csv  next_object_contrasts.csv  next_object.json  next_object_predictions.npz

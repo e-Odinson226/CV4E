@@ -20,8 +20,8 @@ Inputs:
   head history L  scene + head point + the head-point features of the same frames (control)
 
 Each block of features is z-scored and scaled to a total variance of 1. The weight of the
-added block against the scene and the ridge penalty are chosen by 3-fold cross-validation
-over training recordings, on top-1 accuracy. Every input goes through the same procedure,
+added block against the scene (--weights) and the ridge penalty are chosen by 3-fold
+cross-validation over training recordings, on top-1 accuracy. Every input goes through the same procedure,
 so the controls get the same chance as the gaze inputs.
 
 Train on P01-P07, test on P08 and P09. Scores: top-1 and top-5 accuracy with 95% intervals
@@ -29,8 +29,8 @@ from a bootstrap over test recordings, and paired differences between inputs.
 
 Stages (--stage)
 ----------------
-  encode  decode and encode each needed frame once; cache per recording in <out>/cache/
-          (an existing cache file is kept, so the stage can resume)
+  encode  decode and encode each needed frame once; cache per recording in --cache
+          (default <out>/cache/; an existing cache file is kept, so the stage can resume)
   fit     the probes, from the cache
   all     both (default)
 
@@ -162,7 +162,7 @@ def features(h, gaze, head_w):
 def encode_stage(args, log):
     from ego.model import load_models
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
-    cache = Path(args.out) / "cache"
+    cache = Path(args.cache)
     cache.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(args.seed)
     picks, top = plan(args)
@@ -364,7 +364,7 @@ def recording_folds(recs, train, n, seed):
 def fit_stage(args, log):
     import pandas as pd
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
-    out, cache_dir = Path(args.out), Path(args.out) / "cache"
+    out, cache_dir = Path(args.out), Path(args.cache)
     meta = json.loads((cache_dir / "meta.json").read_text())
     picks, top = plan(args)
     if top != meta["classes"]:
@@ -372,7 +372,7 @@ def fit_stage(args, log):
     cache = {f.stem: dict(np.load(f)) for f in sorted(cache_dir.glob("P*.npz"))}
     log(f"[fit] {len(cache)} cached recordings")
     alphas = [0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0]
-    weights = [0.3, 1.0, 3.0]
+    weights = args.weights
     rows, contrast_rows, decision, preds = [], [], {}, {}
     for h in HORIZONS:
         sec = h * STEP / FPS
@@ -459,8 +459,12 @@ def main():
     ap.add_argument("--limit-recordings", type=int, default=0, help="recordings per participant, 0 = all")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--device", default="cuda:0")
+    ap.add_argument("--weights", nargs="+", type=float, default=[0.3, 1.0, 3.0],
+                    help="weights of the added block against the scene, chosen by cross-validation")
+    ap.add_argument("--cache", default=None, help="feature cache, default <out>/cache")
     ap.add_argument("--out", default="results/next_object")
     args = ap.parse_args()
+    args.cache = args.cache or str(Path(args.out) / "cache")
     Path(args.out).mkdir(parents=True, exist_ok=True)
     log = Logger(Path(args.out) / "next_object")
     if args.stage in ("encode", "all"):

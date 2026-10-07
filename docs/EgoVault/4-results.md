@@ -385,10 +385,28 @@ Paired differences in top-1, in percentage points, with 95% intervals:
   against 37.9% for the scene and 37.0% with the head point.
 - *Both test people.* Gaze point − head point at 0.5 s: P08 +3.4 [+1.7, +5.4], P09 +5.4 [+3.7,
   +7.9]. At 1 s: +2.3 and +2.4.
-- *History, an analysis after the run.* The gaze history adds nothing beyond the current gaze
-  point. At every horizon, "gaze history, 3 s" − "gaze point" lies between +0.1 and +0.8 points
-  and "gaze history, 6 s" − "gaze history, 3 s" between −0.6 and +0.3, with every interval
-  including 0.
+- *A wider range of weights, a refit after the run.* Cross-validation had chosen the largest
+  weight on offer (3) for most inputs. A refit from the same cache with weights up to 100, all
+  else unchanged, tests whether that limited the gaze inputs. For the gaze point it chose the
+  same weight as before at three of the four horizons, and 10 in place of 3 at 1 s. Every top-1
+  accuracy changed by at most 1.1 points, and the decision is the same. The deciding differences at 1 s, the closest call, are
+  gaze point − angles +2.1 [+0.4, +3.9] and gaze point − head point +2.1 [+0.7, +3.7], with
+  97.5% intervals.
+
+| Top-1, refit with weights up to 100 | 0.5 s | 1 s | 2 s | 4 s |
+|---|---|---|---|---|
+| + gaze point | 18.5 | 13.0 | 10.4 | 8.6 |
+| + gaze history, 1 s | 20.0 | 13.4 | 10.3 | 9.0 |
+| + gaze history, 3 s | 19.3 | 13.7 | 11.4 | 9.1 |
+| + head history, 3 s | 13.4 | 10.2 | 8.3 | 8.7 |
+
+- *History, an analysis after the run.* The gaze history adds little beyond the current gaze
+  point. With the original weights, "gaze history, 3 s" − "gaze point" lies between +0.1 and
+  +0.8 points at every horizon, with every interval including 0. With the wider weights, a
+  short history adds about 1 point: "gaze history, 1 s" − "gaze point" +1.5 [+0.7, +2.3] at
+  0.5 s, and "gaze history, 3 s" − "gaze point" +0.8 [+0.1, +1.6] at 0.5 s and +0.8 [+0.0,
+  +1.4] at 1 s. A 6 s history never beats a 3 s history in either fit (from −0.8 to +0.3
+  points).
 
 **Conclusion.**
 
@@ -403,7 +421,8 @@ Paired differences in top-1, in percentage points, with 95% intervals:
 - The information is short-lived. It is largest 0.5 s before the pick, smaller at 1 s, small at
   2 s and gone at 4 s. This matches the lead of gaze over the hand (0.5–1 s). For the next
   object it does not support the idea that gaze helps more at longer horizons (H1).
-- What the person looked at in the last 1–6 s adds nothing beyond where they look now.
+- What the person looked at in the last 1–3 s adds at most about 1 point beyond where they look
+  now, and a longer history adds nothing more.
 
 **Limits.**
 
@@ -412,8 +431,6 @@ Paired differences in top-1, in percentage points, with 95% intervals:
 - Every moment is followed by a pick. The test asks which object, not whether a pick comes.
 - For new kitchens, the scene alone barely beats the frequency guess, and not at all at 2 s and
   4 s. A stronger probe might take more from the scene, and also more from the gaze point.
-- Cross-validation chose the largest block weight on offer (3) for most gaze inputs and most
-  head-point inputs. A wider range might give both more weight.
 - The gaze history is an average. A history that keeps the order of the looks might add more.
 - Two test people. Object names that do not map to a class (7% of the movements) are left out.
 
@@ -424,6 +441,9 @@ data/epic-kitchen/ek100-hd/HD-EPIC/annotations`. Files in `results/next_object/`
 differences), `next_object.json` (the decision), `next_object_predictions.npz` (the result of
 every test pick, used for the history and per-person analyses), `next_object.log`. The encoder
 features are cached in `results/next_object/cache/` (4.2 GB); `--stage fit` refits from it.
+The refit with wider weights: the same command with `--stage fit --cache
+results/next_object/cache --weights 0.3 1 3 10 30 100 --out results/next_object_wide`, files
+in `results/next_object_wide/`.
 
 ## Is the model undertrained? (H3)
 
