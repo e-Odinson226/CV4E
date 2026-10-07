@@ -76,7 +76,8 @@ def load_ac_weights_into_ego(ego_predictor, ac_state_dict: dict) -> tuple[list, 
     return transferred, skipped
 
 
-def load_models(checkpoint, device, context_steps, tubelet=2, encoder_key="target_encoder"):
+def load_models(checkpoint, device, context_steps, tubelet=2, encoder_key="target_encoder",
+                gaze_form="angles"):
     """
     Build the ViT-g encoder + ego predictor from a V-JEPA 2-AC checkpoint.
 
@@ -85,7 +86,8 @@ def load_models(checkpoint, device, context_steps, tubelet=2, encoder_key="targe
     "encoder" if the requested key is absent.
 
     The predictor's num_frames is context_steps * tubelet so its causal attention
-    mask has exactly context_steps temporal slots.
+    mask has exactly context_steps temporal slots. gaze_form sets how the predictor takes
+    gaze (ego/predictor.py).
     """
     ck = torch.load(checkpoint, map_location="cpu", weights_only=False)
     enc_sd = ck.get(encoder_key) or ck.get("encoder")
@@ -107,7 +109,7 @@ def load_models(checkpoint, device, context_steps, tubelet=2, encoder_key="targe
         embed_dim=encoder.embed_dim, predictor_embed_dim=1024,
         depth=24, num_heads=16,
         use_silu=False, wide_silu=True,
-        uniform_power=False, use_rope=True,
+        uniform_power=False, use_rope=True, gaze_form=gaze_form,
     )
     transferred, skipped = load_ac_weights_into_ego(predictor, strip_prefix(ck["predictor"]))
     predictor.to(device)

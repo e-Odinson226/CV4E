@@ -7,7 +7,9 @@ same seed (12345) and the same sampler. With the defaults these are the 96 P08 c
 Changing this sampler makes those results incomparable.
 
 A clip is T context frames, `stride` frames apart, and the future frame `stride` frames
-after the last one. The model predicts the embedding of the future frame.
+after the last one. The model predicts the embedding of the future frame. Each clip carries
+the signals of its context frames (sig) and of the frames one step later (sig_next, for the
+"future" control of Test 9), both with the gaze point (ego/signals.py).
 """
 
 from dataclasses import dataclass
@@ -18,6 +20,7 @@ import torch.nn.functional as F
 
 from ego import signals
 from ego.data import Recording, open_loaders, read_vrs_times
+from ego.gaze_geometry import projector_for
 from ego.model import encode_independent, maybe_norm
 
 VAL_SEED = 12345
@@ -29,6 +32,7 @@ class Clip:
     ctx_idx: list
     fut_idx: int
     sig: tuple          # numpy signals from signals.read(), no batch dimension
+    sig_next: tuple = None   # the same, one step later: frames ctx_idx[1:] + [fut_idx]
 
 
 def fixed_clips(recs, T, stride, n_clips, seed=VAL_SEED, standardize=True, log=None):
@@ -48,12 +52,14 @@ def fixed_clips(recs, T, stride, n_clips, seed=VAL_SEED, standardize=True, log=N
         gl, hl = open_loaders(rec, standardize)
         if gl is None and hl is None:
             continue
+        proj = projector_for(rec)
         for _ in range(n_clips):
             start = int(rng.randint(0, n - span))
             ctx_idx = [start + i * stride for i in range(T)]
             fut_idx = start + T * stride
-            sig = signals.read(gl, hl, [int(vrs[j]) for j in ctx_idx], T)
-            clips.append(Clip(rec, ctx_idx, fut_idx, sig))
+            sig = signals.read(gl, hl, [int(vrs[j]) for j in ctx_idx], T, proj)
+            sig_next = signals.read(gl, hl, [int(vrs[j]) for j in ctx_idx[1:] + [fut_idx]], T, proj)
+            clips.append(Clip(rec, ctx_idx, fut_idx, sig, sig_next))
         if log:
             log(f"  {rec.participant}/{rec.stem}: {n_clips} clips")
     return clips

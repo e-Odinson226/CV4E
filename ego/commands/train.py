@@ -9,12 +9,18 @@ The setup matches the original V-JEPA 2-AC training (see ego/model.py):
   * embeddings are layer-normalized before the loss (normalize_reps),
   * every step is supervised: slot t predicts step t+1 (teacher forcing).
 
-Two options change the signals during training:
+--gaze-form sets how gaze enters the predictor (Test 9): angles (as in ego_ft_v2), pe, rope
+or pe+rope (ego/predictor.py). It is saved in each checkpoint's config.
+
+Three options change the signals during training:
   * --signal-dropout hides gaze and hand for a random share of the clips. This trains
     the mask tokens, so "signals hidden" is a case the model knows at test time. With
     1.0 the model never sees real signals (ego_sd1p0, Test 2).
   * --shuffle-signals breaks the match between signals and frames and keeps everything
-    else the same. It gives a control model. No run has used it yet.
+    else the same. It gives a control model.
+  * --future-signals gives each step the signals of the frame it predicts, one step later.
+    It is the positive control of Test 9: a signal known to carry information about the
+    target. Validation then also uses the next step's signals.
 
 After each epoch the script measures Delta on the fixed held-out clips (ego/clips.py) of
 --val-participants.
@@ -50,6 +56,7 @@ from torch.utils.data import DataLoader, Dataset
 from ego import signals
 from ego.clips import VAL_SEED, fixed_clips, paired_mse
 from ego.data import find_recordings, load_frames, open_loaders, read_vrs_times
+from ego.gaze_geometry import projector_for
 from ego.model import (
     encode_independent, freeze_for_ego_finetune, get_ego_finetune_param_groups,
     load_models, log_finetuned_layers, maybe_norm,
@@ -84,7 +91,8 @@ class HDEpicClipDataset(Dataset):
     Each item is one randomly sampled, time-strided clip:
         ctx_frames  (T,   3, H, W)   — context steps  f_0 .. f_{T-1}
         tgt_frames  (T,   3, H, W)   — next steps     f_1 .. f_T   (teacher forcing)
-        gaze_vecs   (T, 3)           — signal at each context step
+        gaze_vecs   (T, 5)           — signal at each context step: yaw, pitch, depth and
+                                       the gaze point (column, row) on the patch grid
         gaze_valid  (T,)  bool
         hand_vecs   (T, 12)
         hand_lvalid (T,)  bool
@@ -94,12 +102,14 @@ class HDEpicClipDataset(Dataset):
     Gaze/hand are aligned by ABSOLUTE VRS timestamp (mp4_to_vrs_time_ns.csv),
     the same path used at eval time. With prob `signal_dropout` a clip's signals
     are fully masked so the mask tokens learn a genuine "no signal" mode.
+    With future_signals, step t receives the signals of step t+1 (the frame it predicts):
+    the positive control of Test 9.
     """
 
     def __init__(self, video_dir, gaze_dir, participants,
                  context_steps=8, frame_stride=8, tubelet_size=2,
                  img_size=256, clips_per_recording=200, signal_dropout=0.4,
-                 standardize=True):
+                 standardize=True, future_signals=False):
         self.T = context_steps
         self.tubelet = tubelet_size
         self.stride = frame_stride
@@ -107,9 +117,10 @@ class HDEpicClipDataset(Dataset):
         self.clips_per_rec = clips_per_recording
         self.signal_dropout = signal_dropout
         self.standardize = standardize
+        self.future_signals = future_signals
 
         self.recordings = find_recordings(video_dir, gaze_dir, participants)
-        self._cache = {}   # per-recording (vrs_ts, gaze_loader, hand_loader)
+        self._cache = {}   # per-recording (vrs_ts, gaze_loader, hand_loader, projector)
 
         n_gaze = sum(1 for r in self.recordings if r.gaze_csv)
         n_hand = sum(1 for r in self.recordings if r.hand_csv)
@@ -121,6 +132,7 @@ class HDEpicClipDataset(Dataset):
                  f"(span {context_steps * frame_stride} frames/clip)")
         log.info(f"[dataset] clips/recording:      {clips_per_recording}")
         log.info(f"[dataset] signal_dropout:       {signal_dropout}")
+        log.info(f"[dataset] future_signals:       {future_signals}")
         log.info(f"[dataset] total clips/epoch:    ~{len(self.recordings) * clips_per_recording}")
         if n_gaze == 0:
             log.warning("[dataset] No gaze CSVs found — training with NULL signals only. "
@@ -128,7 +140,8 @@ class HDEpicClipDataset(Dataset):
 
     def _get_cached(self, rec):
         if rec.mp4 not in self._cache:
-            self._cache[rec.mp4] = (read_vrs_times(rec.ts_csv), *open_loaders(rec, self.standardize))
+            self._cache[rec.mp4] = (read_vrs_times(rec.ts_csv), *open_loaders(rec, self.standardize),
+                                    projector_for(rec))
         return self._cache[rec.mp4]
 
     def __len__(self):
@@ -143,7 +156,7 @@ class HDEpicClipDataset(Dataset):
             return self._null_item()
 
     def _sample_clip(self, rec):
-        vrs_ts, gl, hl = self._get_cached(rec)
+        vrs_ts, gl, hl, proj = self._get_cached(rec)
         n_frames = len(vrs_ts)
         span = self.T * self.stride                      # last target index = start + span
         if n_frames < span + 1:
@@ -160,14 +173,17 @@ class HDEpicClipDataset(Dataset):
         tgt_frames = frames[[pos[j] for j in tgt_idx]]
 
         drop = np.random.rand() < self.signal_dropout
-        ctx_vrs = [int(vrs_ts[j]) for j in ctx_idx]
-        sig = signals.read(None if drop else gl, None if drop else hl, ctx_vrs, self.T)
+        sig_idx = tgt_idx if self.future_signals else ctx_idx
+        sig_vrs = [int(vrs_ts[j]) for j in sig_idx]
+        sig = signals.read(None if drop else gl, None if drop else hl, sig_vrs, self.T, proj)
         return (ctx_frames, tgt_frames, *(torch.from_numpy(x) for x in sig))
 
     def _null_item(self):
         T, sz = self.T, self.img_size
+        gaze = torch.zeros(T, 5)
+        gaze[:, 3:] = signals.NO_POINT
         return (torch.zeros(T, 3, sz, sz), torch.zeros(T, 3, sz, sz),
-                torch.zeros(T, 3), torch.zeros(T, dtype=torch.bool),
+                gaze, torch.zeros(T, dtype=torch.bool),
                 torch.zeros(T, 12), torch.zeros(T, dtype=torch.bool),
                 torch.zeros(T, dtype=torch.bool))
 
@@ -302,7 +318,7 @@ def train_one_epoch(encoder, predictor, loader, optimizer, device, epoch,
 
 
 @torch.no_grad()
-def validate(encoder, predictor, clips, device, T, normalize_reps):
+def validate(encoder, predictor, clips, device, T, normalize_reps, future_signals=False):
     """
     Paired held-out eval on the fixed clips: the future step with the signals hidden (A)
     and with the real signals (B). The same clips every epoch, so the Delta trend is
@@ -314,8 +330,9 @@ def validate(encoder, predictor, clips, device, T, normalize_reps):
     for clip in clips:
         try:
             frames = load_frames(clip.rec.mp4, clip.ctx_idx + [clip.fut_idx])
+            sig = clip.sig_next if future_signals else clip.sig
             a, b = paired_mse(encoder, predictor, frames, T, device,
-                              real_sig=signals.as_batch(clip.sig, device),
+                              real_sig=signals.as_batch(sig, device),
                               normalize_reps=normalize_reps)
             A.append(a); B.append(b)
         except Exception as e:
@@ -355,6 +372,10 @@ def main():
                     help="Destroy signal/frame alignment while holding shapes, token count, "
                          "parameter count and validity statistics fixed. A control arm; "
                          "validation is never shuffled.")
+    ap.add_argument("--gaze-form",           choices=["angles", "pe", "rope", "pe+rope"], default="angles",
+                    help="how gaze enters the predictor (Test 9)")
+    ap.add_argument("--future-signals",      action="store_true",
+                    help="give each step the signals of the frame it predicts (positive control)")
     ap.add_argument("--unfreeze-last-n",     type=int,   default=6)
     ap.add_argument("--lr-proj",             type=float, default=1e-3)
     ap.add_argument("--lr-blocks",           type=float, default=1e-4)
@@ -397,7 +418,8 @@ def main():
     log.info("=" * 60)
 
     encoder, predictor, (n_t, n_s) = load_models(
-        args.checkpoint, device, args.context_steps, tubelet=2, encoder_key="target_encoder"
+        args.checkpoint, device, args.context_steps, tubelet=2, encoder_key="target_encoder",
+        gaze_form=args.gaze_form,
     )
     log.info(f"[ckpt] transferred {n_t} predictor keys, skipped {n_s}")
 
@@ -408,7 +430,7 @@ def main():
         video_dir=args.video_dir, gaze_dir=args.gaze_dir, participants=args.participants,
         context_steps=args.context_steps, frame_stride=args.frame_stride, tubelet_size=2,
         clips_per_recording=args.clips_per_recording, signal_dropout=args.signal_dropout,
-        standardize=not args.no_standardize,
+        standardize=not args.no_standardize, future_signals=args.future_signals,
     )
 
     loader = DataLoader(
@@ -439,7 +461,8 @@ def main():
     def run_val(tag, epoch_idx):
         if not val_clips:
             return
-        r = validate(encoder, predictor, val_clips, device, args.context_steps, normalize_reps)
+        r = validate(encoder, predictor, val_clips, device, args.context_steps, normalize_reps,
+                     args.future_signals)
         if r:
             mA, mB, d, n = r
             prev = _prev_delta["v"]

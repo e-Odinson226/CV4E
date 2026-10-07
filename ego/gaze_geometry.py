@@ -93,6 +93,19 @@ class GazeProjector:
         return (x, y) if (0 <= x < self.size and 0 <= y < self.size) else None
 
 
+def projector_for(rec):
+    """The GazeProjector of a Recording (ego.data), or None without gaze or calibration."""
+    if not rec.gaze_csv:
+        return None
+    p = Path(rec.gaze_csv)
+    while p.name != rec.participant and p != p.parent:
+        p = p.parent
+    try:
+        return GazeProjector(p.parent, rec.participant, rec.stem)
+    except Exception:
+        return None
+
+
 def to_patch(xy, size=FRAME, grid=GRID):
     """Pixel (x, y) -> continuous patch coordinates (column, row) on the encoder's grid."""
     return xy[0] / size * grid, xy[1] / size * grid

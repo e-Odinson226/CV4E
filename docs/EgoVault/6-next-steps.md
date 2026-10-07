@@ -19,7 +19,7 @@ first, as a check without training. Its result decided that Test 9 goes ahead.
 |---|---|---|---|---|---|
 | 1 | Gaze position in the image | H4 | gaze cannot point | none | Done and checked ([[3-method#Gaze position in the image]]) |
 | 2 | Test 8. Does the gaze point tell what comes next? | H4, R | gaze cannot point, short horizon | none | Done ([[4-results#^test8\|Test 8]]): the decision rule was met |
-| 3 | Test 9. Does gaze as a position in the image improve the prediction? | H4, M | gaze cannot point, no positive control, too little evidence | 19 runs of about 40 min | Planned |
+| 3 | Test 9. Does gaze as a position in the image improve the prediction? | H4, M | gaze cannot point, no positive control, too little evidence | 20 runs of about 40 min | Running since 7 October 2026 |
 | 4 | Test 10. The full training run | H3 | too little evidence | 3 or more longer runs | Planned |
 
 ## 1. Gaze position in the image
@@ -35,7 +35,7 @@ Run on 7 October 2026: [[4-results#^test8|Test 8]]. The features at the gaze poi
 object is picked up next, beyond the scene, the three gaze numbers and the head point. The
 decision rule was met at 0.5 s and at 1 s, so Test 9 goes ahead.
 
-## 3. Test 9 (planned). Does gaze as a position in the image improve the prediction?
+## 3. Test 9 (running). Does gaze as a position in the image improve the prediction?
 
 **Question.** Does the predictor make better predictions when gaze tells it where in the image
 the person looks?
@@ -91,9 +91,12 @@ measured 0.27 s ahead and the results compare directly with Tests 1–4.
 | pe+rope shuffled | as pe+rope, with the signals of another clip in the batch | the other clip's gaze point | control: the extra input without the information |
 | future | gaze and hand of the target frame, one step later | top-left patch | positive control: a signal known to carry information about the target |
 
-- *Seeds.* Three per model: 19 new runs, about 13 GPU hours. Retraining angles with seed 0
-  checks that the current code reproduces `ego_ft_v2`: its errors after each epoch should be
-  close to 0.4942, 0.4900 and 0.4877.
+- *Seeds.* Three per model: 20 new runs, about 14 GPU hours. Seed 0 of "none" is
+  `ego_sd1p0`. Angles is retrained with seed 0 to check that the new code reproduces
+  `ego_ft_v2`: before training, the check on the 96 P08 clips must give exactly 0.6153 (signals
+  hidden) and 0.6235 (real signals); after the three epochs, the training loss should be close
+  to 0.5261, 0.5150 and 0.5066, and the error with the signals hidden close to 0.4942, 0.4900
+  and 0.4877.
 - *Test set.* The fixed clips of all 12 P08 and all 13 P09 recordings, 24 clips each: about 600
   clips from two people not in the training data.
 - *Measures.* The error of the prediction 0.27 s ahead, on the whole frame and on the patches
@@ -106,12 +109,43 @@ measured 0.27 s ahead and the results compare directly with Tests 1–4.
   seeds. An effect counts only if the interval excludes 0 and the effect is larger than the
   spread between seeds.
 
-**Checks.** With every gaze point at the top-left patch, the rope model must give exactly the
-same output as the angles model, because a rotation by 0 changes nothing. This becomes a
-self-test in `tests/`.
+**Implementation.** (Built by Claude Code; the choices approved by Erfan, 7 October 2026.)
 
-**Code needed.** The gaze point in `ego.signals`; a `--gaze-form` option in `train` and the
-evaluation commands; the gaze token's position in the attention, in a new class in `ego/`.
+- The gaze vector carries the gaze point (column, row on the patch grid) after yaw, pitch and
+  depth ([[3-method#Gaze position in the image]]).
+- *pe.* Sine and cosine of the gaze point at 5 frequencies ($K = 5$), so the finest wave
+  repeats once per patch, plus the depth and the inside-the-frame flag: 22 inputs to the gaze
+  layer. The 20 waves are scaled by $1/\sqrt{2K}$ to a joint length of 1, so the input has
+  about the size of the three scaled angles. Unscaled, it was about twice as large, and two
+  of four short trial runs diverged: the training loss rose from 0.65 to 0.79 in 13 steps.
+  With the scaling, the same runs train normally.
+- *rope.* The gaze token is rotated in the row and column channels by the gaze point minus
+  half a patch, so a point at the centre of a patch gets exactly that patch's position. Hidden
+  gaze, or gaze without a point, stays at the top-left patch, as in the angles model. The class
+  is `GazeRoPEAttention` in `ego/gaze_attention.py`; Meta's code is unchanged.
+- *future.* The angles form, given the gaze and hand of the next step.
+- Each run keeps `best.pt` and `final.pt` (2.4 GB).
+
+**Checks, done before the runs.**
+
+- Self-tests (`tests/test_gaze_forms.py`): with every gaze point at the top-left patch, or
+  without a point, the rope model gives exactly the output of the angles model, because a
+  rotation by 0 changes nothing. The gaze token gets the rotation of the patch at its gaze
+  point, with row and column not swapped. The Coord-PE values are right at known points.
+- With the new code, `ego_ft_v2` gives the same outputs as before, bit for bit, and the rope
+  model with every point at the top-left patch gives the same outputs as the angles model.
+- The fixed clips are sampled at the same positions as before, with the same signals.
+- Each new form trained for a few steps without error, pe and pe+rope after the scaling
+  above.
+
+**Runs.** A queue runs the jobs one after another (`checkpoints/test9/queue.sh`, jobs in
+`checkpoints/test9/jobs.txt`), from 7 October 2026, 19:28. Order: rope seed 0 first (a
+predictor for an attentive probe, at Erfan's request), then the reproduction (angles seed 0),
+the positive control (future seed 0), seeds 1 and 2 of rope, angles and none, future seeds 1
+and 2, and last the pe forms. One run takes about 40 minutes; one GPU fits one run at a time
+(31 of 46 GB, at full use).
+
+**Still needed.** An evaluation command for the test set, with the error near the gaze point.
 
 ## 4. Test 10 (planned). The full training run
 

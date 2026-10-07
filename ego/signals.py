@@ -2,8 +2,15 @@
 The gaze and hand inputs of a clip, and their variants.
 
 A signal tuple is (gaze, gaze_valid, hand, hand_left_valid, hand_right_valid), shaped as
-the predictor's forward takes it: (B, T, 3), (B, T), (B, T, 12), (B, T), (B, T). A signal
+the predictor's forward takes it: (B, T, 5), (B, T), (B, T, 12), (B, T), (B, T). A signal
 marked invalid is replaced by its learned mask token inside the predictor.
+
+The gaze vector is yaw, pitch and depth (scaled, see below), then the gaze point in the
+image as column and row on the 16 x 16 patch grid (ego/gaze_geometry.py). The point is
+NO_POINT (-1, -1) when the gaze is invalid or no calibration exists. The angles model uses
+only the first three values; the gaze forms of Test 9 use the point. A 3-value gaze vector
+(as from null()) is read as having no point. shift_gaze_deg moves the yaw only, not the
+point.
 
 Every variant returns a new tuple and leaves its input unchanged.
 
@@ -14,23 +21,33 @@ radians(d) / GAZE_STD[0] in the units the projection layer sees.
 import numpy as np
 import torch
 
-from ego.data import GAZE_STD
+from ego.data import GAZE_MEAN, GAZE_STD
+from ego.gaze_geometry import to_patch
+
+NO_POINT = -1.0
 
 
 # ---------------------------------------------------------------------------
 # Reading
 # ---------------------------------------------------------------------------
 
-def read(gl, hl, vrs_ns, T):
+def read(gl, hl, vrs_ns, T, proj=None):
     """
     Gaze and hand at T frame timestamps (absolute VRS, ns), as numpy arrays with no batch
-    dimension. A missing loader leaves its signal at zero and marked invalid.
+    dimension. A missing loader leaves its signal at zero and marked invalid. With a
+    GazeProjector `proj`, the gaze point is filled in; without one it is NO_POINT.
     """
-    gaze = np.zeros((T, 3), np.float32); gv = np.zeros(T, bool)
+    gaze = np.zeros((T, 5), np.float32); gv = np.zeros(T, bool)
+    gaze[:, 3:] = NO_POINT
     hand = np.zeros((T, 12), np.float32); hlft = np.zeros(T, bool); hrgt = np.zeros(T, bool)
     if gl is not None:
         for t, ns in enumerate(vrs_ns):
-            gaze[t], gv[t] = gl.get_token_for_vrs_ns(ns)
+            gaze[t, :3], gv[t] = gl.get_token_for_vrs_ns(ns)
+            if gv[t] and proj is not None:
+                raw = gaze[t, :3] * GAZE_STD + GAZE_MEAN if gl.standardize else gaze[t, :3]
+                xy = proj.project(*raw)
+                if xy is not None:
+                    gaze[t, 3:] = to_patch(xy)
     if hl is not None:
         for t, ns in enumerate(vrs_ns):
             hand[t], hlft[t], hrgt[t] = hl.get_token_for_vrs_ns(ns)

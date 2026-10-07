@@ -313,12 +313,12 @@ and the checks during training use. (Decided by Erfan, August 2026.)
 
 ## Design choices
 
-Most of these ideas came from studying GazeQwen ([[2-background]]). None of them is built yet. The gaze
+Most of these ideas came from studying GazeQwen ([[2-background]]). The two ways to give gaze a position are built for Test 9; the others are not built. The gaze
 form is tested before the full training run, as Test 9 in [[6-next-steps]], because the gaze
 token cannot point at the image and the model makes little use of the gaze value. (Decided by
 Erfan, October 2026.)
 
-**Gaze as a position in the image.** Planned in Test 9, which compares two ways:
+**Gaze as a position in the image.** Built for Test 9 ([[6-next-steps]]), which compares two ways:
 
 - *Coord-PE: the position in the token's content.* Sine and cosine features of the gaze point
   $(u, v)$ at several frequencies, plus the depth and an inside-the-frame flag, before the

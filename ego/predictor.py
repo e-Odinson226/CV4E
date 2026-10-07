@@ -6,6 +6,22 @@ Each frame is [gaze, hand, 256 image tokens], the same layout as the AC predicto
 [action, state, image tokens]. So every transformer block of a pretrained AC
 checkpoint loads unchanged (ego.model.load_ac_weights_into_ego). Only gaze_proj,
 hand_proj and the two mask tokens are new.
+
+gaze_form sets how gaze enters (Test 9, docs/EgoVault/6-next-steps.md):
+
+  angles   yaw, pitch and depth through gaze_proj; the token sits at the top-left patch,
+           as in ego_ft_v2
+  pe       Coord-PE: sine and cosine features of the gaze point (column, row) at PE_FREQS
+           frequencies, plus depth and an inside-the-frame flag, through gaze_proj. The
+           sines and cosines are scaled to a joint length of 1, so the input of gaze_proj
+           has about the size of the three scaled angles. Unscaled, it is about twice as
+           large, and two of four short trial runs diverged.
+  rope     the angles token, placed at the gaze point in the attention (ego/gaze_attention.py)
+  pe+rope  both
+
+The gaze point is the 4th and 5th value of the gaze vector (ego/signals.py). Without it
+(a 3-value vector, or NO_POINT), pe sees the flag 0 and rope places the token at the
+top-left patch, as for hidden gaze.
 """
 
 import math
@@ -14,9 +30,13 @@ from functools import partial
 import torch
 import torch.nn as nn
 
+from ego.gaze_attention import GazeRoPEAttention
 from src.models.utils.modules import ACBlock as Block
 from src.models.utils.modules import build_action_block_causal_attention_mask
 from src.utils.tensors import trunc_normal_
+
+GAZE_FORMS = ("angles", "pe", "rope", "pe+rope")
+PE_FREQS = 5        # finest period: one patch
 
 
 class VisionTransformerPredictorEgo(nn.Module):
@@ -55,9 +75,15 @@ class VisionTransformerPredictorEgo(nn.Module):
         use_rope=True,
         gaze_dim=3,
         hand_dim=12,
+        gaze_form="angles",
         **kwargs,
     ):
         super().__init__()
+        if gaze_form not in GAZE_FORMS:
+            raise ValueError(f"unknown gaze_form {gaze_form!r}; one of {GAZE_FORMS}")
+        self.gaze_form = gaze_form
+        if gaze_form in ("pe", "pe+rope"):
+            gaze_dim = 4 * PE_FREQS + 2
         self.is_frame_causal = is_frame_causal
 
         # Projects encoder tokens into predictor hidden space — same role as in AC predictor
@@ -107,6 +133,10 @@ class VisionTransformerPredictorEgo(nn.Module):
             ]
         )
 
+        if gaze_form in ("rope", "pe+rope"):
+            for blk in self.predictor_blocks:
+                blk.attn.__class__ = GazeRoPEAttention
+
         self.predictor_norm = norm_layer(predictor_embed_dim)
         self.predictor_proj = nn.Linear(predictor_embed_dim, embed_dim, bias=True)
 
@@ -154,9 +184,40 @@ class VisionTransformerPredictorEgo(nn.Module):
         gaze_valid: torch.Tensor,  # (B, T) bool
     ) -> torch.Tensor:  # (B, T, D)
         B, T, _ = gaze_vecs.shape
-        tokens = self.gaze_proj(gaze_vecs.reshape(B * T, -1)).reshape(B, T, -1)
+        x = self._gaze_input(gaze_vecs)
+        tokens = self.gaze_proj(x.reshape(B * T, -1)).reshape(B, T, -1)
         mask = self.gaze_mask.view(1, 1, -1).expand(B, T, -1)
         return torch.where(gaze_valid.unsqueeze(-1), tokens, mask)
+
+    @staticmethod
+    def _gaze_point(gaze_vecs):
+        """(column, row, inside) of the gaze point; inside is False without a point."""
+        if gaze_vecs.shape[-1] < 5:
+            z = torch.zeros_like(gaze_vecs[..., 0])
+            return z, z, torch.zeros_like(z, dtype=torch.bool)
+        col, row = gaze_vecs[..., 3], gaze_vecs[..., 4]
+        return col, row, (col >= 0) & (row >= 0)
+
+    def _gaze_input(self, gaze_vecs):
+        """The input of gaze_proj for this gaze_form."""
+        if self.gaze_form in ("angles", "rope"):
+            return gaze_vecs[..., :3]
+        col, row, inside = self._gaze_point(gaze_vecs)
+        u = torch.where(inside, col / 8.0 - 1.0, torch.zeros_like(col))      # [0, 16) -> [-1, 1)
+        v = torch.where(inside, row / 8.0 - 1.0, torch.zeros_like(row))
+        f = math.pi * 2.0 ** torch.arange(PE_FREQS, device=gaze_vecs.device, dtype=gaze_vecs.dtype)
+        fu, fv = u.unsqueeze(-1) * f, v.unsqueeze(-1) * f
+        waves = torch.cat([fu.sin(), fu.cos(), fv.sin(), fv.cos()], dim=-1) / math.sqrt(2 * PE_FREQS)
+        return torch.cat([waves, gaze_vecs[..., 2:3], inside.unsqueeze(-1).to(gaze_vecs.dtype)], dim=-1)
+
+    def _set_gaze_positions(self, gaze_vecs, gaze_valid):
+        """For the rope forms: the gaze token's (row, column) in each block, 0 without a point."""
+        col, row, inside = self._gaze_point(gaze_vecs)
+        ok = gaze_valid & inside
+        zero = torch.zeros_like(col)
+        pos = (torch.where(ok, row - 0.5, zero), torch.where(ok, col - 0.5, zero))
+        for blk in self.predictor_blocks:
+            blk.attn.gaze_pos = pos
 
     def _encode_hand(
         self,
@@ -177,7 +238,7 @@ class VisionTransformerPredictorEgo(nn.Module):
     def forward(
         self,
         x: torch.Tensor,  # (B, T*H*W, embed_dim)  encoder context tokens
-        gaze_vecs: torch.Tensor,  # (B, T, 3)
+        gaze_vecs: torch.Tensor,  # (B, T, 5): yaw, pitch, depth, column, row (or (B, T, 3))
         gaze_valid: torch.Tensor,  # (B, T) bool
         hand_vecs: torch.Tensor,  # (B, T, 12)
         hand_left_valid: torch.Tensor,  # (B, T) bool
@@ -188,6 +249,8 @@ class VisionTransformerPredictorEgo(nn.Module):
         T = N_ctxt // (self.grid_height * self.grid_width)
 
         gaze_tokens = self._encode_gaze(gaze_vecs, gaze_valid)  # (B, T, D)
+        if self.gaze_form in ("rope", "pe+rope"):
+            self._set_gaze_positions(gaze_vecs, gaze_valid)
         hand_tokens = self._encode_hand(hand_vecs, hand_left_valid, hand_right_valid)  # (B, T, D)
 
         # Interleave: [gaze, hand, visual...] per frame — same layout as AC [action, state, visual...]
