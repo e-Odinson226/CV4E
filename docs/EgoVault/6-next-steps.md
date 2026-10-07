@@ -12,7 +12,7 @@ What to do next, in order. Each planned test names the hypothesis it addresses
 ([[5-discussion#Weak points of the design]]). When a test is run, its section moves to
 [[4-results]] under the same number.
 
-Erfan decided to test the gaze form before the full training run (October 2026). Test 8 came
+The gaze form is tested before the full training run. Test 8 came
 first, as a check without training. Its result decided that Test 9 goes ahead.
 
 | Order | Work | Hypothesis | Weak points addressed | Training runs | Status |
@@ -109,7 +109,7 @@ measured 0.27 s ahead and the results compare directly with Tests 1–4.
   seeds. An effect counts only if the interval excludes 0 and the effect is larger than the
   spread between seeds.
 
-**Implementation.** (Built by Claude Code; the choices approved by Erfan, 7 October 2026.)
+**Implementation.**
 
 - The gaze vector carries the gaze point (column, row on the patch grid) after yaw, pitch and
   depth ([[3-method#Gaze position in the image]]).
@@ -140,7 +140,7 @@ measured 0.27 s ahead and the results compare directly with Tests 1–4.
 
 **Runs.** A queue runs the jobs one after another (`checkpoints/test9/queue.sh`, jobs in
 `checkpoints/test9/jobs.txt`), from 7 October 2026, 19:28. Order: rope seed 0 first (a
-predictor for an attentive probe, at Erfan's request), then the reproduction (angles seed 0),
+predictor for an attentive probe), then the reproduction (angles seed 0),
 the positive control (future seed 0), seeds 1 and 2 of rope, angles and none, future seeds 1
 and 2, and last the pe forms. One run takes about 40 minutes; one GPU fits one run at a time
 (31 of 46 GB, at full use).
@@ -179,12 +179,11 @@ changes them (H3). It runs after Test 9, with the best gaze form of Test 9.
 - Set the gaze layer's bias to zero at test time, to see how much of the effect is a constant.
   (H2)
 - Gaze and hand as a training signal: an extra loss that predicts gaze or the future hand
-  position from the predictor's states, dropped at test time. The idea came from Ioana.
+  position from the predictor's states, dropped at test time.
 
 ## 6. Path 3: language alignment (postponed)
 
-Postponed until Tests 9 and 10 are done. The design choices below came from Ash's review in July
-2026.
+Postponed until Tests 9 and 10 are done.
 
 - Idea: align the predictor's embedding space with text, so that it predicts concepts such as
   "making pasta sauce".
@@ -199,7 +198,7 @@ Postponed until Tests 9 and 10 are done. The design choices below came from Ash'
 
 ## 7. Other directions
 
-- A workshop paper on the result, after Test 10. (Planned by Erfan, July 2026.)
+- A workshop paper on the result, after Test 10.
 
 ## 8. Housekeeping
 

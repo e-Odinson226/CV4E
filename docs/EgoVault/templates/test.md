@@ -2,12 +2,12 @@
   A new test: copy the section below into 4-results.md, with the number it has in
   6-next-steps.md. A test with several parts gets one "### Na." part per measurement, each
   with its own Method and Result. Then update the hypotheses table in 1-introduction.md and
-  the list of Erfan's work in project.md.
+  the list of work in project.md.
 -->
 
 ## Test N. <The question, as a short question>
 
-Run by <name>, <date>. Uses <model and data>. ^testN
+Run on <date>. Uses <model and data>. ^testN
 
 **Question.** What the test asks, in one or two sentences, and why it is asked now.
 

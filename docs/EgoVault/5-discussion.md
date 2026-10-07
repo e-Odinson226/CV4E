@@ -7,7 +7,7 @@ updated: 2026-10-07
 
 # 5. Discussion
 
-What Erfan's Tests 1–4 in [[4-results]] mean together, and the weak points of the design that
+What Tests 1–4 in [[4-results]] mean together, and the weak points of the design that
 limit them. The planned tests that address these weak points are in [[6-next-steps]].
 
 ## What the results show

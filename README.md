@@ -1,8 +1,7 @@
 # CV4Egocentric
 
-Code for Erfan Yekehzare's master's thesis, part of EgoProject 2026 (University of Rostock and
-Babeș-Bolyai University, Cluj). The project asks whether a video world model predicts
-egocentric video better when it also receives the person's gaze and hand positions.
+Code for a project that asks whether a video world model predicts egocentric video better when
+it also receives the person's gaze and hand positions.
 
 The model is Meta's V-JEPA 2-AC with the ViT-g encoder. Its predictor normally receives a
 robot's action and state for each frame. Here it receives a gaze token and a hand token
@@ -11,7 +10,7 @@ tracking.
 
 So far, the gaze and hand inputs do not improve the prediction. A model trained without them
 does as well (Δ = +0.0003, p = 0.40). These models were trained for 3 epochs. A full training
-run has not been done yet. The thesis notes, with every test and its result, are in
+run has not been done yet. The project notes, with every test and its result, are in
 [`docs/EgoVault/`](docs/EgoVault/README.md).
 
 ## Repository layout
@@ -21,22 +20,17 @@ run has not been done yet. The thesis notes, with every test and its result, are
 | `ego/` | The code: the model, the data handling, and one command for training and for each test. |
 | `tests/` | Self-tests. They need no GPU and no data. |
 | `vjepa2/` | Meta's V-JEPA 2 code. Not tracked: clone it here (see Setup). |
-| `docs/EgoVault/` | The thesis notes, an Obsidian vault. The paper as submitted and the literature notes are in `docs/EgoVault/papers/`. |
+| `docs/EgoVault/` | The project notes, an Obsidian vault. The paper as submitted and the literature notes are in `docs/EgoVault/papers/`. |
 | `notebooks/` | `playground.ipynb`: a first look at the Aria gaze data and at a V-JEPA 2 model from Hugging Face. |
 | `data/`, `checkpoints/` | Datasets and trained models. Not tracked. |
 | `results/` | Result files. The small summaries (CSV, JSON, logs, figures) are tracked; feature caches (`*.npz` at the top level, `cache/` folders) and the per-sample tables of the gaze checks are not. |
 | `archive/` | Old files. Not tracked. |
 
-## Who wrote the code
+## Code from elsewhere
 
-- Erfan wrote everything in `ego/` and `tests/`, apart from the first gaze and hand loaders
-  and projection layers, which Ioana wrote. Erfan moved the projection layers into the
-  predictor and extended them to all time steps. Erfan added timestamp matching and scaling to
-  the loaders.
-- Meta wrote V-JEPA 2, which the code imports from `vjepa2/`. Its licenses are in that
-  repository.
-- Parsa ran Parsa's part of Test 1, and Tests 5, 6 and 7, with Parsa's own code. That code is not in this
-  repository. The code in Appendix C of the paper is also from Parsa's codebase.
+- Meta's V-JEPA 2, which the code imports from `vjepa2/`. Its licenses are in that repository.
+- The paper's Tests 5, 6 and 7, part of its Test 1, and the code in its Appendix C come from a
+  separate codebase that is not in this repository.
 
 ## Setup
 
@@ -216,7 +210,7 @@ hand layers.
 | 8 | `next-object` (defaults) | `results/next_object/next_object.csv` (accuracy per input and horizon), `next_object_contrasts.csv` (paired differences), `next_object.json` (the decision). The cache, about 4 GB, is in `results/next_object/cache/`. |
 | 2 | `stock-vs-tuned` with `--predictor-checkpoint checkpoints/ego_sd1p0/best.pt --out results/rung_b1_sd1p0`, then `signal-dropout` | `results/rung_b1_sd1p0.csv`, `results/signal_dropout_contrasts.csv` |
 
-- Parsa's part of Test 1, and Tests 5, 6 and 7, use Parsa's code. It is not in this
+- Part of Test 1, and Tests 5, 6 and 7 of the paper, use code that is not in this
   repository.
 - Test 3 uses only the frozen encoder. `control-probe` reads the features cached by
   `gaze-probe`.
@@ -252,7 +246,7 @@ controls, and a checklist.
 - If the GPU runs out of memory, lower `--encode-chunk`.
 - In `train` and `gaze-probe`, the frozen encoder runs in bf16 by default. This doubles the
   speed. `--no-amp` turns it off. `sensitivity` uses bf16 only with `--amp`.
-- Video decoding needs a lot of RAM. Parsa's EK100 runs needed `num_workers: 4` and
+- Video decoding needs a lot of RAM. The EK100 runs needed `num_workers: 4` and
   `pin_memory: false`.
 - `/mnt/data` is shared and has been full before. Write long outputs to scratch space first.
 - Commands that build an untrained model set the random seed. Without it, the random gaze and
@@ -260,6 +254,6 @@ controls, and a checklist.
 
 ## Notes
 
-The thesis notes are in `docs/EgoVault/`. Start with `docs/EgoVault/README.md`.
+The project notes are in `docs/EgoVault/`. Start with `docs/EgoVault/README.md`.
 `3-method.md` describes the method in detail. `4-results.md` lists every test, who ran it, and
 what it showed.

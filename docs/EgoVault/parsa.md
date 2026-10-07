@@ -7,34 +7,33 @@ updated: 2026-10-07
 
 # Parsa's work
 
-Seyyed Parsa Sharifi's work for the EgoProject 2026 paper ([[BC-JEPA]]), kept apart from
-Erfan's thesis notes. For each piece: what was done, why, what it showed, and whether it is
-valid and useful for the thesis question. The numbers come from Parsa's records and the paper.
-Parsa's code is not in this repository, so none of it can be rerun from here. In the paper
-these are Tests 1 (ViT-L part), 5, 6 and 7. (Assessment by Claude Code at Erfan's request,
-October 2026.)
+The paper's tests that were made with Parsa's code ([[BC-JEPA]]), kept apart from the rest of
+the notes: Tests 1 (ViT-L part), 5, 6 and 7. For each piece: what was done, why, what it showed,
+and whether it is valid and useful for the project's question. The numbers come from the
+records of these runs and the paper. The code is not in this repository, so none of it can be
+rerun from here.
 
 ## Summary
 
-| Work | Result | Valid? | Useful for the thesis? |
+| Work | Result | Valid? | Useful for the project? |
 |---|---|---|---|
-| Matched model without signals (design) | Became the main comparison of Erfan's Test 2 | Yes | Yes, central |
+| Matched model without signals (design) | Became the main comparison of Test 2 | Yes | Yes, central |
 | ViT-L feasibility run | The predictor learns with gaze and hand inputs | Yes, as a feasibility check | Little; a different model from `ego_ft_v2` |
 | Early EK100 pilot | ViT-L 4.27% against ViT-G 2.81% | No; confounded | No |
 | EK100 anticipation probe | No difference between inputs (within 0.1 points) | Narrowly | Little; EK100 has no gaze |
-| Diagnostics on HD-EPIC P01 | The signal reaches the output and changes no choice | Partly | Partly; overlaps Erfan's Test 4 |
+| Diagnostics on HD-EPIC P01 | The signal reaches the output and changes no choice | Partly | Partly; overlaps Test 4 |
 | Probe on gaze and hand alone | Below a frequency guess at every horizon | Limited | Little; it never sees what is looked at |
 | Stronger pathway (design) | Designed, not built, dropped | The decision is sound | As a design record |
 
 ## Matched model without signals
 
 - **What.** The proposal to train a second model with the signals hidden in every clip
-  (June 2026). Erfan trained it (`ego_sd1p0`) and ran the comparison.
+  (June 2026). It was trained as `ego_sd1p0` and compared.
 - **Why.** Comparing one model with and without its signals mixes the value of the information
   with the cost of removing an input the model expects.
 - **Result.** It gives the main result of the project: +0.0003, p = 0.40
   ([[4-results#^test2|Test 2]]).
-- **Assessment.** Valid and the most useful of Parsa's contributions to the thesis.
+- **Assessment.** Valid and the most useful of this work for the project.
 
 ## ViT-L feasibility run
 
@@ -45,7 +44,7 @@ October 2026.)
 - **Result.** The training loss (smooth L1) fell from 1.207 to 1.019, with little change after
   epoch 5.
 - **Assessment.** Valid as a feasibility check. It differs from `ego_ft_v2` in encoder, data,
-  loss and gaze input, so its numbers cannot be compared with Erfan's, and it was not used
+  loss and gaze input, so its numbers cannot be compared with those of `ego_ft_v2`, and it was not used
   further. The paper's feasibility figure shows this run, although the results come from
   `ego_ft_v2`.
 
@@ -98,7 +97,7 @@ October 2026.)
   the output, and does it change which future the model picks?
 - **Result.** The signal reaches the output and changes no choice. The paper dropped the
   stronger pathway on this basis.
-- **Assessment.** Partly valid. The output change and the attention agree with Erfan's
+- **Assessment.** Partly valid. The output change and the attention agree with
   [[4-results#^test4|Test 4]]. The choice test is at ceiling: with 95.5% correct either way, it
   cannot show an improvement. P01 is in the training data. The candidates of the choice test,
   and which signals were hidden, are not described. The paper reports "top-1 error 0.9545",
@@ -116,7 +115,7 @@ October 2026.)
   image by 0.035 to 0.121 at 1–10 s, and stay 0.051 to 0.092 below the frequency guess.
 - **Assessment.** Limited. Gaze and hand alone do not anticipate the action better than a
   frequency guess. The classifier sees gaze and hand as numbers, never what lies at the gaze
-  point, so it cannot test Erfan's idea that the looked-at object predicts the next action
+  point, so it cannot test the idea that the looked-at object predicts the next action
   (H4). One participant and a small sample; the inputs, the classifier, the test split and the
   test-set size (762 or 243) are not described. Two earlier versions were discarded for flaws.
 
@@ -128,10 +127,9 @@ October 2026.)
 - **Result.** Designed, not built. The paper dropped it after the diagnostics above.
 - **Assessment.** Not building it was sound, for a further reason: a bias added equally to
   every key cancels in the softmax, so it cannot select image regions ([[2-background]],
-  GazeQwen). The diagnostics did not test gaze as a position in the image, which Erfan's
+  GazeQwen). The diagnostics did not test gaze as a position in the image, which
   Test 8 did and Test 9 will.
 
 ## Other work
 
-Most of the paper's writing and its assembly, the verb and noun analysis, and the sample-size
-analysis.
+The verb and noun analysis and the sample-size analysis of the paper.

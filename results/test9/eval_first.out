@@ -54,3 +54,24 @@ Loaded #onlineCalib records: 50
 [cache] P09-20240625-103827: 24 clips
 [test set] 600 clips in 25 recordings of ['P08', 'P09']
 [models] none_s0 (ego_sd1p0), angles (ego_ft_v2)
+[layers] fine-tuned: gaze_proj, hand_proj, gaze_mask, hand_mask + blocks 18-23 + predictor_norm, predictor_proj  (epoch=3, train_loss=0.506866621606204)
+[scored] none_s0 (ego_sd1p0)
+[layers] fine-tuned: gaze_proj, hand_proj, gaze_mask, hand_mask + blocks 18-23 + predictor_norm, predictor_proj  (epoch=3, train_loss=0.5066320426610051)
+[scored] angles (ego_ft_v2)
+
+Every model (error of the next step, lower is better):
+              model      form  seed  clips    mse  mse_hide  delta   near  near_hide
+none_s0 (ego_sd1p0)      none     0    600 0.5005    0.5005 0.0000 0.3790     0.3790
+ angles (ego_ft_v2) reference     0    600 0.5001    0.5010 0.0009 0.3783     0.3797
+
+Forms, mse, averaged over seeds:
+  none               0.5005   seeds: 0.5005
+
+Comparisons, mse (gain of A over B = error B - error A; > 0: A better):
+
+Forms, near, averaged over seeds:
+  none               0.3790   seeds: 0.3790
+
+Comparisons, near (gain of A over B = error B - error A; > 0: A better):
+
+[out] results/test9/gaze_forms.csv  gaze_forms_comparisons.csv  gaze_forms.json  scores/

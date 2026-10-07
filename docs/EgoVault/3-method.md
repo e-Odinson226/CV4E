@@ -46,9 +46,6 @@ width they are not rotated, which places them at the top-left patch in every fra
 which are global quantities, this did not matter. For gaze it means that the token cannot point
 at the image ([[5-discussion#Weak points of the design|weak point "gaze cannot point"]]).
 
-Ioana wrote the first gaze and hand projection layers. Erfan moved them into the predictor and
-extended them to all time steps.
-
 ### Inputs
 
 | Signal | Size | Values | Source file |
@@ -93,12 +90,11 @@ The AC predictor was trained on frames encoded one at a time. The code does the 
 
 The step of 8 frames matches the pretraining. V-JEPA 2-AC was trained on robot video (DROID)
 at 4 frames per second, a step of 0.25 s, and its predictor learned how much a scene changes in
-one such step. A step of a different length would have to be learned again. (Part of Erfan's
-training setup, `--frame-stride` in `train`.)
+one such step. A step of a different length would have to be learned again
+(`--frame-stride` in `train`).
 
 Encoding a whole clip at once gave an error of 4.82 before fine-tuning, on 36 clips from 12 P08
-recordings. The format above gives 0.58, on 48 clips from the same recordings. (Found by Erfan,
-May 2026.)
+recordings. The format above gives 0.58, on 48 clips from the same recordings.
 
 ## Gaze position in the image
 
@@ -107,7 +103,7 @@ embeddings, one per region of the frame. To relate gaze to this grid, gaze has t
 the frame. `ego/gaze_geometry.py` computes this point. `python -m ego draw-gaze` and
 `python -m ego gaze-at-picks` check it.
 The trained models `ego_ft_v2` and `ego_sd1p0` do not use it. Test 8 uses it
-([[4-results#^test8|Test 8]]), and Test 9 will ([[6-next-steps]]). (Built by Claude Code at Erfan's request, October 2026.)
+([[4-results#^test8|Test 8]]), and Test 9 will ([[6-next-steps]]).
 
 ### Steps
 
@@ -169,7 +165,7 @@ nine participants. The median box is 1.6 × 1.8 patches. As chance, the same box
 with the gaze of 20 random moments of the same recording, at least 10 s away from the pick.
 Gaze and objects both lie mostly near the centre of the frame, so a point can land in a box
 without the person looking at the object. The intervals are 95% intervals from a bootstrap
-over recordings. (Run by Claude Code at Erfan's request, October 2026.)
+over recordings.
 
 | Gaze point | Inside the box | Within 1 patch of the box | Median distance (patches) |
 |---|---|---|---|
@@ -246,7 +242,7 @@ to the neighbouring patch.
 ## Evaluation
 
 The model is evaluated by its prediction error on HD-EPIC. This needs no labels, and HD-EPIC
-has gaze data. (Decided by Erfan, May 2026.)
+has gaze data.
 
 ### Prediction error and Δ
 
@@ -260,7 +256,7 @@ has gaze data. (Decided by Erfan, May 2026.)
 - Δ is tested with a paired Wilcoxon test on the per-clip values and reported with a 95%
   confidence interval.
 - Results are reported as absolute differences. Relative percentages make small effects look
-  large. (Asked by Ash, July 2026.)
+  large.
 
 ### Three ways to hide the signals
 
@@ -271,7 +267,7 @@ has gaze data. (Decided by Erfan, May 2026.)
 | Average | the average scaled signal | +0.0007 |
 
 Every Δ states which input it uses. The default is the mask token, which `python -m ego evaluate`
-and the checks during training use. (Decided by Erfan, August 2026.)
+and the checks during training use.
 
 ### Measuring the value of the signals
 
@@ -315,8 +311,7 @@ and the checks during training use. (Decided by Erfan, August 2026.)
 
 Most of these ideas came from studying GazeQwen ([[2-background]]). The two ways to give gaze a position are built for Test 9; the others are not built. The gaze
 form is tested before the full training run, as Test 9 in [[6-next-steps]], because the gaze
-token cannot point at the image and the model makes little use of the gaze value. (Decided by
-Erfan, October 2026.)
+token cannot point at the image and the model makes little use of the gaze value.
 
 **Gaze as a position in the image.** Built for Test 9 ([[6-next-steps]]), which compares two ways:
 
@@ -333,8 +328,7 @@ Coord-PE alone may not be enough. Patches carry their position only through the 
 in their content. To find the patch at $(u, v)$ from content features, the frozen heads would
 have to match those features against rotated keys.
 
-**Step, context and horizon.** (Proposed by Claude Code, October 2026. Test 8 settled the
-context; Erfan decides on the rest.)
+**Step, context and horizon.** (Test 8 settled the context; the rest is open.)
 
 Gaze carries information at three time scales:
 
@@ -373,6 +367,15 @@ length of the gaze history. Each further frame adds 258 tokens.
 People make about 2–4 fixations per second. The current step samples gaze at about this rate.
 Longer steps miss most fixations.
 
+V-JEPA 2's own benchmark of action anticipation on EK100 uses 32 frames at 8 frames per second,
+4 s of context (`vjepa2/configs/eval/vitg-384/ek100.yaml`). That setup belongs to the plain
+V-JEPA 2 model: the encoder takes the 32 frames as one video and joins every two frames, so it
+has 16 time steps of 0.25 s, and an attentive probe names the action 1 s ahead. It has no place
+for a gaze or hand token per step, so it does not fit the action-conditioned predictor used
+here. In this predictor, 32 frames would be 8,256 tokens in place of 2,064, about 16 times the
+cost of attention, with a step of 0.125 s, half the step of the pretraining. It fits a probe on
+the plain encoder, where results can be compared with published EK100 numbers.
+
 *One step per fixation.* A step for each fixation, in place of a fixed step, would follow how
 people take in a scene. It is not proposed as the step of the model, for five reasons:
 
@@ -409,7 +412,7 @@ far less than 258 tokens per frame.
 
 **Zero initialization of the projection layers: rejected.** A zero token is a new kind of input
 for the model. If the projection and a gate both start at 0, both gradients are 0 and the
-pathway cannot learn. (Decided by Erfan, August 2026.)
+pathway cannot learn.
 
 **Gate (`alpha_gaze`), if one is added.** A learned number α blends between the "no signal"
 token and the projected gaze:
@@ -417,4 +420,4 @@ token and the projected gaze:
 $$\text{token} = \text{gaze\_mask} + \alpha \,(\text{gaze\_proj}(\text{gaze}) - \text{gaze\_mask})$$
 
 At α = 0 the model behaves like one trained without signals. α has no weight decay, because
-weight decay alone would pull it toward 0, whatever the data. (Decided by Erfan, August 2026.)
+weight decay alone would pull it toward 0, whatever the data.

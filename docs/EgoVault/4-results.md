@@ -7,7 +7,7 @@ updated: 2026-10-07
 
 # 4. Results
 
-Erfan's tests, in the order of the argument. Test 1 shows that the predictor can learn with
+The tests, in the order of the argument. Test 1 shows that the predictor can learn with
 gaze and hand inputs. Test 2 gives the main result: the inputs do not improve the prediction.
 Tests 3 and 4 check two explanations for it. Test 8 asks whether what the person looks at
 tells what comes next, before gaze is given to the predictor as a position. Each test addresses
@@ -17,7 +17,7 @@ a hypothesis from [[1-introduction#^hypotheses|the introduction]]. How each meas
 
 ## Test 1. Can the predictor learn with gaze and hand inputs?
 
-Run by Erfan, 31 May – 1 June 2026. This run produced `ego_ft_v2`, the model behind every
+Run on 31 May – 1 June 2026. This run produced `ego_ft_v2`, the model behind every
 later test. ^test1
 
 **Question.** V-JEPA 2-AC's predictor was trained with a robot's action and state as inputs.
@@ -33,7 +33,7 @@ so, fine-tuning lowers the prediction error, and the training is stable.
 - Data: P01–P07, 30 clips per recording, 3 epochs. The signals are hidden in about 41% of the
   training clips.
 - Measure: the prediction error on the 96 P08 test clips, after each epoch.
-- Before this run, Erfan changed how frames are encoded: each frame on its own, as in the
+- Before this run, the frame encoding was changed: each frame on its own, as in the
   original training. This lowered the error before fine-tuning from 4.82 to 0.58
   ([[3-method#Input format]]).
 
@@ -49,7 +49,7 @@ so, fine-tuning lowers the prediction error, and the training is stable.
 Three longer runs were started (8 epochs, 60 clips per recording, 240 test clips). Before
 training, Δ was −0.0066 on these clips. One run trained the last 6 blocks for 2 epochs: Δ was
 −0.0002 after epoch 1 and −0.0000 after epoch 2. One trained only the last 3 blocks for 1
-epoch: Δ was −0.0003. Erfan stopped these two for this reason. The third stopped before its
+epoch: Δ was −0.0003. These two were stopped for this reason. The third stopped before its
 first training steps were logged.
 
 **Conclusion.** The predictor learns with gaze and hand inputs, and it improves on a person it
@@ -63,7 +63,7 @@ help.
 
 ## Test 2. Do gaze and hand improve the prediction?
 
-Run by Erfan. `ego_ft_v2` was trained on 31 May – 1 June 2026. The model without signals and
+`ego_ft_v2` was trained on 31 May – 1 June 2026. The model without signals and
 the comparisons were run on 19 August 2026. ^test2
 
 **Question.** Does giving the model gaze and hand make its prediction of the next moment
@@ -137,10 +137,10 @@ the signals (H2).
 
 ## Test 3. Is gaze already in the image features?
 
-Run by Erfan: the gaze probe on 28–30 July 2026, the palm control on 19 August 2026. ^test3
+Run on 28–30 July 2026 (the gaze probe) and 19 August 2026 (the palm control). ^test3
 
 **Question.** The model already sees the video. If the video features already contain where
-the person looks, a gaze input adds nothing new. (Asked by Ash, 16 July 2026.)
+the person looks, a gaze input adds nothing new.
 
 **Hypothesis and prediction.** R: the frozen image features already contain gaze. If R is
 true, a simple probe can read the gaze direction from the features, also for a person it has
@@ -196,7 +196,7 @@ information that the features lack.
 - The main split tests on 2 people, without error bars.
 - The PCA is fitted on frames of one person (P01).
 - The check "skill 1.000 at lead 0" compares a gaze lookup with itself. It does not test the
-  video frames. A separate check by Claude Code (October 2026) found frames read by seeking
+  video frames. A separate check (October 2026) found frames read by seeking
   identical to frames read in order, at 67 positions in 9 recordings.
 
 **Reproduce.** `python -m ego gaze-probe --split participant` (or `recording`, `random`),
@@ -206,7 +206,7 @@ built with `--recordings 12 --windows 10 --per-window 5 --window-sec 6`.
 
 ## Test 4. Does the model use the signals?
 
-Run by Erfan, 19 August 2026, on `ego_ft_v2`, and for comparison on the model before
+Run on 19 August 2026, on `ego_ft_v2`, and for comparison on the model before
 fine-tuning. ^test4
 
 **Question.** Test 2 found that the signals barely improve the prediction. One explanation is
@@ -296,7 +296,7 @@ how the model reacts to gaze, not whether gaze helps.
 
 ## Test 8. Does the gaze point tell what comes next?
 
-Run by Claude Code at Erfan's request, 7 October 2026. Uses the frozen encoder of V-JEPA 2-AC
+Run on 7 October 2026. Uses the frozen encoder of V-JEPA 2-AC
 (no predictor), HD-EPIC's annotations of picks and the gaze point in the image
 ([[3-method#Gaze position in the image]]). ^test8
 
