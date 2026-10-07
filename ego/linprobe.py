@@ -57,6 +57,25 @@ class GazeSeries:
         return None if not np.all(np.isfinite(v)) else v
 
 
+def point_weights(col, row, sigma=1.0, side=16):
+    """
+    Weights of the side * side patches, in row-major order as the encoder returns them:
+    Gaussian in the distance between each patch centre and (col, row), in patch units, and
+    summing to 1.
+    """
+    c = np.arange(side) + 0.5
+    w = np.exp(-((c[None, :] - col) ** 2 + (c[:, None] - row) ** 2) / (2 * sigma ** 2)).ravel()
+    return w / w.sum()
+
+
+def point_features(grid, col, row, sigma=1.0, side=16):
+    """
+    The features around a point of the patch grid: the patches of grid (..., side * side, D)
+    averaged with point_weights.
+    """
+    return np.tensordot(point_weights(col, row, sigma, side), grid, axes=([0], [-2]))
+
+
 class HandSeries:
     """
     Palm positions. The hand CSV runs at about 10 Hz against gaze's 30-60 Hz, so the

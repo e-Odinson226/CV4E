@@ -23,7 +23,8 @@ run has not been done yet. The thesis notes, with every test and its result, are
 | `vjepa2/` | Meta's V-JEPA 2 code. Not tracked: clone it here (see Setup). |
 | `docs/EgoVault/` | The thesis notes, an Obsidian vault. The paper as submitted and the literature notes are in `docs/EgoVault/papers/`. |
 | `notebooks/` | `playground.ipynb`: a first look at the Aria gaze data and at a V-JEPA 2 model from Hugging Face. |
-| `data/`, `checkpoints/`, `results/` | Datasets, trained models and result files. Not tracked. |
+| `data/`, `checkpoints/` | Datasets and trained models. Not tracked. |
+| `results/` | Result files. The small summaries (CSV, JSON, logs, figures) are tracked; feature caches (`*.npz` at the top level, `cache/` folders) and the per-sample tables of the gaze checks are not. |
 | `archive/` | Old files. Not tracked. |
 
 ## Who wrote the code
@@ -74,6 +75,7 @@ $PY -m ego            # lists the commands
 | `data/online_calibration.jsonl` | Calibration of an Aria Gen 2 device, from the AriaGen2 pilot data. It does not apply to HD-EPIC, which was recorded with Aria Gen 1 glasses. |
 | `data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze/<P>/SLAM/multi/<n>.zip` | HD-EPIC SLAM output, one zip per group of recordings. Downloaded for P04, P05 (in part), P08 and P09; empty placeholders for the others. `vrs_to_multi_slam.json` gives the group of each recording. |
 | `data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze/<P>/SLAM/calibration/<n>.jsonl` | The camera calibration of each group, every 100th record of `slam/online_calibration.jsonl`. Written by `fetch-calibrations`. All 153 groups, covering 153 of the 156 recordings; `P06-20240510-140459` and the two P02 recordings without gaze have none. Needed to project gaze into the image. |
+| `data/epic-kitchen/ek100-hd/HD-EPIC/annotations/` | HD-EPIC's annotations: object movements with boxes, gaze priming, narrations, recipes, the VQA benchmark. A clone of https://github.com/hd-epic/hd-epic-annotations at commit `aa1f833` (`git clone --depth 1`). |
 | `data/ek100/videos/` | EK100 videos |
 
 154 of the 156 HD-EPIC recordings have gaze and hand data. The two without are from P02. The
@@ -102,9 +104,10 @@ command uses. Each command, in `ego/commands/`, is one thing you run.
 | `data.py` | `find_recordings` lists recordings in a fixed order, which every seeded sampler depends on. `GazeTokenLoader` and `HandTokenLoader` read the gaze and hand CSVs. `load_frames` reads video frames, and `read_vrs_times` reads each frame's timestamp. The scaling constants `GAZE_MEAN`, `GAZE_STD` and `HAND_STD` are rough guesses. They need to be recomputed from P01–P07 before the next training run. |
 | `signals.py` | The gaze and hand inputs of a clip: reading them at the frame timestamps, and every variant the tests use (hidden, zero, average, shifted, swapped with another clip, shuffled in time). |
 | `clips.py` | `fixed_clips`: the fixed evaluation clips (seed 12345) shared by the checks during training, Test 2, and Tests 4a and 4b. With the defaults these are the 96 P08 clips. `paired_mse` scores one clip with the signals hidden and with the real signals. |
-| `stats.py` | `paired`: the paired comparison behind every Δ. It gives the mean difference, a bootstrap 95% confidence interval and the Wilcoxon p-value. |
-| `linprobe.py` | The linear probe of Test 3: ridge regression, channel PCA, gaze and palm lookups, and the seeded frame sampler. The palm control uses the sampler to rebuild the gaze probe's rows from its cache. |
+| `stats.py` | `paired`: the paired comparison behind every Δ. It gives the mean difference, a bootstrap 95% confidence interval and the Wilcoxon p-value. `by_recording`: a mean with a bootstrap 95% interval that resamples whole recordings. |
+| `linprobe.py` | The linear probe of Test 3: ridge regression, channel PCA, gaze and palm lookups, and the seeded frame sampler. `point_features` averages the patch features around a point of the grid, for Test 8. The palm control uses the sampler to rebuild the gaze probe's rows from its cache. |
 | `gaze_geometry.py` | `GazeProjector` turns gaze (yaw, pitch, depth) of one recording into the pixel where the person looks, in the upright 1408-pixel frame, with the recording's camera calibration and `projectaria_tools`. `to_patch` gives the position on the 16 × 16 patch grid. |
+| `annotations.py` | `object_movements` reads HD-EPIC's object movements: one row per movement of an object, from pick-up to put-down, with the box around the object in the frame where the movement starts and in the frame where it ends. `noun_classes` and `object_class` give each object's free-form name its HD-EPIC noun class ("spoon2" → spoon). It does not read the narrations, which are a pickle file. |
 | `runlog.py` | `Logger` prints each line and writes it to `<out>.log`. `parse_train_log` reads a `train.log` for `summarize`, `plot` and `watch`. |
 
 What is trained, and with which learning rates, is in `docs/EgoVault/3-method.md`.
@@ -141,9 +144,11 @@ Training and every evaluation command handle a clip in the same steps:
 |---|---|---|
 | `extract-csvs` | | Extracts the gaze and hand CSV files from each recording's `mps_<rec>_vrs.zip`, in place. It skips zip files that are already extracted, empty or damaged. |
 | `draw-gaze` | | Checks the gaze projection: overlays on frames of every participant, the share of gaze points inside the frame, and the shift caused by the depth. Writes `results/gaze_projection/`. |
+| `gaze-at-picks` | | Checks the gaze projection against HD-EPIC's annotations: for each pick, whether the gaze point lies in the box of the object, against chance (the same box with gaze from random moments), without the rotation, at a fixed depth, and before the pick. It also finds the best shift of the gaze points for each participant. Writes `gaze_at_picks.csv`, `.json`, `.log` and `picks.jpg` to `results/gaze_projection/`. |
 | `fetch-calibrations` | | Fetches the camera calibration of every HD-EPIC recording group. It reads only the calibration entry of each SLAM zip from the dataset server, with HTTP range requests, or from the local zip where one exists. It writes every 100th record to `SLAM-and-Gaze/<P>/SLAM/calibration/<n>.jsonl`. |
 | `train` | 1 | Fine-tunes the ego predictor. After each epoch it measures Δ on the fixed held-out clips. It writes `train.log`, `metrics.jsonl` and checkpoints to `--out-dir`. |
 | `evaluate` | | The paired comparison on any participants: the error with the signals hidden and with real signals, on the same clips. It samples its own clips. It writes `results/mse_paired.csv`. |
+| `next-object` | 8 | Does the gaze point tell which object is picked up next? Encodes the frames before each HD-EPIC pick once (`--stage encode`, cached per recording in `results/next_object/cache/`, resumable), then fits linear probes with each input (`--stage fit`). Writes `results/next_object/next_object.csv`, `next_object_contrasts.csv`, `next_object.json`, `next_object_predictions.npz` and `next_object.log`. |
 | `gaze-probe` | 3a | A linear probe that predicts gaze from the frozen encoder's features. It caches the features in `results/gaze_features.npz`. |
 | `control-probe` | 3b | The same probe with palm position as the target. It reads the features cached by `gaze-probe`. |
 | `sensitivity` | 4a | Measures how much the prediction changes when the gaze or hand input changes. |
@@ -206,6 +211,7 @@ hand layers.
 | 4b | `attention` | `results/attention_mass.csv`, `results/attention_mass_untrained.csv` |
 | 4c | `weight-norms` | `results/weight_norms.csv`; `results/weight_norms_ft_v2_sd1p0.csv` for `ego_ft_v2` against `ego_sd1p0` |
 | 2 | `stock-vs-tuned` | `results/rung_b1.csv`, `results/rung_b1_contrasts.csv` |
+| 8 | `next-object` (defaults) | `results/next_object/next_object.csv` (accuracy per input and horizon), `next_object_contrasts.csv` (paired differences), `next_object.json` (the decision). The cache, about 4 GB, is in `results/next_object/cache/`. |
 | 2 | `stock-vs-tuned` with `--predictor-checkpoint checkpoints/ego_sd1p0/best.pt --out results/rung_b1_sd1p0`, then `signal-dropout` | `results/rung_b1_sd1p0.csv`, `results/signal_dropout_contrasts.csv` |
 
 - Parsa's part of Test 1, and Tests 5, 6 and 7, use Parsa's code. It is not in this

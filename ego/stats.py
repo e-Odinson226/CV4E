@@ -23,3 +23,20 @@ def paired(a, b, n_boot=5000, seed=0):
             "median_delta": float(np.median(d)), "ci_lo": float(np.percentile(boot, 2.5)),
             "ci_hi": float(np.percentile(boot, 97.5)), "wilcoxon_p": float(p),
             "frac_positive": float((d > 0).mean())}
+
+
+def by_recording(values, recordings, n_boot=5000, seed=0, level=0.95):
+    """
+    Mean of per-sample `values` with a bootstrap confidence interval (95% by default) that
+    resamples whole recordings, because samples from one recording are not independent.
+    """
+    v = np.asarray(values, dtype=float)
+    keys, inv = np.unique(np.asarray(recordings), return_inverse=True)
+    sums = np.bincount(inv, weights=v)
+    counts = np.bincount(inv)
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, len(keys), size=(n_boot, len(keys)))
+    boot = sums[idx].sum(1) / counts[idx].sum(1)
+    return {"n": len(v), "recordings": len(keys), "mean": float(v.mean()),
+            "ci_lo": float(np.percentile(boot, 50 * (1 - level))),
+            "ci_hi": float(np.percentile(boot, 50 * (1 + level)))}
