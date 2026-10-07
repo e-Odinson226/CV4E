@@ -2,7 +2,7 @@
 type: report
 status: running
 created: 2026-10-05
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # 2. Background
@@ -24,16 +24,16 @@ It has three parts:
 - A predictor takes the student's embeddings and predicts what the teacher would output for
   the hidden parts.
 
-V-JEPA 2 was trained on more than 1 million hours of video. Its EK100 action anticipation
-results are the reference for the EK100 probe ([[4-results#^t3|T3]]). Its authors note that
-its accuracy drops at horizons longer than 1 s.
+V-JEPA 2 was trained on more than 1 million hours of video. Its authors note that its
+accuracy in action anticipation drops at horizons longer than 1 s.
 
 ## V-JEPA 2-AC
 
 V-JEPA 2-AC is a variant for robots. Its predictor also receives the robot's action and state
-for each frame, as two extra tokens next to the image tokens. It then predicts the embedding of
-the next frame, given what the robot does. This project replaces the two robot tokens with a
-gaze token and a hand token ([[3-method]]).
+for each frame, as two extra tokens next to the image tokens. The action at step t is the
+change of the robot's pose from frame t to frame t+1. The predictor then predicts the
+embeddings of the next frame, given what the robot does. This project replaces the two robot
+tokens with a gaze token and a hand token ([[3-method]]).
 
 ## Related work
 
@@ -60,21 +60,27 @@ used only as a target. This paper has not been studied for the project yet.
 **Gaze as a training signal.** Some methods use gaze to supervise a model during training and
 do not need it at test time. Examples are GABRIL (Banayeeanzade et al., 2025), the
 gaze-regularized vision-language models of Pani and Yang (2026), and the goal-consistency
-objective of Roy and Fernando (2022). The paper cites them as support for this direction
-([[final-report]], section 2.2).
+objective of Roy and Fernando (2022).
+
+**Gaze leads the hands.** In studies of eye–hand coordination, gaze moves to the next object
+at the start of a reach and leads the grasp by more than 0.5 s. HD-EPIC (Perrett et al., CVPR
+2025) reports that 94.8% of the objects that can be looked at in advance are looked at before
+they are picked up, on average 4.0 s before, and 88.5% before they are put down, 2.6 s before.
+Methods that use gaze as a position in the scene help to anticipate the next object or action:
+gaze as a weighting over a feature map (Li, Liu and Rehg, 2018), gaze to select scene parts
+for intention recognition (Ozdel et al., 2024), and a position prompt on frozen DINOv2 patch
+features to locate gaze targets (Gaze-LLE, 2025). Video-language models without gaze score
+20–29% on HD-EPIC's questions about gaze and upcoming interactions; people score 75%.
 
 **The strongest EK100 systems.** The two best published EK100 anticipation systems use frozen
 V-JEPA 2.1 features with separate verb and noun probes (Chu et al., 2026a; Wang and Xu, 2026).
 They use no gaze or hand data.
 
 
-### Measures and tests
-
+## Terms
 
 - **Skill.** 1 − (probe error / error of always guessing the average). 0 is chance and 1 is
   perfect.
-
-
 - **Paired test.** A comparison of two conditions on the same clips.
 - **Wilcoxon signed-rank test.** A paired test. It checks whether the per-clip differences are
   consistently above or below zero.

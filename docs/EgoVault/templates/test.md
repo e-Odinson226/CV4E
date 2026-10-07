@@ -1,19 +1,30 @@
 <!--
-  A new test: copy the section below into 4-results.md, under the part for the
-  hypothesis it addresses. Use the next free number.
-  Then update the hypotheses table in 1-introduction.md.
+  A new test: copy the section below into 4-results.md, with the number it has in
+  6-next-steps.md. A test with several parts gets one "### Na." part per measurement, each
+  with its own Method and Result. Then update the hypotheses table in 1-introduction.md and
+  the list of Erfan's work in project.md.
 -->
 
-### Tn. <The question, as a short question>
+## Test N. <The question, as a short question>
 
-Run by <name>, <date>. Uses <model or data>. ^tn
+Run by <name>, <date>. Uses <model and data>. ^testN
 
-**Question.** One or two sentences.
+**Question.** What the test asks, in one or two sentences, and why it is asked now.
 
-**Method.** What was done, in short sentences. Put method details in [[3-method]].
+**Hypothesis and prediction.** The hypothesis from 1-introduction.md that the test addresses.
+The result that would support it, and the result that would count against it. Write this
+before the result is known.
 
-**Result.** A small table with the numbers. Name the baseline next to each number.
+**Method.** The data, the model, what is measured and how. Explain every technical term in
+plain words. Name the controls: the comparisons that rule out another explanation.
+
+**Checks.** Tests of the measurement itself, for example a case where the answer is known.
+
+**Result.** A small table with the numbers and the number of samples. Name the baseline next
+to each number.
 
 **Conclusion.** What the result means for the hypothesis.
 
-**Limits.** What the test cannot show.
+**Limits.** What the test cannot show, and the weak points of the method.
+
+**Reproduce.** The command (`python -m ego <command> ...`) and the result files.

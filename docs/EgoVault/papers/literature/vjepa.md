@@ -63,7 +63,7 @@ project substitutes into — see [[3-method]].
 ## Result worth remembering
 
 Pretrained on **over 1 million hours of video**. The EK100 action-anticipation number is the
-comparison point for [[4-results#^t3|T3]].
+comparison point for the EK100 test of the paper ([[BC-JEPA]]).
 
 **The paper's own stated limitations** — worth quoting, because three of the four are exactly
 where this project lives:
@@ -80,8 +80,8 @@ where this project lives:
 ## Relevance to my thesis
 
 It is the base model, the pretrained checkpoint, and the training objective all at once. The
-fine-tuning in [[4-results#^t2|T2]] starts from the AC variant's weights and
-reuses its loss verbatim; the probe in [[4-results#^t3|T3]] freezes its encoder.
+fine-tuning in [[4-results#^test1|Test 1]] starts from the AC variant's weights and
+reuses its loss verbatim; the probe in the EK100 test of the paper ([[BC-JEPA]]) freezes its encoder.
 
 Practical consequence worth remembering: because the loss *is* the V-JEPA 2 objective,
 measuring feature-prediction MSE on HD-EPIC needs **no labels at all**. That is what made a
@@ -116,4 +116,4 @@ A counter-doubt worth holding alongside it (Ioana's): the frozen encoder is neve
 on *visible* context tokens, so it is not forced to encode coherent object-level structure at
 all. If that is right, probing it for "intent" may be underpowered regardless of what
 conditions the predictor — which would be a different explanation for
-[[4-results#^t3|T3]] than either redundancy or horizon.
+the EK100 test of the paper ([[BC-JEPA]]) than either redundancy or horizon.

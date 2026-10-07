@@ -1,5 +1,5 @@
 """
-T8: did training shrink the gaze layer?
+Test 4c: did training shrink the gaze layer?
 
 A new module in a pretrained network adds noise at first. Training can reduce that
 noise by driving the module's weights toward zero, and the pathway may then never
@@ -135,7 +135,7 @@ def main():
     df.to_csv(f"{out}.csv", index=False)
 
     log("\n" + "=" * 88)
-    log("T8 — parameter norm relative to initialisation (1.000 = unchanged)")
+    log("TEST 4c — parameter norm relative to initialisation (1.000 = unchanged)")
     log("=" * 88)
     piv = df.pivot(index="group", columns="checkpoint", values="ratio_to_init") \
             .reindex([g for g, _ in GROUPS])

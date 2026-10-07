@@ -1,8 +1,8 @@
 """
-T6: does the prediction change when gaze changes?
+Test 4a: does the prediction change when gaze changes?
 
 This tests hypothesis H2 in docs/EgoVault/1-introduction.md: the model does not use the
-signals. The small Delta of T2 has two possible causes. The model may read gaze, and
+signals. The small Delta of ego_ft_v2 (Test 2) has two possible causes. The model may read gaze, and
 gaze may say little about the next step. Or the model may have learned to ignore the
 gaze token. This script separates the two without any training. It keeps the video
 fixed, changes the gaze input, and measures how far the prediction moves:
@@ -29,7 +29,7 @@ that does not react at any size differs from one that reacts a little at each si
 Clips
 -----
 The clips are the fixed clips of ego/clips.py, the same as the checks during training.
-With the defaults these are the 96 P08 test clips of T2. The MSE columns then reproduce
+With the defaults these are the 96 P08 test clips of Tests 1 and 2. The MSE columns then reproduce
 that run's MSE_A and MSE_B, which checks that the two pipelines match.
 
 Usage
@@ -212,7 +212,7 @@ def main():
     agg = agg.reindex([c for c in order if c in agg.index])
 
     log("\n" + "=" * 96)
-    log("T6 SENSITIVITY — relative movement of z_pred when the input is perturbed, video held fixed")
+    log("TEST 4a SENSITIVITY — relative movement of z_pred when the input is perturbed, video held fixed")
     log("=" * 96)
     log(agg.to_string(float_format=lambda v: f"{v:11.6f}"))
 

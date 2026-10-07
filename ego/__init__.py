@@ -9,7 +9,7 @@ Library modules, used by more than one command:
     signals    the gaze and hand inputs of a clip, and their variants (hidden, swapped, ...)
     clips      the fixed evaluation clips and how a clip is scored
     stats      the paired comparison used for every Delta
-    linprobe   the linear probe on frozen encoder features (T4, T5)
+    linprobe   the linear probe on frozen encoder features (Test 3)
     runlog     the log helper, and the parser for training logs
 
 The commands are in ego.commands. Run them from the repository root:

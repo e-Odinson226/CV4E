@@ -169,7 +169,7 @@ GazeQwen equips an open-source MLLM with gaze awareness through hidden-state mod
 > Since you maintain a vendored V-JEPA 2 fork, this is worth resolving against `github.com/phamtrongthang123/gazeqwen` before citing: which checkpoint is actually loaded changes what the (B) ablation in §3.3 is really comparing. See [[vjepa]].
 
 > [!tip]+ 🧵 They use a ViT-B/16; you use ViT-g
-> Same architectural family, very different scale — their `d_v` = 768 against your encoder's **1408** dims and 256 patch tokens ([[4-results#^t4|T4]]). Also note their stated reason for bolting on a *separate* encoder — that the host model's features "may discard fine-grained spatial detail needed for gaze alignment" — is an *assumption they never test*. Your EXP-003 is precisely a test of the neighbouring question (how much gaze information a frozen V-JEPA encoder linearly carries), and you have the number: **0.001 across unseen people**. Neither paper has that measurement.
+> Same architectural family, very different scale — their `d_v` = 768 against your encoder's **1408** dims and 256 patch tokens ([[4-results#^test3|Test 3]]). Also note their stated reason for bolting on a *separate* encoder — that the host model's features "may discard fine-grained spatial detail needed for gaze alignment" — is an *assumption they never test*. Your EXP-003 is precisely a test of the neighbouring question (how much gaze information a frozen V-JEPA encoder linearly carries), and you have the number: **0.001 across unseen people**. Neither paper has that measurement.
 
 **Gaze scanpath.** Eye gaze is represented as a scanpath $\mathcal{S} = \{(x_i, y_i, t_i, \Delta t_i)\}_{i=1}^N$, where $(x_i, y_i) \in [0, 1]^2$ are normalized fixation coordinates, $t_i$ is the midpoint timestamp, and $\Delta t_i$ is the duration. A fixation is active at frame time $t$ if $|t - t_i| \leq \Delta t_i/2$; we denote the active set as $\mathcal{A}_t$.
 
@@ -394,7 +394,7 @@ $$
 > [!tip]+ 🧵 $\alpha_l$ is the diagnostic your architecture lacks
 > A learned scalar gating a conditioning signal is directly readable after training: if gaze were useless, gradient descent drives $\alpha_l \to 0$. It converts "did the model use the signal?" from an inference into a measurement — and the paper, having built it, **never reports its values**, which is a missed opportunity in a paper whose whole thesis is about *where* to inject.
 >
-> For you the point is sharper, because that question is live: hypothesis H2 in [[1-introduction#^hypotheses|the hypotheses table]] is "the model never learned to use it," and you currently have no instrument for it. One scalar per signal, logged each epoch, costs nothing and would settle it. See also [[4-results#^t2|T2]].
+> For you the point is sharper, because that question is live: hypothesis H2 in [[1-introduction#^hypotheses|the hypotheses table]] is "the model never learned to use it," and you currently have no instrument for it. One scalar per signal, logged each epoch, costs nothing and would settle it. See also [[4-results#^test2|Test 2]].
 
 where $\alpha_l$ is a learned per-layer amplitude scalar that lets the model control how strongly gaze modulates each depth. Each layer has an *independent* resampler so that the gaze signal can be tailored to the representation space at each depth; a shared resampler would be forced to produce a single residual that is simultaneously appropriate for all layers. Additional hooks on the visual encoder and model input locate the visual-token positions in the LLM sequence. Text tokens are not modified.
 
@@ -427,7 +427,7 @@ Both stages use AdamW (lr $3 \times 10^{-4}$, weight decay $10^{-2}$), 20 warmup
 > [!warning]+ ⚠️ "70/15/15 by video to prevent leakage" is weaker than it sounds
 > Splitting by video does stop the same *clip* appearing in train and test. It does **not** stop the same **person** appearing on both sides — 285 videos come from far fewer participants, and the paper never reports how many.
 >
-> You have measured exactly how much that matters. [[4-results#^t4|T4]] ran the same probe under three splits:
+> You have measured exactly how much that matters. [[4-results#^test3|Test 3]] ran the same probe under three splits:
 >
 > | Split | Leaks | skill @ 0 s |
 > | --- | --- | --- |
@@ -470,7 +470,7 @@ Both stages use AdamW (lr $3 \times 10^{-4}$, weight decay $10^{-2}$), 20 warmup
 > That distinction resolves what otherwise looks like a taxonomy error: **FAP asks about the future but sits under *Present***, because it is granted only the 60-second window. So the categories describe the *input budget*; the task names describe the *question*. FAP is a future-facing question on a present-sized context.
 
 > [!tip]+ 🧵 FAP is the task that maps onto your thesis
-> Of all 10, **FAP (Future Action Prediction)** is nearest to what [[1-introduction|Path 2]] and [[4-results#^t3|T3]] actually measure — anticipation from egocentric video. GTA is next. Watch both closely in §3.2; the result there is the single most relevant number in the paper for you, and it is not the headline.
+> Of all 10, **FAP (Future Action Prediction)** is nearest to what [[1-introduction|Path 2]] and the EK100 test of the paper ([[BC-JEPA]]) actually measure — anticipation from egocentric video. GTA is next. Watch both closely in §3.2; the result there is the single most relevant number in the paper for you, and it is not the headline.
 
 **Backbone.** Our base MLLM is Qwen2.5-VL-7B-Instruct [2], loaded with eager attention to allow PyTorch forward hook registration on individual decoder layers. Visual features come from a frozen V-JEPA 2.1 encoder (ViT-B/16, $384\times384$ input resolution) [3], whose spatiotemporal features are interpolated (trilinear temporal, bilinear spatial) to match Qwen’s visual token grid. Both the MLLM and V-JEPA backbones remain frozen throughout training; only the resampler modules and optional LoRA adapters are updated.
 
@@ -527,7 +527,7 @@ Table 1 summarizes accuracy on each task. GazeQwen reaches **63.9%** overall, th
 > The §3.3 ablations do not fill the gap: all four axes vary *how* gaze is encoded or injected, and every arm has gaze. None asks whether gaze matters at all.
 
 > [!tip]+ 🧵 This is exactly your Phase 7 — and you have it, they don't
-> The missing control is `--signal-dropout 1.0`: same architecture, behavioural signal zeroed. It was later run as [[4-results#^t11|T11]].
+> The missing control is `--signal-dropout 1.0`: same architecture, behavioural signal zeroed. It was later run as [[4-results#^test2|Test 2]].
 >
 > Worth registering plainly: **on the methodological point that matters most, your protocol is ahead of a published paper's.** That is a related-work sentence, and an argument for finishing Phase 7 rather than treating it as overdue housekeeping.
 
@@ -551,7 +551,7 @@ Table 1 summarizes accuracy on each task. GazeQwen reaches **63.9%** overall, th
 >
 > For the workshop paper planned in [[6-next-steps]], this moves the finding from *"our pipeline may be broken"* toward *"gaze is strongly informative about the present and weakly informative about the future, and two independent systems now show it."* It is the cleanest external corroboration available.
 >
-> **It does not contradict [[4-results#^t4|T4]].** Recoverability falling with lead is about how much *marginal information* gaze carries; this is about how much of that information is *predictively useful*. Both can hold at once — and together they sharpen hypothesis 1 in that note's Takeaway ("informative ≠ predictive") into the leading explanation.
+> **It does not contradict [[4-results#^test3|Test 3]].** Recoverability falling with lead is about how much *marginal information* gaze carries; this is about how much of that information is *predictively useful*. Both can hold at once — and together they sharpen hypothesis 1 in that note's Takeaway ("informative ≠ predictive") into the leading explanation.
 
 > [!question]+ ❓ So does gaze help "the present" only because the questions are about gaze?
 > Worth being careful here, because it is the obvious objection and it partly lands. OAA, OAR and OI-Hard are *constructed* to be gaze-dependent — "which object is the user looking at" is near-unanswerable without gaze, so a large gain is close to guaranteed once the pathway exists. That inflates the present-tense numbers relative to any natural task distribution.

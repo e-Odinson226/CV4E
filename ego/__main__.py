@@ -9,7 +9,7 @@ from ego.commands import COMMANDS
 def usage():
     print("usage: python -m ego <command> [options]\n\ncommands:")
     for name, (_, desc) in COMMANDS.items():
-        print(f"  {name:<15} {desc}")
+        print(f"  {name:<19} {desc}")
     print("\nRun `python -m ego <command> --help` for a command's options.")
 
 

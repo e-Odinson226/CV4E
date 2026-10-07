@@ -1,8 +1,8 @@
 """
-The linear probe on frozen encoder features, used by gaze-probe (T4) and control-probe (T5).
+The linear probe on frozen encoder features, used by gaze-probe (Test 3a) and control-probe (Test 3b).
 
   GazeSeries, HandSeries   fast gaze and palm lookups by VRS timestamp, with a tolerance
-  probe_samples            the seeded frame sampler. T5 replays T4's rows with it
+  probe_samples            the seeded frame sampler. control-probe replays gaze-probe's rows with it
   Ridge, ridge_cv, r2      ridge regression and its cross-validated strength
   ChannelPCA               shrinks the 1408 channels of each patch, keeping the patch grid
   angular_error_deg        gaze error in degrees

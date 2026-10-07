@@ -98,7 +98,7 @@ has world knowledge but needs generation to access it; VL-JEPA shapes the embedd
 with language during training and makes it available immediately as an embedding.
 
 Touches [[6-next-steps|Path 3]] directly, and reframes
-[[4-results#^t3|T3]]: if the null at 2 s is a horizon artefact rather than gaze being
+the EK100 test of the paper ([[BC-JEPA]]): if the null at 2 s is a horizon artefact rather than gaze being
 redundant, a space with *this* property is where behavioral conditioning would finally have
 room to help.
 

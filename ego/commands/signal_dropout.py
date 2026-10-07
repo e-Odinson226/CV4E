@@ -1,5 +1,5 @@
 """
-T11: does a model trained without signals do as well?
+Test 2: does a model trained without signals do as well?
 
 Compares, clip by clip, the model trained with signals (ego_ft_v2) and the matched model
 trained without them (ego_sd1p0, --signal-dropout 1.0). It reads the per-clip errors that

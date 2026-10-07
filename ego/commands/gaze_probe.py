@@ -1,5 +1,5 @@
 """
-T4: can gaze be read from the frozen encoder's features?
+Test 3a: can gaze be read from the frozen encoder's features?
 
 This tests hypothesis R in docs/EgoVault/1-introduction.md: the frozen image features
 already contain gaze, so a gaze token gives the predictor no new information.
@@ -35,8 +35,8 @@ Splits (--split)
   random       Random frames. Near-identical frames end up in both sets, so the score
                is too high. Use it only for comparison.
 
-The encoder features are cached in --cache. control-probe (T5) reads this
-cache. The results are in docs/EgoVault/4-results.md, under T4.
+The encoder features are cached in --cache. control-probe (Test 3b) reads this
+cache. The results are in docs/EgoVault/4-results.md, under Test 3.
 
 Usage
 -----

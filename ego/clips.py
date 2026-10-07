@@ -1,10 +1,10 @@
 """
 The fixed evaluation clips, and how one clip is scored.
 
-Training's check after each epoch (T2), the sensitivity test (T6), the attention test (T7)
-and the stock-versus-fine-tuned comparison (T10, T11) all use the clips from fixed_clips():
-the same recordings, the same seed (12345) and the same sampler. With the defaults these
-are the 96 P08 clips. Changing this sampler makes those results incomparable.
+Training's check after each epoch, the sensitivity and attention tests (Tests 4a and 4b)
+and the comparisons of Test 2 all use the clips from fixed_clips(): the same recordings, the
+same seed (12345) and the same sampler. With the defaults these are the 96 P08 clips.
+Changing this sampler makes those results incomparable.
 
 A clip is T context frames, `stride` frames apart, and the future frame `stride` frames
 after the last one. The model predicts the embedding of the future frame.

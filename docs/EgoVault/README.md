@@ -2,7 +2,7 @@
 type: reference
 status: running
 created: 2026-07-26
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # Thesis notes
@@ -11,42 +11,46 @@ Notes for Erfan's master's thesis on egocentric video understanding with JEPA mo
 question is whether a video prediction model predicts the near future better when it also
 receives the person's gaze and hand positions.
 
-**Status.** Gaze and hand inputs did not improve the prediction. A model trained without them
-does as well ([[4-results#^t11|T11]]). All results come from models trained for 3 epochs. A
-full training run will test whether more training changes this. The next steps are in
-[[6-next-steps]].
+**Status.** In the tested form, gaze and hand inputs did not improve the prediction: a model
+trained without them does as well ([[4-results#^test2|Test 2]]). In that form the gaze token
+cannot point at the image. Gaze can now be projected into the image
+([[3-method#Gaze position in the image]]). The next tests give the model gaze as a position
+(Tests 8 and 9) and then run the full training (Test 10). The plan is in [[6-next-steps]].
 
 ## Chapters
 
-Files 1 to 6 follow the chapters of a thesis. Read them in order.
+Read in order. Files 1 to 6 follow the chapters of a thesis.
 
 | File | Contents |
 |---|---|
 | [[1-introduction]] | The question, the approach, the three Paths, and the hypotheses with their status. |
 | [[2-background]] | The models and papers this work builds on, and the terms used. |
-| [[3-method]] | Data, model, training, evaluation methods, and design choices. |
-| [[4-results]] | Every test, who ran it, and what it showed, grouped by hypothesis. |
-| [[5-discussion]] | What the results mean together, and their limits. |
-| [[6-next-steps]] | What to do next, in order. |
+| [[3-method]] | Data, model, gaze position in the image, training, evaluation, design choices. |
+| [[4-results]] | Erfan's Tests 1–4 and what they showed. |
+| [[5-discussion]] | What the results mean together, and the weak points of the design. |
+| [[6-next-steps]] | The planned Tests 8–10 and the other work, in order. |
+
+## Names
+
+| Name | Meaning |
+|---|---|
+| Path 1–3 | the three ways to use gaze ([[1-introduction]]) |
+| M, R, H1–H4 | the hypotheses, each with a short name: M main, R already in the image, H1 horizon, H2 not used, H3 undertrained, H4 gaze form |
+| Test 1–4 | the tests that were run; parts are written 4a, 4b |
+| Test 8–10 | the planned tests. Numbers 5–7 belong to Parsa's tests for the paper, which are not part of these notes. |
+| `ego_ft_v2`, `ego_sd1p0` | the trained models: with gaze and hand, and without |
+| angles, pe, rope, pe+rope | the gaze forms compared in Test 9 |
 
 ## Other files
 
 | File or folder | Contents |
 |---|---|
-| [[project]] | People, timeline, the paper and the final presentation. |
-| [[final-report]] | The full text of the paper, with notes. |
-| `papers/` | [[submitted-paper]], the paper as submitted (never edited), and the literature notes in `papers/literature/`. |
+| [[project]] | People, Erfan's work and timeline, the paper, and the final presentation. |
+| `papers/` | [[BC-JEPA]], the paper as submitted (never edited), and the literature notes in `papers/literature/`. |
 | `templates/` | A template for adding a test to [[4-results]]. |
 
 The code, the commands, the data paths and the checkpoints are described in `README.md` at the
 root of the repository.
-
-## Papers
-
-The paper is derived from these notes and the code. Who wrote it, its open problems and the
-results it still lacks are in [[project#Paper]]. Its full text, with notes, is in
-[[final-report]]. The text as submitted on 24 August 2026 is kept, unedited, in
-[[submitted-paper]].
 
 The literature, in `papers/literature/`, one note per paper:
 

@@ -12,7 +12,7 @@ The setup matches the original V-JEPA 2-AC training (see ego/model.py):
 Two options change the signals during training:
   * --signal-dropout hides gaze and hand for a random share of the clips. This trains
     the mask tokens, so "signals hidden" is a case the model knows at test time. With
-    1.0 the model never sees real signals (ego_sd1p0, T11).
+    1.0 the model never sees real signals (ego_sd1p0, Test 2).
   * --shuffle-signals breaks the match between signals and frames and keeps everything
     else the same. It gives a control model. No run has used it yet.
 
@@ -195,7 +195,7 @@ def make_collate(shuffle_signals: str = "off"):
       time   permute within the clip. Gaze and hand get the SAME permutation, so
              gaze/hand correspondence survives and only signal-to-frame alignment
              is destroyed. The permutation is redrawn per clip.
-             A clip spans T*stride frames (64 at the defaults, ~2.1 s). In T4,
+             A clip spans T*stride frames (64 at the defaults, ~2.1 s). In Test 3,
              the current gaze predicted gaze 1 s later with skill -0.12, so a
              within-clip permutation decorrelates the signal and does not return
              a near-copy of it.

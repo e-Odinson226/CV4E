@@ -1,5 +1,5 @@
 """
-T10 and T11: how much of the fine-tuning gain comes from the signals?
+Test 2: how much of the fine-tuning gain comes from the signals?
 
 Fine-tuning does two things. The model adapts to kitchen video, and it learns to use
 gaze and hand. This script separates the two. It scores the predictor before
@@ -10,7 +10,7 @@ gained nothing. If the fine-tuned model without signals does better than the sto
 one, that part of the gain is adaptation to the domain, not use of the signals.
 
 With --predictor-checkpoint checkpoints/ego_sd1p0/best.pt, the fine-tuned model is the
-one trained without signals. That is T11.
+one trained without signals. That is the main comparison of Test 2.
 
 Three "no signal" inputs
 ------------------------
@@ -218,7 +218,7 @@ def main():
     df.to_csv(f"{out}.csv", index=False)
 
     log("\n" + "=" * 78)
-    log("STOCK vs FINE-TUNED (T10, T11) — mean feature-prediction MSE, every arm on the same clips")
+    log("STOCK vs FINE-TUNED (TEST 2) — mean feature-prediction MSE, every arm on the same clips")
     log("=" * 78)
     piv = df.pivot_table(index="model", columns="variant", values="mse", aggfunc="mean")
     log(piv[["real", "mask", "zeros", "mean"]].to_string(float_format=lambda v: f"{v:9.4f}"))
@@ -254,8 +254,8 @@ def main():
     log("\nREADING:")
     if b1_best <= h_best:
         log("  The STOCK AC predictor with no signals matches or beats the fine-tuned one.")
-        log("  Fine-tuning gained nothing measurable. This would explain the small Delta of T2")
-        log("  and the null result of T3 at once.")
+        log("  Fine-tuning gained nothing measurable. This would explain the small Delta of ego_ft_v2")
+        log("  and the null result of Test 5 at once.")
     else:
         log(f"  Fine-tuning improves on the stock predictor by {b1_best - h_best:.4f} MSE with no")
         log("  signals at all. That gain is domain adaptation, not behavioural conditioning —")

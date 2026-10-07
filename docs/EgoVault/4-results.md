@@ -2,384 +2,301 @@
 type: report
 status: running
 created: 2026-10-05
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # 4. Results
 
-Every test, who ran it, and what it showed. The tests are grouped by the hypothesis they
-address. The hypotheses and their status are in [[1-introduction#^hypotheses|the
-introduction]]. How each test is measured is in [[3-method]].
+Erfan's tests, in the order of the argument. Test 1 shows that the predictor can learn with
+gaze and hand inputs. Test 2 gives the main result: the inputs do not improve the prediction.
+Tests 3 and 4 check two explanations for it. Each test addresses a hypothesis from
+[[1-introduction#^hypotheses|the introduction]]. How each measure works is in [[3-method]].
+The weak points that limit all four tests are in [[5-discussion#Weak points of the design]].
+The planned Tests 8–10 are in [[6-next-steps]].
 
-## Part 1. Do the signals help? (M)
+## Test 1. Can the predictor learn with gaze and hand inputs?
 
-### T1. Can the predictor learn with gaze and hand inputs?
+Run by Erfan, 31 May – 1 June 2026. This run produced `ego_ft_v2`, the model behind every
+later test. ^test1
 
-Run by Parsa, before 16 June 2026. ^t1
+**Question.** V-JEPA 2-AC's predictor was trained with a robot's action and state as inputs.
+Can it learn when a gaze token and a hand token take their place?
 
-Parsa built a first ego predictor on the smaller ViT-L model. It was trained on HD-EPIC
-participant P01 for 20 epochs.
+**Hypothesis and prediction.** The gaze and hand tokens fit the predictor's input layout. If
+so, fine-tuning lowers the prediction error, and the training is stable.
 
-**Result.** The training loss fell from 1.207 to 1.019 (mean per epoch). It changed little
-after epoch 5.
+**Method.**
 
-**Conclusion.** The predictor can learn with these inputs. This ViT-L model was only a
-feasibility check. Erfan's ViT-G model from T2 also learned with these inputs, on P01–P07.
-The tests that use a trained predictor use that model.
-
-### T2. Does the trained predictor do better with real signals?
-
-Run by Erfan, 31 May – 1 June 2026. ^t2
-
-**Question.** Is the prediction error lower with real gaze and hand than with the signals
-hidden?
-
-**Method.** Erfan fine-tuned the ViT-G predictor on P01–P07 for 3 epochs, with 30 clips per
-recording. The result is `ego_ft_v2`. Δ was measured on the 96 P08 test clips after each
-epoch.
+- Model: V-JEPA 2-AC with the ViT-g encoder, frozen. The new gaze and hand layers, the last 6
+  predictor blocks and the output layers are trained ([[3-method#Training]]).
+- Data: P01–P07, 30 clips per recording, 3 epochs. The signals are hidden in about 41% of the
+  training clips.
+- Measure: the prediction error on the 96 P08 test clips, after each epoch.
+- Before this run, Erfan changed how frames are encoded: each frame on its own, as in the
+  original training. This lowered the error before fine-tuning from 4.82 to 0.58
+  ([[3-method#Input format]]).
 
 **Result.**
 
-| Epoch | MSE, signals hidden | MSE, real signals | Δ |
+| Epoch | Training loss | Error on P08, signals hidden | Δ (hidden − real) |
 |---|---|---|---|
-| 0 (before training) | 0.6153 | 0.6235 | −0.0082 |
-| 1 | 0.4942 | 0.4933 | +0.0009 |
-| 2 | 0.4900 | 0.4885 | +0.0015 |
-| 3 | 0.4877 | 0.4866 | +0.0011 |
+| 0 (before training) | — | 0.6153 | −0.0082 |
+| 1 | 0.5261 | 0.4942 | +0.0009 |
+| 2 | 0.5150 | 0.4900 | +0.0015 |
+| 3 | 0.5066 | 0.4877 | +0.0011 |
 
-Erfan also started three longer runs: 8 epochs, 60 clips per recording, 240 test clips. Δ
-was between −0.0066 and 0.0000 at every epoch they reached. Erfan stopped them for this
-reason. None of them finished.
+Three longer runs were started (8 epochs, 60 clips per recording, 240 test clips). Before
+training, Δ was −0.0066 on these clips. One run trained the last 6 blocks for 2 epochs: Δ was
+−0.0002 after epoch 1 and −0.0000 after epoch 2. One trained only the last 3 blocks for 1
+epoch: Δ was −0.0003. Erfan stopped these two for this reason. The third stopped before its
+first training steps were logged.
 
-**Conclusion.** The 3-epoch model has a small positive Δ of +0.0011. This is about 0.2% of
-the error. The longer runs did not show it. T11 shows what this Δ measures.
+**Conclusion.** The predictor learns with gaze and hand inputs, and it improves on a person it
+was not trained on. The signals add a small Δ of +0.0011. Test 2 asks what this Δ means.
 
-**Limits.** The 96-clip and 240-clip results are not directly comparable. No significance
-test was run here. T10 adds one.
+**Limits.** That the model learns shows that the inputs fit. It does not show that the signals
+help.
 
-### T3. Does the trained predictor help action anticipation on EK100?
+**Reproduce.** The training command in the repository's `README.md`. Log:
+`checkpoints/ego_ft_v2/train.log`.
 
-Run by Parsa, June–August 2026. Uses `ego_ft_v2`. ^t3
+## Test 2. Do gaze and hand improve the prediction?
 
-**Question.** Does `ego_ft_v2` give a classifier better information for predicting the next
-action?
+Run by Erfan. `ego_ft_v2` was trained on 31 May – 1 June 2026. The model without signals and
+the comparisons were run on 19 August 2026. ^test2
 
-**Method.** EPIC-KITCHENS-100 (EK100) has an action anticipation benchmark. Each clip ends
-1 s before the action starts. A small attention-based classifier (a probe) is trained on
-frozen features. EK100 has no gaze or hand data, so the predictor receives its "no signal"
-tokens. The probe received one of four inputs. 6b and 6c have the same token count as the
-behavioral input. They are needed because extra tokens alone can raise the probe score.
+**Question.** Does giving the model gaze and hand make its prediction of the next moment
+better?
 
-**Result.** Action recall@5, best epoch, mean over seeds:
+**Hypothesis and prediction.** M: gaze and hand inputs make the prediction better. If M is
+true, a model trained with the signals and given them predicts better than an otherwise
+identical model that never had them.
 
-| Input | Tokens | Recall@5 |
-|---|---|---|
-| 6a: encoder output only | 1568 | 3.62% |
-| 6b: encoder output + 196 zeros | 1764 | 3.60% |
-| 6c: encoder output + last frame repeated | 1764 | 3.54% |
-| Behavioral: encoder output + predicted next frame | 1764 | 3.61% |
+**Method.**
 
-The four results are within 0.1 percentage points of each other. These differences are
-smaller than the differences between seeds.
+- *Two matched models.* `ego_ft_v2` saw real signals in about 59% of its training clips.
+  `ego_sd1p0` has the same settings, except that the signals were hidden in every clip, so it
+  never saw real gaze or hand.
+- *Why a second model.* Comparing one model with and without its signals mixes two things: the
+  value of the information, and the cost of removing an input the model expects. The matched
+  model removes the second.
+- *Reference.* The model before fine-tuning: V-JEPA 2-AC with the new gaze and hand layers at
+  their random start.
+- *Measure.* The error of the prediction 0.27 s ahead, on the same 96 P08 clips for every model
+  and input. Differences are tested clip by clip with a paired Wilcoxon test.
 
-**Conclusion.** The trained predictor does not help this task.
+**Result.** Error (MSE):
+
+| Model | Real signals | Mask token | Zeros | Average |
+|---|---|---|---|---|
+| Before fine-tuning | 0.6183 | 0.6126 | 0.6158 | 0.6182 |
+| `ego_ft_v2`, trained with signals | 0.4866 | 0.4877 | 0.4888 | 0.4873 |
+| `ego_sd1p0`, trained without signals | 0.5685 | 0.4869 | — | — |
+
+`ego_sd1p0`'s gaze and hand layers were never trained, so for this model only the mask token
+is a fair input.
+
+| Comparison | Δ | p | What it measures |
+|---|---|---|---|
+| `ego_sd1p0` hidden − `ego_ft_v2` real | +0.0003 | 0.40 | the value of the information |
+| `ego_ft_v2` hidden − `ego_ft_v2` real | +0.0011 | 0.0015 | that value plus the cost of removing an expected input |
+| `ego_sd1p0` hidden − `ego_ft_v2` hidden | −0.0008 | 0.015 | the two models, both without signals |
+| Before − after fine-tuning, hidden | +0.125 | < 1e-16 | the gain from adapting to kitchen video |
+
+A positive Δ means the second model or input predicts better.
+
+- The gain from fine-tuning (0.125) improved all 96 clips. The signals account for 0.0011 of
+  it, about 0.9%.
+- Before fine-tuning, real signals make the prediction worse, because the new layers start
+  random.
+
+**Conclusion.** The model trained without signals predicts as well as the model that uses
+them: +0.0003, with p = 0.40. So M is not supported in this form: gaze as three angles, 3
+epochs, one training run per model. The +0.0011 of `ego_ft_v2` is mostly the cost of removing
+an input it expects. Almost all of the gain from fine-tuning is adaptation to the video. Tests
+3 and 4 check two explanations: gaze may already be in the image (R), or the model may not use
+the signals (H2).
 
 **Limits.**
 
-- Only participant P01 was evaluated (870 test clips). The other participants' videos were
-  not on disk, and the loader skipped them without a warning.
-- The predictor was trained on 256-pixel frames. This pipeline uses 224-pixel frames.
-- The signals are hidden, so this test cannot show the effect of live gaze. It shows what
-  training left in the model.
-- 6a and Behavioral used three seeds. 6b and 6c used two.
+- Each model was trained once. The p-values cover the 96 clips, not the variation between
+  training runs. The two models without signals differ by −0.0008, which comes from training
+  alone.
+- The 96 clips come from 4 recordings of one person. With a bootstrap over recordings and
+  clips, the 95% interval for the value of the information is [−0.0005, +0.0011].
+- The prediction looks 0.27 s ahead, and the error is averaged over the whole frame.
+- No model receives a signal known to help, so the test does not show how large an effect it
+  could detect.
+- The numbers before fine-tuning depend on the random start of the new layers. The two stored
+  runs of `stock-vs-tuned` were not seeded and drew different starts.
 
-## Part 2. Is gaze already in the image? (R)
+**Reproduce.** `python -m ego stock-vs-tuned` for each model, then
+`python -m ego signal-dropout`. Files: `results/rung_b1*.csv`,
+`results/signal_dropout_contrasts.csv`.
 
-### T4. Can gaze be read from the frozen image features?
+## Test 3. Is gaze already in the image features?
 
-Run by Erfan, 28–30 July 2026. ^t4
+Run by Erfan: the gaze probe on 28–30 July 2026, the palm control on 19 August 2026. ^test3
 
-**Question.** Ash asked whether the frozen encoder already contains the gaze direction. If
-it does, a gaze input adds no new information.
+**Question.** The model already sees the video. If the video features already contain where
+the person looks, a gaze input adds nothing new. (Asked by Ash, 16 July 2026.)
 
-**Method.** Single frames are encoded with the frozen encoder. A linear model (ridge
-regression) predicts the gaze direction from these features. The target is the gaze at the
-same moment, or up to 2 s later. The score is skill. A skill of 0 is no better than always
-guessing the average gaze. A skill of 1 is perfect. Three ways of splitting the data into
-training and test sets were compared.
+**Hypothesis and prediction.** R: the frozen image features already contain gaze. If R is
+true, a simple probe can read the gaze direction from the features, also for a person it has
+never seen. If R is false, the probe does no better for new people than guessing the average
+gaze.
 
-**Result.** Skill for gaze at the same moment:
+**Method.**
 
-| Split | Test data | Skill |
-|---|---|---|
-| Random | frames close in time to training frames | 0.273 |
-| Recordings | new recordings of the same people | 0.116 |
-| Participants | new people, in their own kitchens | 0.001 |
+- *What is read.* The encoder turns one frame into 256 patch vectors of 1,408 numbers each.
+  The encoder is frozen and never saw gaze.
+- *What is predicted.* The gaze direction as two angles, yaw and pitch, at the moment of the
+  frame or 0.25, 0.5, 1 or 2 s later.
+- *The probe.* Ridge regression, a weighted sum of the feature values. A weighted sum cannot
+  build new features. If it can read gaze, the predictor has easy access to it.
+- *Data.* P01–P07, up to 12 recordings per participant: 2,937 training frames and 997 test
+  frames in the main split.
+- *Splits.* New people (train P01–P05, test P06–P07) answers the question. New recordings of
+  the same people, and random frames, are for comparison.
+- *Control.* Each person cooks in their own kitchen, so a new person is also a new kitchen.
+  The same probe also reads the position of the left and right palm. If palm position can be
+  read for new people and gaze cannot, the failure is specific to gaze.
 
-Skill drops as the target moves later. In the recordings split it is 0.116 at 0 s, 0.055 at
-0.5 s and 0 at 1 s.
+**Result.** Skill (0 = guessing the average, 1 = perfect):
 
-**Conclusion.** For a new person, the image features contain no usable gaze information. So
-the gaze input is not redundant.
+| Lead | New people | New recordings | Random frames |
+|---|---|---|---|
+| 0 s | 0.001 | 0.116 | 0.273 |
+| 0.25 s | 0.004 | 0.071 | 0.230 |
+| 0.5 s | −0.015 | 0.055 | 0.219 |
+| 1 s | −0.007 | 0.000 | 0.184 |
+| 2 s | −0.027 | 0.015 | 0.145 |
 
-**Limits.** The probe sees one frame, so it cannot use motion. It is linear on purpose. There
-are no error bars yet. The participant split also changes the kitchen. T5 checks whether
-this matters.
+| Target, at 0 s | New people | New recordings | Random frames |
+|---|---|---|---|
+| Left palm | 0.346 | 0.391 | 0.628 |
+| Right palm | 0.220 | 0.313 | 0.540 |
+| Gaze | 0.001 | 0.116 | 0.273 |
 
-### T5. Is the T4 result specific to gaze?
+- For new people, the probe's median angle error is 11.2°. Always guessing the average gaze
+  gives 11.8°.
+- The participant can be identified from one frame in 88.7% of cases (chance 14.3%).
 
-Run by Erfan, 19 August 2026. ^t5
+**Conclusion.** For a person it has not seen, a linear probe cannot read gaze from the features
+of one frame, while it can read palm position. So the failure is specific to gaze and is not a
+general failure of the features. In this form R is not supported, and the gaze input can add
+information that the features lack.
 
-**Question.** In HD-EPIC, each person cooks in their own kitchen. So a new person also means
-a new kitchen. The image features might fail on every target in a new kitchen. Then the T4
-result would say nothing specific about gaze.
+**Limits.**
 
-**Method.** T5 uses the same features, splits and probe as T4. Only the target changes: palm
-position, from the same recordings. Gaze is scored again on exactly the same frames. A second
-probe predicts which participant a frame comes from.
+- The test asks whether the current gaze can be read. R needs a different question: does gaze
+  add information about the future frame beyond the past frames? Test 8 is planned for this.
+- The probe is linear and sees one frame. The predictor is non-linear and sees 8 frames.
+- The main split tests on 2 people, without error bars.
+- The PCA is fitted on frames of one person (P01).
+- The check "skill 1.000 at lead 0" compares a gaze lookup with itself. It does not test the
+  video frames. A separate check by Claude Code (October 2026) found frames read by seeking
+  identical to frames read in order, at 67 positions in 9 recordings.
 
-**Result.** Skill at the same moment:
+**Reproduce.** `python -m ego gaze-probe --split participant` (or `recording`, `random`),
+then `python -m ego control-probe`. Files: `results/gaze_recov_*.csv`,
+`results/control_recoverability.csv`. The features are cached in `results/gaze_features.npz`,
+built with `--recordings 12 --windows 10 --per-window 5 --window-sec 6`.
 
-| Target | New recordings | New people |
-|---|---|---|
-| Left palm position | 0.391 | 0.346 |
-| Right palm position | 0.313 | 0.220 |
-| Gaze | 0.116 | 0.001 |
+## Test 4. Does the model use the signals?
 
-On the frames used for the palm targets, gaze stays near zero for new people (0.082 and
-−0.036). The participant can be identified from the features in 88.7% of cases. Chance is
-14.3%.
+Run by Erfan, 19 August 2026, on `ego_ft_v2`, and for comparison on the model before
+fine-tuning. ^test4
 
-**Conclusion.** The features differ a lot between people and kitchens. Palm position still
-transfers to new people. Gaze does not. So the T4 result is specific to gaze, and R is
-rejected.
+**Question.** Test 2 found that the signals barely improve the prediction. One explanation is
+that the model never learned to use them.
 
-**Limits.** Palm position may be easier to predict than gaze. This test cannot tell whether
-gaze differs between people or is only harder to predict.
+**Hypothesis and prediction.** H2: the model does not use the signals. Three parts, each with
+its own prediction:
 
-## Part 3. Does the model use the signals? (H2)
+- 4a: if H2 is true, changing the gaze input does not change the prediction.
+- 4b: if H2 is true, the gaze token gets no more attention than any other token.
+- 4c: if training switched gaze off, the weights of the gaze layer shrank.
 
-### T6. Does the prediction change when gaze changes?
+### 4a. Does the prediction change when gaze changes?
 
-Run by Erfan, 19 August 2026. Uses `ego_ft_v2`. ^t6
-
-**Question.** If the model ignores gaze, changing the gaze input will not change the
-prediction.
-
-**Method.** The video is kept fixed and only the gaze input is changed. The test measures how
-much the prediction moves, relative to its size. Two references are used. Running the same
-input twice must give exactly 0. Replacing the whole video gives a large change for scale.
-
-**Result.** Change in the prediction, on the 96 P08 clips:
-
-| Change to the input | Change in prediction |
-|---|---|
-| None (same input twice) | 0 |
-| Gaze rotated by 1° | 0.0012 |
-| Gaze rotated by 10° | 0.013 |
-| Gaze rotated by 45° | 0.081 |
-| Gaze from another clip | 0.016 |
-| Gaze hidden | 0.084 |
-| Gaze and hand hidden | 0.036 |
-| Video from another clip | 0.567 |
-
-**Conclusion.**
-
-- The prediction changes with gaze. Larger changes in gaze give larger changes in the
-  prediction. The model uses gaze.
-- The effect is small. Gaze from another clip moves the prediction 2.9% as much as a
-  different video.
-- Hiding gaze moves the prediction 5.2 times more than using another clip's gaze. The model
-  reacts much more to whether gaze is present than to its value.
-
-**Note.** Hiding gaze alone changes the prediction more than hiding both signals (0.084 vs
-0.036). Signal dropout always hides both together. So the model never saw gaze hidden while
-the hand signal was present.
-
-### T7. How much attention goes to the gaze token?
-
-Run by Erfan, 19 August 2026. Uses `ego_ft_v2` and the untrained model. ^t7
-
-**Question.** The gaze token can only affect the image tokens through attention. If the model
-ignores it, it gets about the same attention as any other token.
-
-**Method.** Each frame has 258 tokens: gaze, hand and 256 image patches. Equal attention
-would give the gaze token 0.39%. The test measures how much of each image token's attention
-goes to the gaze token, in every block. It was run on the trained model and on the model
-before training.
+**Method.** The video is kept fixed and only the gaze input changes. The test measures how far
+the prediction moves, relative to its size, on the 96 P08 clips. "Another clip" is the
+neighbouring clip in the list; in 92 of 96 pairs it comes from the same recording.
 
 **Result.**
 
-- Across the 24 blocks, image tokens give 2.4% to 26% of their attention to the gaze token.
-  The average is 16% in the frozen blocks and 9% in the trained blocks.
+| Change to the input | `ego_ft_v2` | Before fine-tuning |
+|---|---|---|
+| None (same input twice) | 0 | 0 |
+| Gaze yaw shifted by 1° | 0.0012 | 0.0042 |
+| Gaze yaw shifted by 10° | 0.013 | 0.033 |
+| Gaze yaw shifted by 45° | 0.081 | 0.104 |
+| Gaze from another clip | 0.016 | 0.056 |
+| Gaze hidden | 0.084 | 0.133 |
+| Gaze and hand hidden | 0.036 | 0.144 |
+| Video from another clip | 0.567 | 0.743 |
+
+- Larger changes in gaze give larger changes in the prediction.
+- Gaze from another clip moves the prediction 2.9% as much as a different video. Before
+  fine-tuning it moved it 7.6% as much. Training reduced the response to the gaze value.
+- Hiding gaze alone moves the prediction 5.2 times more than another clip's gaze. But the model
+  never saw gaze hidden while the hand was present, because signal dropout always hides both.
+  This state raises the error by 0.0074, against 0.0011 when both are hidden. Part of the 5.2
+  is a reaction to an unfamiliar input.
+
+### 4b. How much attention goes to the gaze token?
+
+**Method.** In each of the 24 blocks, every token takes in information from the other tokens,
+weighted by attention. The image tokens can receive gaze information only through their
+attention to the gaze token. Equal attention would give the gaze token 0.39%. 24 clips, three
+inputs: real signals, gaze hidden, and both hidden.
+
+**Result.**
+
+- With real signals, image tokens give 2.4% to 26% of their attention to the gaze token,
+  depending on the block: 16% on average in the frozen blocks, 9% in the trained blocks.
 - One attention head in the first block gives 99.96% of its attention to the gaze token.
-- Before training, the frozen blocks gave the gaze token 38 times the equal share. After
-  training, they gave 42 times.
+- Before fine-tuning, the frozen blocks gave the gaze token 38 times the equal share; after, 42
+  times. This attention comes from the robot pretraining, where this position held the action
+  token.
+- Average share over all blocks: 14.6% with real gaze, 12.1% with gaze hidden.
 
-**Conclusion.** The model gives the gaze token a lot of attention. This pattern comes from
-robot pretraining, where the same position held the action token. Training changed it
-little.
-
-### T8. Did training shrink the gaze layer?
-
-Run by Erfan, 19 August 2026. Uses `ego_ft_v2`. ^t8
-
-**Question.** If training learned to ignore gaze, the weights of the gaze projection layer
-would shrink toward zero.
+### 4c. Did training shrink the gaze layer?
 
 **Method.** The size (norm) of each trained parameter is compared with its size at the start.
-Other parameters trained with the same weight decay are the reference. Frozen parameters must
-stay exactly the same.
+Frozen parameters must keep exactly their size; they do.
 
 **Result.**
 
-- The gaze layer's weights grew by 15.7%. The hand layer's weights grew by 17.5%.
-- Other trained parameters changed by less than 0.05%.
-- The gaze layer's bias grew from 0 to 0.572, against a weight norm of 1.270. The bias adds
-  the same value for every gaze input.
+- The gaze layer's weights grew by 15.7%, the hand layer's by 17.5%. The trained blocks
+  changed by less than 0.1%.
+- In `ego_sd1p0`, which never received real signals, the mask tokens grew by 19–20%. They carry
+  no gaze information.
+- With Adam, a parameter moves by about the learning rate at every step, whatever the gradient
+  carries. The new layers train at 10 times the learning rate of the blocks. So growth of this
+  size is expected for any new parameter.
 
-**Conclusion.** Training made the gaze layer larger. A large part of what it learned does not
-depend on the gaze value. This matches T6: the model reacts to gaze being present more than
-to its value.
+### Conclusion of Test 4
 
-### T9. Does the signal reach the output, and does it change decisions?
+The model reacts to the signals, mainly to whether they are present. Its response to the gaze
+value is small, and fine-tuning made it smaller (4a). The gaze position gets much attention, but
+it already did before fine-tuning (4b). The gaze layer was not shrunk, but its growth does not
+show use (4c). So H2 is partly supported: the model detects whether gaze is present and makes
+little use of where the person looks. A likely reason is that the gaze token cannot point at the
+image (H4, [[5-discussion#Weak points of the design]]).
 
-Run by Parsa, July–August 2026, for the paper. Uses `ego_ft_v2` on HD-EPIC P01. ^t9
+**Limits.** One model, trained once for 3 epochs, tested on clips of one person. The test shows
+how the model reacts to gaze, not whether gaze helps.
 
-**Question.** Does the signal change the model's output? Does it carry information that
-matters for the action?
+**Reproduce.** `python -m ego sensitivity`, `python -m ego attention`,
+`python -m ego weight-norms`. Files: `results/sensitivity_*.csv`, `results/attention_mass*.csv`,
+`results/weight_norms_ft_v2_sd1p0.csv`.
 
-**Method.** Parsa ran five diagnostics with real signals on HD-EPIC participant P01. The
-paper describes them in section 4.3.
+## Is the model undertrained? (H3)
 
-**Result.**
-
-| Diagnostic | Result | Reading |
-|---|---|---|
-| Output change, real vs hidden signals | 9.9% | The signal reaches the output. |
-| Average error, real vs hidden (PEVA-1) | 0.055% lower with real signals, in 172 of 220 cases (p ≈ 3e-19) | A small, detectable effect. |
-| Margin between correct and wrong candidates (PEVA-2) | same top choice in all 220 cases | The signal does not change the decision. |
-| Attention on the gaze and hand positions | 28.6 and 35.4 times the equal share | Both positions get a lot of attention. |
-| Change in that attention, real vs hidden | 0.1% or less | Attention does not depend on the signal's value. |
-| Gaze and hand alone, predicting the action | 12.2%, vs 10.4% for the class prior | Slightly better than a guess based on class frequency. |
-
-**Conclusion.** The model reads the signal. The signal changes the output a little and does
-not change decisions. This agrees with T6–T8. Based on these results, the paper did not
-build a stronger gaze pathway.
-
-**Limits.** All diagnostics use one participant, P01. P01 is also in the model's training
-data. T7 and this attention test use different setups, so their numbers are not comparable.
-
-## Part 4. What is the signal worth? (M, H1)
-
-### T10. How much of the training gain comes from the signals?
-
-Run by Erfan, 19 August 2026. ^t10
-
-**Question.** Fine-tuning does two things. The model adapts to kitchen video, and it learns
-to use the signals. How much does each contribute?
-
-**Method.** The 96 P08 clips are scored with the model before fine-tuning and with
-`ego_ft_v2`. Each model is run with real signals and with three kinds of "no signal" input:
-the learned "no signal" token, zeros, and the average signal. Differences are tested clip by
-clip with a paired Wilcoxon test.
-
-**Result.** MSE:
-
-| Model | Real signals | "No signal" token | Zeros | Average |
-|---|---|---|---|---|
-| Before fine-tuning | 0.6183 | 0.6126 | 0.6158 | 0.6182 |
-| `ego_ft_v2` | 0.4866 | 0.4877 | 0.4888 | 0.4873 |
-
-- Fine-tuning lowered the error by 0.125 with the signals hidden. It did so on all 96 clips
-  (p < 1e-16).
-- The signals account for 0.0011 of the gain. This is about 0.9%.
-- Δ depends on the type of "no signal" input: +0.0011 for the token, +0.0022 for zeros and
-  +0.0007 for the average. All three are significant (p ≤ 0.0015).
-- Before fine-tuning, real signals make the prediction worse by 0.0057. The new layers start
-  random, so at first they add noise.
-
-**Conclusion.** Most of the gain from fine-tuning is adaptation to the video. The signals add
-very little. Every Δ must state which "no signal" input it uses.
-
-### T11. Does a model trained without signals do as well?
-
-Run by Erfan, 19 August 2026. ^t11
-
-**Question.** In T2, Δ compares one model with and without its signals. That model was
-trained to expect the signals, so hiding them may disrupt it. A fair test needs a model that
-never had the signals.
-
-**Method.** Erfan trained a second model, `ego_sd1p0`. All settings match `ego_ft_v2`, except
-that signal dropout is 1.0. So this model never sees real gaze or hand. Both models were
-scored on the same 96 clips.
-
-**Result.**
-
-| | `ego_ft_v2` (trained with signals) | `ego_sd1p0` (trained without) |
-|---|---|---|
-| Training loss after 3 epochs | 0.5066 | 0.5069 |
-| MSE, signals hidden | 0.4877 | 0.4869 |
-| MSE, real signals | 0.4866 | 0.5685 |
-
-| Comparison | Δ | p |
-|---|---|---|
-| `ego_sd1p0` hidden − `ego_ft_v2` real | +0.0003 | 0.40 |
-| `ego_ft_v2` hidden − `ego_ft_v2` real | +0.0011 | 0.0015 |
-| `ego_sd1p0` hidden − `ego_ft_v2` hidden | −0.0008 | 0.015 |
-
-**Conclusion.** The model trained without signals predicts as well as the model that uses
-them. The difference is +0.0003, with p = 0.40. Training with gaze and hand gives no
-measurable benefit. The +0.0011 from T2 is the cost of removing an input the model expects.
-This is the main result of the project.
-
-**Limits.** One seed per model, 3 epochs, 96 clips. This test uses the prediction error.
-`ego_sd1p0` has not been run through the EK100 probe (T3) yet.
-
-### T12. Do gaze and hand alone predict the action?
-
-Run by Parsa, July–August 2026, for the paper. ^t12
-
-**Question.** Without the predictor, how well do gaze and hand predict the next action,
-compared with image features?
-
-**Method.** Separate probes predict verbs and nouns on HD-EPIC participant P01, either from
-gaze and hand or from image features. The final version tests verbs on held-out data at four
-horizons. It compares the gaze-and-hand probe with a carefully tuned image probe and with the
-verb class prior. The paper describes this in sections 4.6 and 4.7.
-
-**Result.**
-
-- First version: gaze and hand scored higher than image features on verbs (0.594 vs 0.480).
-  They scored lower on nouns (0.231 vs 0.318).
-- Final version, gaze-and-hand score minus image score for verbs: +0.035 at 1 s, +0.054 at
-  3 s, +0.103 at 5 s and +0.121 at 10 s.
-- At every horizon, the gaze-and-hand probe scores below the verb class prior, by 0.05 to
-  0.09.
-- The probes train on about 1,900 examples. On the training data, the image probe reaches a
-  recall near 1.0 and the gaze-and-hand probe about 0.80.
-
-**Conclusion.** Gaze and hand carry some information about motion (verbs) and less about
-objects (nouns). This information is weak. It stays below a guess based on how often each
-verb occurs. The paper names the small sample size as the main limit.
-
-**Limits.** One participant. The sample size behind the final table is not confirmed. A note
-in the paper source lists two possible values, about 3 times apart.
-
-## Part 5. Is the model undertrained? (H3)
-
-No test has addressed H3 yet. All results in Parts 3 and 4 come from models trained for 3
-epochs with 30 clips per recording. A run at the intended size (8 epochs, 60 clips per
-recording) has never finished.
-
-Some results bear on H3:
-
-- Fine-tuning already lowered the error by 0.125 (T10). So the training had an effect.
-- Parsa's ViT-L run changed little after epoch 5 (T1).
-- The longer runs in T2 had Δ at or below zero before they were stopped.
-
-The planned test is in [[6-next-steps]].
-
-## Next tests
-
-The planned tests are in [[6-next-steps]].
+No test has addressed H3 yet. All results come from models trained for 3 epochs with 30 clips
+per recording. A run at the intended size (8 epochs, 60 clips per recording) has never
+finished. Two results bear on it: fine-tuning already lowered the error by 0.125 (Test 2), and
+the two longer runs had Δ at or below zero before they were stopped (Test 1). The planned test
+is Test 10 in [[6-next-steps]].

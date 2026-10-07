@@ -1,9 +1,9 @@
 """
-T5: is the T4 result specific to gaze?
+Test 3b: is the Test 3a result specific to gaze?
 
-In T4, gaze could be read across recordings of the same people, but not across
+In Test 3a, gaze could be read across recordings of the same people, but not across
 participants. In HD-EPIC each participant has their own kitchen, so the participant
-split changes the person and the kitchen together. The T4 result could mean that gaze
+split changes the person and the kitchen together. The Test 3a result could mean that gaze
 does not transfer across people. It could also mean that the frozen features do not
 transfer across kitchens.
 
@@ -11,8 +11,8 @@ This script runs the same probe on a different target, with the same features an
 same splits:
 
   * If the control target transfers across participants, the features do transfer,
-    and the T4 result is about gaze.
-  * If the control target also fails across participants, T4 measured how well the
+    and the Test 3a result is about gaze.
+  * If the control target also fails across participants, Test 3a measured how well the
     features transfer across kitchens.
 
 Target
@@ -23,14 +23,14 @@ locate it. It is sampled on the same clock, so it needs no new alignment.
 
 Finding the frames
 ------------------
-The T4 cache (results/gaze_features.npz) stores the features and the gaze, but not the
-frame each row came from. The T4 sampler is seeded. The script replays it with the
+The Test 3a cache (results/gaze_features.npz) stores the features and the gaze, but not the
+frame each row came from. The Test 3a sampler is seeded. The script replays it with the
 cache's own settings (--source-json), which gives the frame of each row without
 encoding the video again. It then checks that the gaze it finds equals the cached gaze
 in every row, and that the number of rows per recording matches. If a check fails, the
 script stops, because a misaligned row would give a wrong result without any warning.
 
-What stays the same as T4
+What stays the same as Test 3a
 -------------------------
 The cached features, the PCA, the ridge probe, the regularization grid, the folds, the
 seed, the splits, the leads and the skill measure. Only the target changes. Rows
@@ -61,12 +61,12 @@ from ego.runlog import Logger
 
 
 # ---------------------------------------------------------------------------
-# T4's rows, rebuilt without encoding anything
+# Test 3a's rows, rebuilt without encoding anything
 # ---------------------------------------------------------------------------
 
 def replay(cfg, participants, split_name, log):
     """
-    The rows of the T4 cache, rebuilt with T4's sampler (ego.linprobe.probe_samples) and
+    The rows of the Test 3a cache, rebuilt with its sampler (ego.linprobe.probe_samples) and
     the cache's own settings: per row (participant, stem, frame_index, vrs_ns, gaze3), in
     the order gaze-probe produced them. No video is decoded.
     """
@@ -140,14 +140,14 @@ def hand_targets(rows, cfg, log):
 
 
 # ---------------------------------------------------------------------------
-# Probe: the same as in T4 (gaze-probe). Only the target differs.
+# Probe: the same as in Test 3a (gaze-probe). Only the target differs.
 # ---------------------------------------------------------------------------
 
 def per_col_mse(pred, true):
     """
     Per-column mean squared error, the raw material for both skill definitions.
 
-    Pooled weights columns by their variance. T4 reported pooled skill for yaw and
+    Pooled weights columns by their variance. Test 3a reported pooled skill for yaw and
     pitch. Per-column skill does not depend on scale, so it is the better measure when
     a target mixes units or ranges. Both are printed, so a disagreement between them
     is visible.
@@ -178,7 +178,7 @@ def main():
     ap.add_argument("--gaze-dir", required=True)
     ap.add_argument("--cache", default="results/gaze_features.npz")
     ap.add_argument("--source-json", default="results/gaze_recoverability.json",
-                    help="the T4 run whose settings built the cache")
+                    help="the gaze-probe run whose settings built the cache")
     ap.add_argument("--hand-tol-ms", type=float, default=100.0,
                     help="hand CSVs run at ~10 Hz, so 50 ms would reject most lookups")
     ap.add_argument("--splits", nargs="+", default=["participant", "recording", "random"])
@@ -195,7 +195,7 @@ def main():
     cfg["video_dir"], cfg["gaze_dir"] = args.video_dir, args.gaze_dir
     cfg["hand_tol_ms"] = args.hand_tol_ms
     leads = cfg["leads"]
-    log(f"[setup] replaying the T4 sampler: seed={cfg['seed']} recordings={cfg['recordings']} "
+    log(f"[setup] replaying the Test 3a sampler: seed={cfg['seed']} recordings={cfg['recordings']} "
         f"windows={cfg['windows']} window_sec={cfg['window_sec']} per_window={cfg['per_window']}")
     log(f"[setup] leads={leads}  gaze tol={cfg['tol_ms']}ms  hand tol={cfg['hand_tol_ms']}ms")
 
@@ -253,7 +253,7 @@ def main():
                 tr_all = np.array([i for i, m in enumerate(M) if m not in held])
 
         # target -> (Y array, row mask). Gaze is scored twice: on all rows (the
-        # T4 number) and on each hand's rows, so the comparison that decides
+        # Test 3a number) and on each hand's rows, so the comparison that decides
         # the confound is made on IDENTICAL samples.
         targets = {
             "gaze_yawpitch": (Gl[:, :, :2], np.ones(len(Xg), bool)),
@@ -299,7 +299,7 @@ def main():
         return float(d.skill.iloc[0]) if len(d) else np.nan
 
     log("\n" + "-" * 92)
-    log("READING — skill at lead 0, the number the T4 result rests on")
+    log("READING — skill at lead 0, the number the Test 3a result rests on")
     tbl = []
     for t in ("gaze_yawpitch", "left_palm_xyz", "right_palm_xyz",
               "gaze_on_left_rows", "gaze_on_right_rows"):
@@ -318,11 +318,11 @@ def main():
         log("  Control target could not be scored — check hand CSV coverage above.")
     elif hand_par > 0.05:
         log("  The CONTROL TARGET TRANSFERS across participants, and gaze does not.")
-        log("  The frozen features carry information across people and kitchens, so the T4")
-        log("  result is not a general failure of the encoder. The T4 result HOLDS.")
+        log("  The frozen features carry information across people and kitchens, so the Test 3a")
+        log("  result is not a general failure of the encoder. The Test 3a result HOLDS.")
     elif hand_rec > 0.05:
         log("  The control target can be read WITHIN kitchens but FAILS across them, like")
-        log("  gaze. T4 measured how well the encoder transfers across kitchens, not whether")
+        log("  gaze. Test 3a measured how well the encoder transfers across kitchens, not whether")
         log("  gaze is redundant. This would explain the null results without reference to")
         log("  gaze.")
     else:

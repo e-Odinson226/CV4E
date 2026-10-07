@@ -1,10 +1,10 @@
 """
-T7: how much attention goes to the gaze token?
+Test 4b: how much attention goes to the gaze token?
 
 Gaze enters the predictor as a token (see VisionTransformerPredictorEgo.forward in
 ego/predictor.py). It is not added to the hidden states. So it can affect an image
 token only through attention. The attention weight that image tokens put on the gaze
-and hand positions measures how much the model reads them. T6 shows whether the model
+and hand positions measures how much the model reads them. Test 4a shows whether the model
 reacts to gaze. This script shows in which of the 24 blocks it reads gaze, and how much.
 
 Reference value
@@ -222,7 +222,7 @@ def main():
 
     d = df[df.variant == "real"].set_index("block")
     log("\n" + "=" * 92)
-    log("T7 — share of a visual token's attention landing on the conditioning positions (real gaze)")
+    log("TEST 4b — share of a visual token's attention landing on the conditioning positions (real gaze)")
     log("   x/uniform: 1.0 = the token is indistinguishable from background")
     log("=" * 92)
     log(d[["gaze_mass", "gaze_vs_uniform", "gaze_mass_max_head", "gaze_max_head_vs_uniform",
