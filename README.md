@@ -3,9 +3,10 @@
 Code for a project that asks whether a video world model predicts egocentric video better when
 it also receives the person's gaze and hand positions.
 
-The model is Meta's V-JEPA 2-AC with the ViT-g encoder. Its predictor normally receives a
-robot's action and state for each frame. Here it receives a gaze token and a hand token
-instead. The data is HD-EPIC: kitchen recordings made with Aria glasses, with gaze and hand
+The model is built from Meta's V-JEPA 2-AC: its frozen ViT-g encoder and the pretrained blocks
+of its predictor. V-JEPA 2-AC's predictor receives a robot's action and state for each frame.
+Here new input layers give it a gaze token and a hand token instead, and its last 6 blocks are
+fine-tuned. The data is HD-EPIC: kitchen recordings made with Aria glasses, with gaze and hand
 tracking.
 
 So far, the gaze and hand inputs do not improve the prediction. A model trained without them
