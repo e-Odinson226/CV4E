@@ -25,5 +25,6 @@ COMMANDS = {
     "signal-dropout": ("signal_dropout", "Test 2: ego_ft_v2 against the model trained without signals"),
     "summarize":      ("summarize",      "JSON and Markdown summary of a training run"),
     "plot":           ("plot",           "figures of a training run"),
+    "figures":        ("figures",        "figures of the tests for the notes (docs/EgoVault/figures/)"),
     "watch":          ("watch",          "live terminal view of a running training job"),
 }

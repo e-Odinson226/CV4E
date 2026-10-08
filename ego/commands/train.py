@@ -1,7 +1,12 @@
 """
 Fine-tune VisionTransformerPredictorEgo on HD-EPIC with gaze and hand inputs.
 
-    loss = MSE( norm(predictor(enc_ctx, gaze, hand)) , norm(enc_target) )
+    loss = L1( norm(predictor(enc_ctx, gaze, hand)) , norm(enc_target) )     --loss l1 (default)
+    loss = MSE( norm(predictor(enc_ctx, gaze, hand)) , norm(enc_target) )    --loss mse
+
+L1, the mean absolute difference, is the loss of V-JEPA 2-AC's training (loss_exp 1.0 in
+vjepa2/configs/train/vitg16/droid-256px-8f.yaml). ego_ft_v2, ego_sd1p0 and the Test 9 runs were
+trained with MSE, before this option existed; to repeat them, add --loss mse.
 
 The setup matches the original V-JEPA 2-AC training (see ego/model.py):
   * each frame is encoded on its own, with the EMA target encoder,
@@ -23,7 +28,7 @@ Three options change the signals during training:
     target. Validation then also uses the next step's signals.
 
 After each epoch the script measures Delta on the fixed held-out clips (ego/clips.py) of
---val-participants.
+--val-participants, as MSE and as L1.
 
 Usage (the command that trained ego_ft_v2):
     python -m ego train \
@@ -34,7 +39,7 @@ Usage (the command that trained ego_ft_v2):
         --val-participants P08 --val-recordings 4 --val-clips 24 \
         --epochs 3 --clips-per-recording 30 --batch-size 16 \
         --num-workers 8 --encode-chunk 48 --save-every 3 \
-        --out-dir checkpoints/ego_ft_v2
+        --loss mse --out-dir checkpoints/ego_ft_v2
 
     # Dry run (no gaze data needed — uses null signals):
     python -m ego train ... --participants P01 --epochs 1 \
@@ -54,7 +59,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
 from ego import signals
-from ego.clips import VAL_SEED, fixed_clips, paired_mse
+from ego.clips import VAL_SEED, fixed_clips, paired_errors
 from ego.data import find_recordings, load_frames, open_loaders, read_vrs_times
 from ego.gaze_geometry import projector_for
 from ego.model import (
@@ -255,9 +260,12 @@ def make_collate(shuffle_signals: str = "off"):
 # Training
 # ---------------------------------------------------------------------------
 
+LOSSES = {"l1": F.l1_loss, "mse": F.mse_loss}
+
+
 def train_one_epoch(encoder, predictor, loader, optimizer, device, epoch,
                     normalize_reps=True, amp_dtype=None, encode_chunk=16,
-                    log_every=10, jsonl=None):
+                    log_every=10, jsonl=None, loss_name="l1"):
     predictor.train()
 
     total_loss = total_grad = 0.0
@@ -281,7 +289,7 @@ def train_one_epoch(encoder, predictor, loader, optimizer, device, epoch,
                 hand_v.to(device), h_left.to(device), h_right.to(device),
             )
             pred = maybe_norm(pred, normalize_reps)
-            loss = F.mse_loss(pred.float(), enc_tgt.float())   # supervise every step
+            loss = LOSSES[loss_name](pred.float(), enc_tgt.float())   # supervise every step
 
         optimizer.zero_grad()
         loss.backward()
@@ -322,28 +330,29 @@ def validate(encoder, predictor, clips, device, T, normalize_reps, future_signal
     """
     Paired held-out eval on the fixed clips: the future step with the signals hidden (A)
     and with the real signals (B). The same clips every epoch, so the Delta trend is
-    comparable across epochs.
+    comparable across epochs. Returns ({"mse": (A, B), "l1": (A, B)}, clips), the mean
+    errors in both measures, or None.
     """
     was_training = predictor.training
     predictor.eval()
-    A, B = [], []
+    A, B = {"mse": [], "l1": []}, {"mse": [], "l1": []}
     for clip in clips:
         try:
             frames = load_frames(clip.rec.mp4, clip.ctx_idx + [clip.fut_idx])
             sig = clip.sig_next if future_signals else clip.sig
-            a, b = paired_mse(encoder, predictor, frames, T, device,
-                              real_sig=signals.as_batch(sig, device),
-                              normalize_reps=normalize_reps)
-            A.append(a); B.append(b)
+            errs = paired_errors(encoder, predictor, frames, T, device,
+                                 real_sig=signals.as_batch(sig, device),
+                                 normalize_reps=normalize_reps)
+            for m, (a, b) in errs.items():
+                A[m].append(a); B[m].append(b)
         except Exception as e:
             log.warning(f"[val] clip error: {e}")
 
     if was_training:
         predictor.train()
-    if not A:
+    if not A["mse"]:
         return None
-    mA, mB = float(np.mean(A)), float(np.mean(B))
-    return mA, mB, mA - mB, len(A)
+    return {m: (float(np.mean(A[m])), float(np.mean(B[m]))) for m in A}, len(A["mse"])
 
 
 # ---------------------------------------------------------------------------
@@ -376,7 +385,14 @@ def main():
                     help="how gaze enters the predictor (Test 9)")
     ap.add_argument("--future-signals",      action="store_true",
                     help="give each step the signals of the frame it predicts (positive control)")
-    ap.add_argument("--unfreeze-last-n",     type=int,   default=6)
+    ap.add_argument("--loss",                choices=["l1", "mse"], default="l1",
+                    help="training loss: l1 as in V-JEPA 2-AC's training, or mse, which trained "
+                         "ego_ft_v2, ego_sd1p0 and the Test 9 runs")
+    ap.add_argument("--unfreeze-last-n",     type=int,   default=6,
+                    help="how many of the last predictor blocks train; 24 trains all of them")
+    ap.add_argument("--unfreeze-embed",      action="store_true",
+                    help="also train predictor_embed; with --unfreeze-last-n 24 the whole "
+                         "predictor trains (a full fine-tune)")
     ap.add_argument("--lr-proj",             type=float, default=1e-3)
     ap.add_argument("--lr-blocks",           type=float, default=1e-4)
     ap.add_argument("--weight-decay",        type=float, default=1e-2)
@@ -423,8 +439,10 @@ def main():
     )
     log.info(f"[ckpt] transferred {n_t} predictor keys, skipped {n_s}")
 
-    freeze_for_ego_finetune(predictor, unfreeze_last_n_blocks=args.unfreeze_last_n)
-    log_finetuned_layers(log, predictor, unfreeze_last_n=args.unfreeze_last_n)
+    freeze_for_ego_finetune(predictor, unfreeze_last_n_blocks=args.unfreeze_last_n,
+                            unfreeze_embed=args.unfreeze_embed)
+    log_finetuned_layers(log, predictor, unfreeze_last_n=args.unfreeze_last_n,
+                         unfreeze_embed=args.unfreeze_embed)
 
     dataset = HDEpicClipDataset(
         video_dir=args.video_dir, gaze_dir=args.gaze_dir, participants=args.participants,
@@ -464,15 +482,19 @@ def main():
         r = validate(encoder, predictor, val_clips, device, args.context_steps, normalize_reps,
                      args.future_signals)
         if r:
-            mA, mB, d, n = r
+            means, n = r
+            (mA, mB), (lA, lB) = means["mse"], means["l1"]
+            d = mA - mB
             prev = _prev_delta["v"]
             trend = "" if prev is None else f"  ({'+' if d > prev else ''}{d - prev:+.4f} vs prev)"
             _prev_delta["v"] = d
             flag = "signals HELP" if d > 0 else "no help"
             log.info(f"[val {tag}]  MSE_A(masked)={mA:.4f}  MSE_B(real)={mB:.4f}  "
                      f"Delta(A-B)={d:+.4f}  ({flag}, {n} clips){trend}")
-            jsonl.write(json.dumps({"t": "val", "epoch": epoch_idx, "mse_A": mA,
-                                    "mse_B": mB, "delta": d, "n_clips": n}) + "\n")
+            log.info(f"[val {tag}]  L1_A(masked)={lA:.4f}  L1_B(real)={lB:.4f}  Delta(A-B)={lA - lB:+.4f}")
+            jsonl.write(json.dumps({"t": "val", "epoch": epoch_idx, "mse_A": mA, "mse_B": mB,
+                                    "delta": d, "l1_A": lA, "l1_B": lB, "delta_l1": lA - lB,
+                                    "n_clips": n}) + "\n")
             jsonl.flush()
 
     log.info(f"[train] {len(loader)} steps/epoch  ({len(dataset)} clips, batch={args.batch_size})")
@@ -487,6 +509,7 @@ def main():
             encoder, predictor, loader, optimizer, device, epoch,
             normalize_reps=normalize_reps, amp_dtype=amp_dtype,
             encode_chunk=args.encode_chunk, log_every=args.log_every, jsonl=jsonl,
+            loss_name=args.loss,
         )
         scheduler.step()
 
