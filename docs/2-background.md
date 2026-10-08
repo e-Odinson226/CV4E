@@ -68,6 +68,7 @@ text word by word. Answers with the same meaning get similar embeddings. On EK10
 advantage over V-JEPA 2 grows with the horizon: +1.5 points at 1 s, +2.6 at 2 s, +3.5 at 4 s
 and +4.6 at 10 s. It is the basis for Path 3.
 
+
 **VLA-JEPA** ([[vla-jepa]]). Pretrains robot policies with a JEPA objective. The target
 encoder sees future frames. The student sees only the current frame. So future information is
 used only as a target. This paper has not been studied for the project yet.
@@ -86,7 +87,6 @@ gaze as a weighting over a feature map (Li, Liu and Rehg, 2018), gaze to select 
 for intention recognition (Ozdel et al., 2024), and a position prompt on frozen DINOv2 patch
 features to locate gaze targets (Gaze-LLE, 2025). Video-language models without gaze score
 20–29% on HD-EPIC's questions about gaze and upcoming interactions; people score 75%.
-
 **The strongest EK100 systems.** The two best published EK100 anticipation systems use frozen
 V-JEPA 2.1 features with separate verb and noun probes (Chu et al., 2026a; Wang and Xu, 2026).
 They use no gaze or hand data.

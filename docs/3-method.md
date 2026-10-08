@@ -22,8 +22,22 @@ repository.
 - **Glasses.** Nine pairs of glasses were used. Each participant used 3 or 4 of them.
 - **Split.** Training uses P01–P07. The test set of Tests 1–4 is 96 clips from P08: 4
   recordings × 24 clips, sampled with seed 12345. Tests 8–10 test on P08 and P09. HD-EPIC
-  defines no split by participant; this split is the project's own
-  ([[2-background#Benchmarks]]).
+  defines no official training split since it is an evaluation-only benchmark. The 
+  P01–P07 / P08–P09 division is strictly an internal split used for ablation and 
+  architectural probing. Because the model trains in-domain on HD-EPIC data, absolute 
+  accuracy numbers on this split cannot be compared to the official zero-shot HD-EPIC 
+  benchmark ([[2-background#Benchmarks]]).
+
+### Alternative Datasets for Official Evaluation
+
+Because HD-EPIC is an evaluation-only benchmark, official zero-shot comparison requires training on a different dataset. If 3D is not a strict requirement and gaze is the core focus, the following are the primary candidates for training and evaluation:
+
+1. **EGTEA Gaze+ (Train & Eval):** 28 hours of cooking tasks with 2D gaze (x,y pixel coordinates). This is the gold standard for action anticipation with gaze, featuring established splits and baselines (e.g., RULSTM, AVT). It is the safest choice for publication if the 3D gaze requirement is dropped.
+2. **Ego-Exo4D (Train & Eval):** ~88 hours of egocentric Aria footage (out of 1,400+ total hours). This subset provides high-fidelity 3D gaze and 3D hand tracking, making it the best choice to maintain the current 3D architecture while using official training splits.
+3. **Ego4D Forecasting Benchmark (Train & Eval):** 3,000+ hours with a specific Short-Term Object Interaction Anticipation task. It uses 2D gaze on a subset of data. The gaze quality is noisier due to hardware variance, making it better for general pre-training than precise gaze ablation.
+4. **Visual Experience Dataset / VEDB (Training Only):** 240 hours of continuous 2D eye-tracking in the wild. Lacks tight verb-noun action annotations, making it suitable for unsupervised pre-training but not evaluation.
+
+**Strategy Recommendation:** To maximize impact and comparability, the recommended approach is to adapt the `gaze_proj` layer to accept 2D coordinates, train and evaluate the architecture on the official **EGTEA Gaze+** splits to prove efficacy against published baselines, and finally zero-shot evaluate that same model on HD-EPIC to prove domain generalization.
 
 ## Model
 

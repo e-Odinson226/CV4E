@@ -206,21 +206,7 @@ or 256 pixels.
 The paper's results. Every predictor is judged by how well a probe reads the next object or action
 from it.
 
-**HD-EPIC gaze interaction anticipation.**
-
-- The task: 1,000 questions, "What object will the person interact with next, ignoring ongoing
-  interactions?", 5 answers each, chance 20%. Each 10 s clip ends 0.3 s after the person first
-  looks at the object (`vqa-benchmark/gaze_interaction_anticipation.json`). 280 questions are on P08
-  and P09.
-- HD-EPIC has no training split. Every published result comes from models not trained on HD-EPIC
-  ([[2-background#Benchmarks]]). A probe trained on HD-EPIC's own annotations is a different setting
-  and is reported as such: trained on P01–P07 and tested on the 280 questions of P08 and P09, or
-  trained once per held-out person and tested on all 1,000.
-- The clip ends just after the first look at the answer, so a method with gaze has an advantage by
-  construction. A baseline without training: the object under the last fixations, matched to the
-  five answers.
-
-**EGTEA Gaze+ action anticipation.**
+**EGTEA Gaze+ action anticipation (Primary Test).**
 
 - Train on the training set of split 1 (8,299 segments) and test on its test set (2,022). The
   protocol of AVT, InAViT and SAGE: 0.5 s ahead, top-1 and mean class accuracy. The protocol of
@@ -228,6 +214,20 @@ from it.
 - Gaze is a 2D point in the image, so no projection is needed. There is no hand tracking.
 - The data is not on disk. Anticipation needs the seconds before each action; whether the
   download holds full videos or only the trimmed action clips (21.9 GB) has to be checked first.
+- This is the main evaluation that will go into comparison tables, as it provides an official training split.
+
+**HD-EPIC gaze interaction anticipation (Secondary Zero-Shot Check).**
+
+- The task: 1,000 questions, "What object will the person interact with next, ignoring ongoing
+  interactions?", 5 answers each, chance 20%. Each 10 s clip ends 0.3 s after the person first
+  looks at the object (`vqa-benchmark/gaze_interaction_anticipation.json`). 280 questions are on P08
+  and P09.
+- HD-EPIC has no training split. Every published result comes from models not trained on HD-EPIC
+  ([[2-background#Benchmarks]]).
+- To compare fairly, the model trained on EGTEA Gaze+ will be evaluated zero-shot on HD-EPIC.
+- The clip ends just after the first look at the answer, so a method with gaze has an advantage by
+  construction. A baseline without training: the object under the last fixations, matched to the
+  five answers.
 
 **The readout.** The attentive probe of V-JEPA 2's anticipation code, on the encoder tokens and the
 predicted tokens, as in JFAA and TAP-JEPA for EK100. It needs an adapter for EGTEA's annotations.

@@ -54,30 +54,24 @@ limit them. The planned tests that address these weak points are in [[6-next-ste
 
 ## Weak points of the design
 
-**Gaze cannot point.** Gaze enters as three numbers (yaw, pitch, depth) through one linear
-layer, and is never turned into a position in the image. In the predictor, image patches carry
-their position only through the rotations of RoPE, and the gaze token is placed at the top-left
-patch in every frame ([[3-method#Model]]). To link gaze to the patches the person looks at, the
-model would have to learn the mapping from angles to patch positions by itself, through 18
-frozen blocks, with new layers that moved only about 0.01–0.02 per weight during training. It
-cannot point. In the robot model these tokens held the arm's action and state, global
-quantities that need no position in the image. Test 9 gave the gaze token a position in two
-ways. The position in the content did as well as the angles, and the position in the attention
-did not help.
+### 1. The Spatial Mismatch (Gaze is localized, but the token is global)
+As noted, gaze is fundamentally a spatial pointer. However, the architecture treats it like a global robot state:
 
-**The signals describe the present.** In V-JEPA 2-AC, the action token at step t is the change
-of the robot's pose from frame t to frame t+1. It carries information about the next frame that
-the past frames cannot contain. Here both tokens are measured at frame t, and the hands are
-mostly visible in the frame. A small effect is expected from this alone.
+- **The RoPE Problem:** By rotating the token only by the time step and leaving its spatial coordinates at (0, 0) (the top-left patch), the frozen Transformer—which has never seen a spatial token behave this way—is forced to somehow learn complex 3D-to-2D trigonometric projections just to figure out where the person is looking.
+- **The GazeQwen Parallel:** This perfectly aligns with observations on GazeQwen ([[gazeqwen]]). When gaze isn't given a rigorous spatial attention mechanism, it defaults to acting as a "scalar gate" (just telling the model "gaze is present") rather than a spatial selector ("look at this patch"). This is why Test 4 showed the model reacting to the presence of gaze, but not where the gaze was pointing.
 
-**Short horizon, coarse measure.** The error is measured 0.27 s ahead, one step of the
-pretrained model ([[3-method#Input format]]), while gaze leads the hand by 0.5–1 s and precedes
-a pick-up by about 4 s. In 0.27 s the scene changes little, and the past frames already show
-most of that change. A model could use gaze well and still gain almost nothing at this horizon
-(H1). The error is averaged over all 256
-patches, and most of it comes from head motion and the whole scene; the hands and the target
-object are a small part. The Δ of +0.0011 is 0.2% of the error. Test 9 put a number on this
-limit: the gaze and hand of the target frame itself lower the error by 0.0013, 0.26%.
+**Proposed Solutions:**
+- **Spatial Cross-Attention:** Instead of concatenating the gaze token to the visual tokens, project the gaze 3D coordinates into a 2D heat map or Gaussian blob over the 16x16 patch grid, and add it directly to the positional embeddings of the patches. This avoids forcing the transformer to learn trig functions.
+- **Gaze-guided Cropping:** Hard-crop the image patches around the projected gaze point (a foveated approach) and feed only those patches (plus a low-res global context) to the model.
+
+### 2. The Temporal Mismatch (Present state vs. Future delta)
+- In the original V-JEPA 2-AC pre-training, the action token at step $t$ represented the *change* in the robot's pose from $t \rightarrow t+1$. It was a forward-looking delta that directly leaked the future.
+- In this setup, gaze and hand are sampled at time $t$. They describe the present. Because the horizon is only 0.27s ahead (8 frames), the present hand/gaze position provides almost zero new information that isn't already painfully obvious from the visual trajectory of the 8 context frames. This is why even providing the "cheat" target-frame signals in Test 9 only yielded a minuscule 0.26% error reduction.
+
+**Proposed Solutions:**
+- **Extend the Prediction Horizon:** Predict 1 to 2 seconds into the future, the time scale where gaze actually leads hand interaction. At 0.27s, visual momentum dominates; at 2.0s, intent (signaled by gaze) becomes necessary.
+- **Predict Semantic Intent (VL-JEPA style):** Stop predicting raw pixel/patch embeddings. Instead, follow Path 3 and align the latent space with language, predicting a semantic "intent" vector.
+- **Use Gaze Deltas:** Instead of absolute present gaze/hand positions, feed the *delta* (change) of the gaze/hand over the past $N$ frames to explicitly encode momentum, matching the derivative nature of the original robot action tokens.
 
 **No positive control.** In Tests 1–4, no model receives a signal that is known to carry
 information about the target. So a small Δ cannot be told apart from a measure or a training
