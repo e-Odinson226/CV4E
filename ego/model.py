@@ -144,7 +144,7 @@ def load_finetuned(predictor, ckpt_path):
     predictor.load_state_dict(strip_prefix(sd), strict=True)
     cfg = ck.get("config", {}) if isinstance(ck, dict) else {}
     n = cfg.get("unfreeze_last_n", 6)
-    d = describe_finetuned_layers(predictor, n)
+    d = describe_finetuned_layers(predictor, n, cfg.get("unfreeze_embed", False))
     blk = d["unfrozen_block_ids"]
     print(f"[layers] fine-tuned: {', '.join(d['new_projectors'])} + "
           f"blocks {blk[0]}-{blk[-1]} + {', '.join(d['output_head'])}  "
@@ -155,7 +155,7 @@ def load_finetuned(predictor, ckpt_path):
 # What trains
 # ---------------------------------------------------------------------------
 
-def freeze_for_ego_finetune(predictor, unfreeze_last_n_blocks: int = 6) -> None:
+def freeze_for_ego_finetune(predictor, unfreeze_last_n_blocks: int = 6, unfreeze_embed: bool = False) -> None:
     """
     Freeze the entire predictor, then selectively unfreeze:
 
@@ -165,10 +165,14 @@ def freeze_for_ego_finetune(predictor, unfreeze_last_n_blocks: int = 6) -> None:
     Trained at lower LR (pretrained, need to adapt to ego signals):
         last `unfreeze_last_n_blocks` transformer blocks
         predictor_norm, predictor_proj
+        predictor_embed, if unfreeze_embed
 
     Frozen (pretrained, kept fixed):
-        predictor_embed (encoder→predictor projection)
+        predictor_embed (encoder→predictor projection), unless unfreeze_embed
         first (depth - unfreeze_last_n_blocks) transformer blocks
+
+    With unfreeze_last_n_blocks = depth (24) and unfreeze_embed, the whole predictor trains:
+    a full fine-tune.
     """
     for p in predictor.parameters():
         p.requires_grad_(False)
@@ -192,6 +196,10 @@ def freeze_for_ego_finetune(predictor, unfreeze_last_n_blocks: int = 6) -> None:
         p.requires_grad_(True)
     for p in predictor.predictor_proj.parameters():
         p.requires_grad_(True)
+
+    if unfreeze_embed:
+        for p in predictor.predictor_embed.parameters():
+            p.requires_grad_(True)
 
 
 _NEW_PARAM_KEYS = {'gaze_proj', 'hand_proj', 'gaze_mask', 'hand_mask'}
@@ -228,18 +236,19 @@ def get_ego_finetune_param_groups(
     ]
 
 
-def describe_finetuned_layers(predictor, unfreeze_last_n: int = 6) -> dict:
+def describe_finetuned_layers(predictor, unfreeze_last_n: int = 6, unfreeze_embed: bool = False) -> dict:
     """
     Human-readable description of which layers ego fine-tuning trains vs freezes.
     Used for logging in both training and eval so the two always agree.
     """
     total = len(predictor.predictor_blocks)
     n = min(unfreeze_last_n, total)
+    frozen = [f"predictor_blocks[0:{total - n}]"] if n < total else []
     return {
         "new_projectors": ["gaze_proj", "hand_proj", "gaze_mask", "hand_mask"],
         "unfrozen_block_ids": list(range(total - n, total)),
-        "output_head": ["predictor_norm", "predictor_proj"],
-        "frozen": [f"predictor_blocks[0:{total - n}]", "predictor_embed"],
+        "output_head": ["predictor_norm", "predictor_proj"] + (["predictor_embed"] if unfreeze_embed else []),
+        "frozen": frozen + ([] if unfreeze_embed else ["predictor_embed"]),
         "n_blocks_total": total,
     }
 
@@ -271,16 +280,16 @@ def trainable_parameter_summary(predictor) -> dict:
     }
 
 
-def log_finetuned_layers(log, predictor, unfreeze_last_n: int = 6) -> None:
+def log_finetuned_layers(log, predictor, unfreeze_last_n: int = 6, unfreeze_embed: bool = False) -> None:
     """Emit a compact, explicit description of trainable vs frozen layers."""
-    d = describe_finetuned_layers(predictor, unfreeze_last_n)
+    d = describe_finetuned_layers(predictor, unfreeze_last_n, unfreeze_embed)
     blk = d["unfrozen_block_ids"]
     blk_str = f"{blk[0]}-{blk[-1]}" if blk else "(none)"
     s = trainable_parameter_summary(predictor)
     log.info(f"[layers] TRAIN  new: {', '.join(d['new_projectors'])}")
     log.info(f"[layers] TRAIN  blocks {blk_str} (last {len(blk)} of {d['n_blocks_total']})  "
              f"+ {', '.join(d['output_head'])}")
-    log.info(f"[layers] FROZEN {', '.join(d['frozen'])}")
+    log.info(f"[layers] FROZEN {', '.join(d['frozen']) or '(nothing)'}")
     log.info(f"[layers] {len(trainable_parameter_names(predictor))} trainable tensors  "
              f"{s['trainable']:,}/{s['total']:,} params ({s['trainable_pct']:.1f}%)")
 

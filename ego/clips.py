@@ -90,15 +90,29 @@ def mse(pred, target):
     return F.mse_loss(pred.float(), target.float()).item()
 
 
+def l1(pred, target):
+    """The mean absolute difference: the loss of V-JEPA 2-AC's training (loss_exp 1.0)."""
+    return F.l1_loss(pred.float(), target.float()).item()
+
+
+@torch.no_grad()
+def paired_errors(encoder, predictor, frames, T, device, real_sig=None, normalize_reps=True):
+    """
+    The errors of one clip with the signals hidden and with the real signals, both against
+    the same target: {"mse": (hidden, real), "l1": (hidden, real)}. The real values are None
+    when real_sig is None.
+    """
+    enc_ctx, enc_fut = encode_clip(encoder, frames, T, device, normalize_reps)
+    hidden = predict_last(predictor, enc_ctx, signals.null(T, device), normalize_reps)
+    real = None if real_sig is None else predict_last(predictor, enc_ctx, real_sig, normalize_reps)
+    return {name: (f(hidden, enc_fut), None if real is None else f(real, enc_fut))
+            for name, f in (("mse", mse), ("l1", l1))}
+
+
 @torch.no_grad()
 def paired_mse(encoder, predictor, frames, T, device, real_sig=None, normalize_reps=True):
     """
     (MSE with the signals hidden, MSE with the real signals) for one clip, both against
     the same target. The second is None when real_sig is None.
     """
-    enc_ctx, enc_fut = encode_clip(encoder, frames, T, device, normalize_reps)
-    mse_a = mse(predict_last(predictor, enc_ctx, signals.null(T, device), normalize_reps), enc_fut)
-    mse_b = None
-    if real_sig is not None:
-        mse_b = mse(predict_last(predictor, enc_ctx, real_sig, normalize_reps), enc_fut)
-    return mse_a, mse_b
+    return paired_errors(encoder, predictor, frames, T, device, real_sig, normalize_reps)["mse"]
