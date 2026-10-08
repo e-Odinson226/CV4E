@@ -165,6 +165,16 @@ def form_of(cfg):
     return form
 
 
+def base_form(form):
+    """
+    The gaze form without the loss/fine-tune suffixes form_of appends (" l1", " full",
+    " last<n>", " +embed"): none, future, angles, pe, rope, pe+rope, or "<form> shuffled".
+    form_of always appends " l1" before any " full"/" last<n>" suffix, so splitting on
+    " l1" first and discarding everything after it also discards those later suffixes.
+    """
+    return form.split(" l1")[0].split(" full")[0].split(" last")[0]
+
+
 def near_mask(gaze_last):
     """(n, 256) bool: patches within RADIUS of the gaze point; all False without a point."""
     col, row = gaze_last[:, 0:1], gaze_last[:, 1:2]
@@ -186,10 +196,11 @@ def score(predict, form, feats, by_rec, device, patches=False):
     out = {"recording": []}
     for stem, clips in by_rec.items():
         ctx, fut = feats[stem]["ctx"].to(device), feats[stem]["fut"].to(device)
-        key = "sig_next" if form == "future" else "sig"
+        bf = base_form(form)
+        key = "sig_next" if bf == "future" else "sig"
         sig = tuple(torch.from_numpy(np.stack([getattr(c, key)[k] for c in clips])).to(device) for k in range(5))
         hidden = signals.mask_both(sig)
-        given = hidden if form in ("none", "before fine-tuning") else sig
+        given = hidden if bf in ("none", "before fine-tuning") else sig
         near = near_mask(torch.from_numpy(np.stack([c.sig[0][T - 1, 3:5] for c in clips])))
         has_point, nm = near.any(1), near.float()
         errs = {}

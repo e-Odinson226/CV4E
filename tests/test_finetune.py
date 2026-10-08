@@ -1,10 +1,11 @@
 """Self-test for what fine-tuning trains (ego/model.py: freeze_for_ego_finetune, the optimizer
-groups) and for how `gaze-forms` names the models it pools (form_of). No GPU, no data."""
+groups) and for how `gaze-forms` names the models it pools (form_of) and recovers their base
+form (base_form). No GPU, no data."""
 import sys
 
 import torch
 
-from ego.commands.gaze_forms import form_of
+from ego.commands.gaze_forms import base_form, form_of
 from ego.model import describe_finetuned_layers, freeze_for_ego_finetune, get_ego_finetune_param_groups
 from ego.predictor import vit_ego_predictor
 
@@ -59,5 +60,25 @@ check("form_of: L1 and full fine-tuning are named", form_of({**base, "loss": "l1
 check("form_of: other choices are not pooled with the default",
       form_of({**base, "loss": "l1", "unfreeze_last_n": 12}) == "pe l1 last12"
       and form_of({**base, "unfreeze_last_n": 24}) == "pe last24")
+
+# base_form must recover "none" and "future" through every suffix form_of can add, so that
+# score() (ego/commands/gaze_forms.py) keeps feeding a "none" model its hidden-signal input and
+# a "future" model its next-step signals, whatever loss or fine-tune choice produced the run.
+# This guards the bug of 2026-10-08: "none l1" and "none l1 full" fell through to the real-signal
+# branch because the check compared against the literal string "none".
+check("base_form: none and future survive every suffix",
+      all(base_form(f) == "none" for f in
+          (form_of({**base, "signal_dropout": 1.0}),
+           form_of({**base, "signal_dropout": 1.0, "loss": "l1"}),
+           form_of({**base, "signal_dropout": 1.0, "loss": "l1", "unfreeze_last_n": 24, "unfreeze_embed": True}),
+           form_of({**base, "signal_dropout": 1.0, "unfreeze_last_n": 12})))
+      and all(base_form(f) == "future" for f in
+          (form_of({**base, "future_signals": True}),
+           form_of({**base, "future_signals": True, "loss": "l1"}),
+           form_of({**base, "future_signals": True, "loss": "l1", "unfreeze_last_n": 24, "unfreeze_embed": True}))))
+check("base_form: a signal-bearing form keeps its gaze form through every suffix",
+      base_form(form_of({**base, "loss": "l1", "unfreeze_last_n": 24, "unfreeze_embed": True})) == "pe"
+      and base_form(form_of({**base, "gaze_form": "pe+rope", "shuffle_signals": "batch", "loss": "l1"})) == "pe+rope shuffled"
+      and base_form("before fine-tuning") == "before fine-tuning")
 
 sys.exit(0 if ok else 1)
