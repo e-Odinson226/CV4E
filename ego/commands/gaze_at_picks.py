@@ -2,7 +2,7 @@
 Does the projected gaze point lie on the object that is about to be picked up?
 
 The last check of the gaze projection (ego/gaze_geometry.py), described in
-docs/EgoVault/3-method.md. HD-EPIC's annotators drew a box around each object in the frame
+docs/3-method.md. HD-EPIC's annotators drew a box around each object in the frame
 where its movement starts (ego/annotations.py). For each pick, the gaze at that frame is
 projected into the frame and compared with the box:
 

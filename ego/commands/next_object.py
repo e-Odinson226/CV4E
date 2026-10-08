@@ -1,8 +1,8 @@
 """
 Test 8: does the gaze point tell which object is picked up next?
 
-The plan and the reasons for each choice are in docs/EgoVault/6-next-steps.md and, once run,
-docs/EgoVault/4-results.md (Test 8).
+The plan and the reasons for each choice are in docs/6-next-steps.md and, once run,
+docs/4-results.md (Test 8).
 
 For every pick of the 50 most frequent object classes in training (ego/annotations.py), the
 frames 0.5, 1, 2 and 4 s before the pick are the moments. A linear probe (ridge regression,

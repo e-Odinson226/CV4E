@@ -1,7 +1,7 @@
 """
 Check the gaze projection (ego/gaze_geometry.py) before any test uses it.
 
-Three checks, from the preparation step in docs/EgoVault/6-next-steps.md:
+Three checks, from the preparation step in docs/6-next-steps.md:
 
   * Overlays. For each participant, the gaze point is drawn on frames of a few recordings,
     with a circle of one patch radius (88 px, one cell of the encoder's 16 x 16 grid). The

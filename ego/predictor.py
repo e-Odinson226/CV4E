@@ -7,7 +7,7 @@ Each frame is [gaze, hand, 256 image tokens], the same layout as the AC predicto
 checkpoint loads unchanged (ego.model.load_ac_weights_into_ego). Only gaze_proj,
 hand_proj and the two mask tokens are new.
 
-gaze_form sets how gaze enters (Test 9, docs/EgoVault/6-next-steps.md):
+gaze_form sets how gaze enters (Test 9, docs/6-next-steps.md):
 
   angles   yaw, pitch and depth through gaze_proj; the token sits at the top-left patch,
            as in ego_ft_v2

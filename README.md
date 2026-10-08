@@ -12,7 +12,7 @@ tracking.
 So far, the gaze and hand inputs do not improve the prediction. A model trained without them
 does as well (Δ = +0.0003, p = 0.40). These models were trained for 3 epochs. A full training
 run has not been done yet. The project notes, with every test and its result, are in
-[`docs/EgoVault/`](docs/EgoVault/README.md).
+[`docs/`](docs/README.md).
 
 ## Repository layout
 
@@ -21,7 +21,7 @@ run has not been done yet. The project notes, with every test and its result, ar
 | `ego/` | The code: the model, the data handling, and one command for training and for each test. |
 | `tests/` | Self-tests. They need no GPU and no data. |
 | `vjepa2/` | Meta's V-JEPA 2 code. Not tracked: clone it here (see Setup). |
-| `docs/EgoVault/` | The project notes, an Obsidian vault. The paper as submitted and the literature notes are in `docs/EgoVault/papers/`. |
+| `docs/` | The project notes, an Obsidian vault. The paper as submitted and the literature notes are in `docs/papers/`. |
 | `notebooks/` | `playground.ipynb`: a first look at the Aria gaze data and at a V-JEPA 2 model from Hugging Face. |
 | `data/`, `checkpoints/` | Datasets and trained models. Not tracked. |
 | `results/` | Result files. The small summaries (CSV, JSON, logs, figures) are tracked; feature caches (`*.npz` at the top level, `cache/` folders) and the per-sample tables of the gaze checks are not. |
@@ -106,7 +106,7 @@ command uses. Each command, in `ego/commands/`, is one thing you run.
 | `annotations.py` | `object_movements` reads HD-EPIC's object movements: one row per movement of an object, from pick-up to put-down, with the box around the object in the frame where the movement starts and in the frame where it ends. `noun_classes` and `object_class` give each object's free-form name its HD-EPIC noun class ("spoon2" → spoon). It does not read the narrations, which are a pickle file. |
 | `runlog.py` | `Logger` prints each line and writes it to `<out>.log`. `parse_train_log` reads a `train.log` for `summarize`, `plot` and `watch`. |
 
-What is trained, and with which learning rates, is in `docs/EgoVault/3-method.md`.
+What is trained, and with which learning rates, is in `docs/3-method.md`.
 
 ### How a clip is processed
 
@@ -157,7 +157,7 @@ Training and every evaluation command handle a clip in the same steps:
 | `signal-dropout` | 2 | Compares `ego_ft_v2` and `ego_sd1p0` clip by clip, from the two `stock-vs-tuned` outputs. It needs no GPU. |
 | `summarize` | | Writes a JSON and a Markdown summary of a training run, to `results/<run>_summary.json` and `.md`. |
 | `plot` | | Plots the training loss, the held-out errors and Δ to `results/<run>_results.png`. With several `--dir` arguments it also writes `results/delta_compare.png`. |
-| `figures` | 3, 4, 8, 9 | Draws the figures of the notes into `docs/EgoVault/figures/` from the result files of the tests (`--only` picks groups: overview, picks, test3, test4, test8, test9). It also writes the Test 9 comparisons without the runs with a loss spike (logged gradient norm above 1.0) to `results/test9/gaze_forms_comparisons_without_spikes.csv`. Two Test 9 figures need the error of every patch: `--stage patches` (GPU, about 40 minutes) runs every Test 9 model over the cached encoder features and keeps the errors in `results/test9/cache/patches/`. |
+| `figures` | 3, 4, 8, 9 | Draws the figures of the notes into `docs/figures/` from the result files of the tests (`--only` picks groups: overview, picks, test3, test4, test8, test9). It also writes the Test 9 comparisons without the runs with a loss spike (logged gradient norm above 1.0) to `results/test9/gaze_forms_comparisons_without_spikes.csv`. Two Test 9 figures need the error of every patch: `--stage patches` (GPU, about 40 minutes) runs every Test 9 model over the cached encoder features and keeps the errors in `results/test9/cache/patches/`. |
 | `watch` | | A live terminal view of a running training job. It only reads the job's log. |
 
 The self-tests check the numerical parts of the linear probe, that `--shuffle-signals`
@@ -265,6 +265,6 @@ controls, and a checklist.
 
 ## Notes
 
-The project notes are in `docs/EgoVault/`. Start with `docs/EgoVault/README.md`.
+The project notes are in `docs/`. Start with `docs/README.md`.
 `3-method.md` describes the method in detail. `4-results.md` lists every test, who ran it, and
 what it showed.

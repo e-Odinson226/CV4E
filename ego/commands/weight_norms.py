@@ -3,7 +3,7 @@ Test 4c: did training shrink the gaze layer?
 
 A new module in a pretrained network adds noise at first. Training can reduce that
 noise by driving the module's weights toward zero, and the pathway may then never
-recover. GazeQwen describes this (docs/EgoVault/papers/literature/gazeqwen.md). If it
+recover. GazeQwen describes this (docs/papers/literature/gazeqwen.md). If it
 happened here, the norm of gaze_proj.weight shrank relative to its value at the start.
 
 Weight decay

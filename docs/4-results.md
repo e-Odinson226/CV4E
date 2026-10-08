@@ -743,7 +743,7 @@ Files in `results/test9/`: `gaze_forms.csv` (every model), `gaze_forms_compariso
 `gaze_forms.json`, `gaze_forms.log`, and `scores/` (the errors of every clip and model). The
 encoder features are cached in `results/test9/cache/` (7.8 GB). The figures and the comparisons
 without the runs with a loss spike: `python -m ego figures --only test9`, which writes
-`docs/EgoVault/figures/t9_*.png` and `results/test9/gaze_forms_comparisons_without_spikes.csv`
+`docs/figures/t9_*.png` and `results/test9/gaze_forms_comparisons_without_spikes.csv`
 (the spike rule: a logged gradient norm above 1.0).
 
 ## Is the model undertrained? (H3)

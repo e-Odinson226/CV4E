@@ -24,7 +24,7 @@ import torch
 # These are rough guesses for Aria CPF gaze and device-frame hands. Measured on
 # P01-P07, scaled gaze has means of about (-0.04, -0.52, -0.08) and standard
 # deviations of about (0.44, 0.55, 0.87), not 0 and 1. Recompute the constants
-# before the next training run (docs/EgoVault/3-method.md). Hand mean is kept at
+# before the next training run (docs/3-method.md). Hand mean is kept at
 # 0 so that zeroed (invalid) hand coordinates stay zero after standardisation.
 # ---------------------------------------------------------------------------
 GAZE_MEAN = np.array([0.0, -0.25, 1.0], dtype=np.float32)   # yaw, pitch(rad), depth(m)

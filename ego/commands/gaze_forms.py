@@ -4,7 +4,7 @@ Test 9: compare the gaze forms on people not in the training data.
 Every finished training run under --runs (a folder <form>_s<seed> with final.pt; best.pt is
 scored) is evaluated on the same test set, plus ego_sd1p0 as "none", seed 0. ego_ft_v2 is
 scored as a reference for the reproduction check and is not pooled with the new runs. The plan
-is in docs/EgoVault/6-next-steps.md (Test 9).
+is in docs/6-next-steps.md (Test 9).
 
 Test set: the fixed clips (ego/clips.py, seed 12345) of every P08 and P09 recording with
 signals, 24 per recording. The frozen encoder's features of these clips are computed once and
@@ -74,7 +74,7 @@ MEASURES = ("mse", "near", "l1", "near_l1")
 COMPARISONS = [("pe+rope", "angles"), ("rope", "angles"), ("pe", "angles"),
                ("angles", "none"), ("pe", "none"), ("rope", "none"), ("pe+rope", "none"),
                ("rope", "pe"), ("pe+rope", "pe+rope shuffled"), ("future", "none")]
-# Test 10 (docs/EgoVault/6-next-steps.md): the loss (L1 against MSE) and full fine-tuning
+# Test 10 (docs/6-next-steps.md): the loss (L1 against MSE) and full fine-tuning
 TEST10_COMPARISONS = [("pe l1", "pe"), ("none l1", "none"), ("pe l1", "none l1"),
                       ("none l1 full", "none l1"), ("pe l1 full", "pe l1"), ("pe l1 full", "none l1 full")]
 REFERENCES = ("repeat last frame", "blend of past frames", "before fine-tuning")
@@ -225,7 +225,7 @@ def reference_predictor(name, checkpoint, device):
       repeat last frame     the embedding of the last context frame
       blend of past frames  BLEND x the last context frame + (1 - BLEND) x the mean of the 8
                             context frames, layer-normalized like the predictor's output. BLEND
-                            was chosen on these test clips (docs/EgoVault/review.md), which
+                            was chosen on these test clips (docs/review.md), which
                             favours this reference a little.
       before fine-tuning    V-JEPA 2-AC's predictor with new gaze and hand layers drawn with
                             seed 0, the signals hidden: the model before fine-tuning of Test 2

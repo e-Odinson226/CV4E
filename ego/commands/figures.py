@@ -1,5 +1,5 @@
 """
-Figures of the tests, for the notes (docs/EgoVault/figures/) and the presentation.
+Figures of the tests, for the notes (docs/figures/) and the presentation.
 
 Every figure is drawn from the files that the test commands wrote. The one exception is the
 error of every patch in Test 9, which the stored scores do not keep: the stage "patches" runs
@@ -707,7 +707,7 @@ def main():
     ap.add_argument("--stage", choices=["figures", "patches"], default="figures")
     ap.add_argument("--only", nargs="+", default=None,
                     help="groups: overview picks test3 test4 test8 test9")
-    ap.add_argument("--out", default="docs/EgoVault/figures")
+    ap.add_argument("--out", default="docs/figures")
     ap.add_argument("--video-dir")
     ap.add_argument("--gaze-dir")
     ap.add_argument("--checkpoint", default="data/model_checkpoints/vjepa2-ac-vitg.pt")

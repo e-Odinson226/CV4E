@@ -1,7 +1,7 @@
 """
 Test 3a: can gaze be read from the frozen encoder's features?
 
-This tests hypothesis R in docs/EgoVault/1-introduction.md: the frozen image features
+This tests hypothesis R in docs/1-introduction.md: the frozen image features
 already contain gaze, so a gaze token gives the predictor no new information.
 
 Method
@@ -36,7 +36,7 @@ Splits (--split)
                is too high. Use it only for comparison.
 
 The encoder features are cached in --cache. control-probe (Test 3b) reads this
-cache. The results are in docs/EgoVault/4-results.md, under Test 3.
+cache. The results are in docs/4-results.md, under Test 3.
 
 Usage
 -----
@@ -348,7 +348,7 @@ def main():
     elif s_first - s_last > 0.05:
         log("  Skill FALLS with lead. Gaze carries information that the encoder lacks at")
         log("  longer horizons (about 1 - skill), so the null result at about 2 s may be due")
-        log("  to the horizon. Test longer horizons next. See docs/EgoVault/6-next-steps.md.")
+        log("  to the horizon. Test longer horizons next. See docs/6-next-steps.md.")
     elif s_last - s_first > 0.05:
         log("  Skill RISES with lead — unexpected, and no mechanism predicts it. Suspect")
         log("  noise (check n_test) or leakage before believing it.")
@@ -356,7 +356,7 @@ def main():
         log("  Skill is FLAT across lead. Consistent with REDUNDANCY: the encoder already")
         log("  carries future gaze about equally well at every horizon, so a gaze token")
         log("  adds little anywhere. This supports hypothesis R. See")
-        log("  docs/EgoVault/1-introduction.md.")
+        log("  docs/1-introduction.md.")
     log("-" * 78)
 
     try:

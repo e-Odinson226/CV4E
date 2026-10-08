@@ -1,7 +1,7 @@
 """
 Test 4a: does the prediction change when gaze changes?
 
-This tests hypothesis H2 in docs/EgoVault/1-introduction.md: the model does not use the
+This tests hypothesis H2 in docs/1-introduction.md: the model does not use the
 signals. The small Delta of ego_ft_v2 (Test 2) has two possible causes. The model may read gaze, and
 gaze may say little about the next step. Or the model may have learned to ignore the
 gaze token. This script separates the two without any training. It keeps the video
