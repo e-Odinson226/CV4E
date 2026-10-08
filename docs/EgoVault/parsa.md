@@ -128,7 +128,7 @@ rerun from here.
 - **Assessment.** Not building it was sound, for a further reason: a bias added equally to
   every key cancels in the softmax, so it cannot select image regions ([[2-background]],
   GazeQwen). The diagnostics did not test gaze as a position in the image, which
-  Test 8 did and Test 9 will.
+  Tests 8 and 9 did.
 
 ## Other work
 

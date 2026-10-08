@@ -2,7 +2,7 @@
 type: report
 status: running
 created: 2026-09-18
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # 3. Method
@@ -20,8 +20,10 @@ repository.
   and their gaze values have similar distributions. Hand tracking differs: no hand is tracked
   in 26–27% of the samples of P01–P03, and in 4–14% of the samples of P04–P09.
 - **Glasses.** Nine pairs of glasses were used. Each participant used 3 or 4 of them.
-- **Split.** Training uses P01–P07. The test set is 96 clips from P08: 4 recordings × 24 clips,
-  sampled with seed 12345. P09 is not used yet.
+- **Split.** Training uses P01–P07. The test set of Tests 1–4 is 96 clips from P08: 4
+  recordings × 24 clips, sampled with seed 12345. Tests 8–10 test on P08 and P09. HD-EPIC
+  defines no split by participant; this split is the project's own
+  ([[2-background#Benchmarks]]).
 
 ## Model
 
@@ -102,8 +104,8 @@ The model receives gaze as two angles and a depth. The encoder's output is a gri
 embeddings, one per region of the frame. To relate gaze to this grid, gaze has to be a point in
 the frame. `ego/gaze_geometry.py` computes this point. `python -m ego draw-gaze` and
 `python -m ego gaze-at-picks` check it.
-The trained models `ego_ft_v2` and `ego_sd1p0` do not use it. Test 8 uses it
-([[4-results#^test8|Test 8]]), and Test 9 will ([[6-next-steps]]).
+The trained models `ego_ft_v2` and `ego_sd1p0` do not use it. Test 8 and the gaze forms of
+Test 9 use it ([[4-results#^test8|Test 8]], [[4-results#^test9|Test 9]]).
 
 ### Steps
 
@@ -179,6 +181,8 @@ over recordings.
 | 1 s before the pick | 21.7% | 54.7% | 0.84 |
 | 2 s before the pick | 19.4% | 50.3% | 0.99 |
 
+![[figures/picks_gaze_on_object.png]]
+
 - At the pick, the gaze point lies in the box twice as often as by chance: 19.1 percentage
   points more [17.3, 21.0]. Every participant is above chance, from 32.1% (P09, chance 14.7%)
   to 50.9% (P03, chance 19.8%).
@@ -227,7 +231,17 @@ to the neighbouring patch.
 | Blocks 18–23, `predictor_norm`, `predictor_proj` | yes | 1e-4 |
 
 - This is 77.0 million of the predictor's 305.2 million parameters (25.2%).
+- A full fine-tune trains the whole predictor: all 24 blocks and `predictor_embed` as well, at
+  1e-4 (`--unfreeze-last-n 24 --unfreeze-embed`). The encoder stays frozen. Test 10 compares it
+  with training the last 6 blocks ([[6-next-steps]]).
 - The optimizer is AdamW with weight decay 0.01.
+- The loss is the mean absolute difference (L1) between the predicted and the true embeddings,
+  as in the pretraining of V-JEPA 2-AC (`loss_exp: 1.0`). Its blocks were trained for this
+  loss. `ego_ft_v2`, `ego_sd1p0` and the 20 models of Test 9 were trained with the mean squared
+  difference (MSE). With MSE, the model before fine-tuning is scored with a loss it was not
+  trained for, so part of the gain from fine-tuning can be adaptation to the new loss. The
+  pretraining also predicted a second step from its own first prediction (`auto_steps: 2`); the
+  fine-tuning predicts one step.
 - `ego_ft_v2`, the model used in most tests: 3 epochs, P01–P07, 30 clips per recording,
   batch size 16.
 - Signal dropout: for each training clip, one random draw decides whether the signals are
@@ -236,8 +250,9 @@ to the neighbouring patch.
   always have the signals hidden. So about 41% of all training clips have hidden signals.
 - `ego_sd1p0`: the same settings with `--signal-dropout 1.0`. This model never sees real
   signals.
-- `--shuffle-signals batch` gives each clip the signals of another clip. `--shuffle-signals
-  time` shuffles their order within the clip. Neither has been used in a run yet.
+- `--shuffle-signals batch` gives each clip the signals of another clip. It trained the shuffled
+  control of Test 9. `--shuffle-signals time` shuffles their order within the clip. It has not
+  been used in a run yet.
 
 ## Evaluation
 
@@ -249,8 +264,17 @@ has gaze data.
 - The model sees 8 frames, which cover about 2 seconds. It predicts the embedding of the next
   step, 8 frames (0.27 s) after the last context frame.
 - The target is the frozen encoder's embedding of that frame.
-- The error (MSE) is computed per clip, after layer normalization, and then averaged. Lower is
-  better.
+- The error is computed per clip, after layer normalization, and then averaged. Lower is
+  better. It is measured in two ways: the mean squared difference (MSE) and the mean absolute
+  difference (L1). Tests 1–4 report MSE only.
+- After layer normalization, the 1,408 numbers of each patch have mean 0 and variance 1. For two
+  such vectors, $\text{MSE} = 2\,(1 - \rho)$, where $\rho$ is the correlation between the
+  predicted and the true patch vector. An MSE of 0.50 is a correlation of 0.75.
+- References without fine-tuning show how much of the error a model explains: repeating the last
+  context frame; a blend of the past frames, $0.2 \times$ the last context frame $+ 0.8 \times$
+  the mean of the 8, layer-normalized like the predictor's output; and the model before
+  fine-tuning. The weight 0.2 was chosen on the test clips of Test 9, which favours the blend a
+  little.
 - Δ = error with the signals hidden − error with real signals, on the same clips. A positive Δ
   means the signals helped.
 - Δ is tested with a paired Wilcoxon test on the per-clip values and reported with a 95%
@@ -309,11 +333,13 @@ and the checks during training use.
 
 ## Design choices
 
-Most of these ideas came from studying GazeQwen ([[2-background]]). The two ways to give gaze a position are built for Test 9; the others are not built. The gaze
-form is tested before the full training run, as Test 9 in [[6-next-steps]], because the gaze
-token cannot point at the image and the model makes little use of the gaze value.
+Most of these ideas came from studying GazeQwen ([[2-background]]). The two ways to give gaze
+a position were built and compared in Test 9; the others are not built. The gaze form was
+tested before the full training run, because the gaze token cannot point at the image and the
+model makes little use of the gaze value.
 
-**Gaze as a position in the image.** Built for Test 9 ([[6-next-steps]]), which compares two ways:
+**Gaze as a position in the image.** Built for Test 9 ([[4-results#^test9|Test 9]]), which
+compared two ways:
 
 - *Coord-PE: the position in the token's content.* Sine and cosine features of the gaze point
   $(u, v)$ at several frequencies, plus the depth and an inside-the-frame flag, before the
@@ -324,9 +350,12 @@ token cannot point at the image and the model makes little use of the gaze value
   rotation by position 0 changes nothing, so this form with every gaze point at the top-left
   patch is exactly the current model.
 
-Coord-PE alone may not be enough. Patches carry their position only through the rotations, not
-in their content. To find the patch at $(u, v)$ from content features, the frozen heads would
-have to match those features against rotated keys.
+Before Test 9, Coord-PE alone was expected not to be enough. Patches carry their position only
+through the rotations, not in their content. To find the patch at $(u, v)$ from content
+features, the frozen heads would have to match those features against rotated keys. Test 9
+found the opposite: near the gaze point, Coord-PE (pe) did better than the RoPE position
+(rope), and as well as the three angles. The RoPE position did not help. Why is not known; the
+candidate explanations are in [[4-results#^test9|Test 9]].
 
 **Step, context and horizon.** (Test 8 settled the context; the rest is open.)
 

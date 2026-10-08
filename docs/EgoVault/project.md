@@ -2,7 +2,7 @@
 type: report
 status: running
 created: 2026-09-18
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Project
@@ -18,6 +18,8 @@ The work done and its timeline, the paper, and the final presentation.
 | [[4-results#^test3\|Test 3]] | Is gaze already in the image features? | 28–30 July and 19 August 2026 |
 | [[4-results#^test4\|Test 4]] | Does the model use the signals? | 19 August 2026 |
 | [[4-results#^test8\|Test 8]] | Does the gaze point tell what comes next? | 7 October 2026 |
+| [[4-results#^test9\|Test 9]] | Does gaze as a position in the image improve the prediction? | 7–8 October 2026 |
+| Test 10 | Do the loss of the pretraining (L1), or training the whole predictor, change the prediction and the value of gaze? | Running since 8 October 2026 ([[6-next-steps]]) |
 
 Other work:
 
@@ -25,13 +27,19 @@ Other work:
   V-JEPA 2 takes as context. No benefit; not continued.
 - Encoding each frame on its own, which lowered the error before fine-tuning from 4.82 to
   0.58.
-- The models `ego_ft_v2` and `ego_sd1p0`.
+- The models `ego_ft_v2` and `ego_sd1p0`, and the 20 models of Test 9 in
+  `checkpoints/test9/`.
 - The idea that the signals may help more at longer horizons (H1, May 2026), and the idea that
   gaze needs a position in the image (H4).
 - October 2026: a review of the research logic (the weak points in
   [[5-discussion#Weak points of the design]] and the new hypothesis H4), the camera
   calibrations of all recordings, the gaze position in the image, and its check against
   HD-EPIC's annotations of picks ([[3-method#Gaze position in the image]]).
+- 8 October 2026: a review of the method, the related work and the benchmarks ([[review]]);
+  references without fine-tuning and the L1 measure added to the evaluation, and the Test 9
+  models scored with both measures ([[3-method#Prediction error and Δ]]); training switched to
+  L1, the loss of the pretraining ([[3-method#Training]]). The results of the paper are to be
+  measured on HD-EPIC's gaze interaction anticipation and EGTEA Gaze+ (Test 12).
 
 ## Timeline
 
@@ -44,7 +52,8 @@ Other work:
 | August | Studied GazeQwen. Proposed design changes, based on the idea that the model ignores gaze. | Not built then. Now the gaze forms of Test 9. |
 | 19 August | Palm control of Test 3. Tested whether the model uses gaze ([[4-results#^test4\|Test 4]]). Trained the matched model without signals ([[4-results#^test2\|Test 2]]). | The model reacts to whether gaze is present, and little to where the person looks. A model trained without gaze and hand predicts as well. |
 | 24 August | The paper was submitted. | |
-| October | Review of the research logic. Camera calibrations fetched. Gaze projected into the image and checked. Test 8 run ([[4-results#^test8\|Test 8]]). Test 9 started. | What the person looks at tells which object is picked up next; the three gaze numbers do not. Next: Tests 9 and 10 ([[6-next-steps]]). |
+| October | Review of the research logic. Camera calibrations fetched. Gaze projected into the image and checked. Test 8 run ([[4-results#^test8\|Test 8]]). Test 9 run ([[4-results#^test9\|Test 9]]). | What the person looks at tells which object is picked up next; the three gaze numbers do not. Given to the predictor as a position, gaze does as well as the three angles in the token's content (pe), and does not help in the attention (rope). Next: Test 10 ([[6-next-steps]]). |
+| 8 October | Review of the method and the literature ([[review]]). L1 measure and references added to the evaluation. Training switched to L1. Test 10 started. The two benchmarks with gaze chosen for the results of the paper. | Test 10 compares L1 with MSE and a full fine-tune with the last 6 blocks. Tests 11 (a predictor from V-JEPA 2.1 with gaze and hand) and 12 (the benchmarks) are planned ([[6-next-steps]]). |
 
 ## Paper
 
@@ -63,6 +72,8 @@ Open points for the next version of the paper:
    training runs with Δ at or below zero, the wrong scaling constants, the worse prediction with
    real signals before training, the larger effect of hiding gaze alone, the right-palm results
    of Test 3, and the weak points of the design ([[5-discussion#Weak points of the design]]).
+3. The next version reports its results on two benchmarks with gaze, HD-EPIC's gaze interaction
+   anticipation and EGTEA Gaze+ (Test 12), in place of EK100, which has no gaze.
 
 ## Presentation
 

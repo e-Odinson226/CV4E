@@ -2,7 +2,7 @@
 type: report
 status: running
 created: 2026-10-05
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # 2. Background
@@ -34,6 +34,21 @@ for each frame, as two extra tokens next to the image tokens. The action at step
 change of the robot's pose from frame t to frame t+1. The predictor then predicts the
 embeddings of the next frame, given what the robot does. This project replaces the two robot
 tokens with a gaze token and a hand token ([[3-method]]).
+
+V-JEPA 2-AC was pretrained on 62 hours of robot video from one fixed camera of the DROID
+dataset (`left_mp4_path` in its configuration), with an L1 loss.
+
+## V-JEPA 2.1
+
+V-JEPA 2.1 (Mur-Labadia et al., 2026) is a newer version of V-JEPA 2, released on 16 March 2026.
+Its training puts the loss on every token and at several depths of the encoder, so its patch
+features describe the image in more detail. Its checkpoints work at 384 pixels: ViT-B and ViT-L,
+both distilled from ViT-G, and ViT-g and ViT-G. Each comes with its predictor. The predictor
+fills in learned mask tokens at the positions it has to predict, and attends over all tokens. It
+has no action input, and no action-conditioned version exists. The two strongest published EK100
+anticipation systems read its predicted tokens of a frame 1 s ahead (below). The ViT-L and
+ViT-G checkpoints are in `data/model_checkpoints/vjepa2.1/`. Test 11 builds on them
+([[6-next-steps]]).
 
 ## Related work
 
@@ -76,6 +91,40 @@ features to locate gaze targets (Gaze-LLE, 2025). Video-language models without 
 V-JEPA 2.1 features with separate verb and noun probes (Chu et al., 2026a; Wang and Xu, 2026).
 They use no gaze or hand data.
 
+## Benchmarks
+
+The results of the paper are measured on two benchmarks with gaze (Test 12 in
+[[6-next-steps]]). A wider survey of related work and benchmarks is in [[review]].
+
+**HD-EPIC gaze interaction anticipation.** One of the 30 question types of HD-EPIC's VQA
+benchmark (Perrett et al., CVPR 2025): "What object will the person interact with next, ignoring
+ongoing interactions?" It has 1,000 questions with 5 answers each, so chance is 20%. Each 10 s
+clip ends 0.3 s after the person first looks at the object. HD-EPIC is released for evaluation
+only and has no training split. Every published result comes from a model that was not trained
+on HD-EPIC:
+
+| Method | Accuracy |
+|---|---|
+| LLaVA-OneVision 7B, zero-shot | 20.4% |
+| Gemini 1.5 Pro, zero-shot (the HD-EPIC paper) | 21.0% |
+| Qwen2.5-VL, an entry of the 2025 challenge | 22.0% |
+| Materia et al. (ICPR 2026): the last 15 fixations drawn on the frames, numbered object marks, no training | 27.5% |
+
+EgoAdapt, the winner of the CVPR 2026 HD-EPIC VQA challenge (Qwen3-VL-8B, no training), reports
+52.15% on the two gaze question types together, gaze estimation and interaction anticipation,
+without a figure for each. HD-EPIC defines no split by participant. The split of this project,
+P01–P07 for training and P08–P09 for testing, is its own.
+
+**EGTEA Gaze+ action anticipation.** EGTEA Gaze+ (Li, Liu and Rehg, ECCV 2018) has 28 hours of
+cooking by 32 people in 86 sessions, at 24 frames per second, with the 2D gaze point from SMI
+eye-tracking glasses. It has 10,321 action segments of 106 classes and three official splits;
+split 1 has 8,299 training and 2,022 test segments. Methods train on the training set of a split,
+with backbones pretrained on other data. Two protocols are in use:
+
+- 0.5 s ahead, top-1 and mean class accuracy, on split 1 (AVT, InAViT, SAGE). In SAGE's table, the
+  mean class accuracy is 35.2% for AVT, 58.2% for InAViT and 58.4% for SAGE. SAGE uses gaze labels
+  in training and predicts gaze at test time; it does not use measured gaze.
+- 0.25–2 s ahead, top-5 accuracy (RULSTM).
 
 ## Terms
 

@@ -130,7 +130,9 @@ Training and every evaluation command handle a clip in the same steps:
    tokens]. The 24 transformer blocks attend causally over frames. The two signal tokens are
    then dropped, and the predictor returns 256 predicted image tokens per frame.
 6. **Error.** The prediction for step t is compared with the encoding of step t + 1. Both are
-   layer-normalized. The error is the mean squared error.
+   layer-normalized. The error is measured in two ways: the mean squared difference (MSE) and
+   the mean absolute difference (L1). Training minimizes one of them (`--loss`, L1 by default,
+   as in V-JEPA 2-AC's training). Every model trained before the option existed used MSE.
 
 ## Commands
 
@@ -142,9 +144,9 @@ Training and every evaluation command handle a clip in the same steps:
 | `draw-gaze` | | Checks the gaze projection: overlays on frames of every participant, the share of gaze points inside the frame, and the shift caused by the depth. Writes `results/gaze_projection/`. |
 | `gaze-at-picks` | | Checks the gaze projection against HD-EPIC's annotations: for each pick, whether the gaze point lies in the box of the object, against chance (the same box with gaze from random moments), without the rotation, at a fixed depth, and before the pick. It also finds the best shift of the gaze points for each participant. Writes `gaze_at_picks.csv`, `.json`, `.log` and `picks.jpg` to `results/gaze_projection/`. |
 | `fetch-calibrations` | | Fetches the camera calibration of every HD-EPIC recording group. It reads only the calibration entry of each SLAM zip from the dataset server, with HTTP range requests, or from the local zip where one exists. It writes every 100th record to `SLAM-and-Gaze/<P>/SLAM/calibration/<n>.jsonl`. |
-| `train` | 1, 9 | Fine-tunes the ego predictor. After each epoch it measures Δ on the fixed held-out clips. It writes `train.log`, `metrics.jsonl` and checkpoints to `--out-dir`. `--gaze-form` chooses the gaze form of Test 9; `--future-signals` gives each step the signals of the frame it predicts (the positive control). |
+| `train` | 1, 9, 10 | Fine-tunes the ego predictor. After each epoch it measures Δ on the fixed held-out clips, as MSE and as L1. It writes `train.log`, `metrics.jsonl` and checkpoints to `--out-dir`. `--loss` chooses the training loss: `l1` (the default, as in V-JEPA 2-AC's training) or `mse` (every model trained before the option). `--unfreeze-last-n` sets how many of the last predictor blocks train (6 by default); `--unfreeze-last-n 24 --unfreeze-embed` trains the whole predictor (a full fine-tune, Test 10). `--gaze-form` chooses the gaze form of Test 9; `--future-signals` gives each step the signals of the frame it predicts (the positive control). |
 | `evaluate` | | The paired comparison on any participants: the error with the signals hidden and with real signals, on the same clips. It samples its own clips. It writes `results/mse_paired.csv`. |
-| `gaze-forms` | 9 | Evaluates every finished Test 9 run (`--runs checkpoints/test9`, folders with `final.pt`), plus `ego_sd1p0` as "none" and `ego_ft_v2` as a reference, on the fixed clips of all P08 and P09 recordings (600 clips). The error of the next step over the whole frame and within 2 patches of the gaze point, with the model's signals and with them hidden; the comparisons of the plan, seeds averaged, with intervals over recordings; the reproduction check against `ego_ft_v2`. The encoder features are cached in `results/test9/cache/` (7.8 GB) and each model's scores in `results/test9/scores/`, so a rerun scores only new runs. Writes `results/test9/gaze_forms.csv`, `gaze_forms_comparisons.csv`, `gaze_forms.json` and `gaze_forms.log`. |
+| `gaze-forms` | 9, 10 | Evaluates every finished run in the `--runs` folders (`checkpoints/test9` by default; folders `<name>_s<seed>` with `final.pt`), pooled by form: the gaze form, with " l1" for runs trained with L1 and " full" for a full fine-tune (Test 10), with `ego_sd1p0` as "none" and `ego_ft_v2` as a reference. The test set is the fixed clips of all P08 and P09 recordings (600 clips). It measures the error of the next step over the whole frame and within 2 patches of the gaze point, as MSE and as L1, with the model's signals and with them hidden; the comparisons of the plan, seeds averaged, with intervals over recordings; the reproduction check against `ego_ft_v2`. It also scores three references without fine-tuning (repeat the last context frame; a layer-normalized blend, 0.2 × the last context frame + 0.8 × the mean of the 8; V-JEPA 2-AC's predictor before fine-tuning, new layers drawn with seed 0) and compares every form and reference with the blend. The encoder features are cached in `<out>/cache/` (7.8 GB for Test 9; `--cache` reads them from another folder) and each model's scores in `<out>/scores/`, so a rerun scores only new runs, and runs whose scores lack L1. The comparisons of Test 10 are computed when its forms are present. Writes `results/test9/gaze_forms.csv`, `gaze_forms_references.csv`, `gaze_forms_comparisons.csv` (the comparisons with the blend have `b` = "blend of past frames"), `gaze_forms.json` and `gaze_forms.log`. |
 | `next-object` | 8 | Does the gaze point tell which object is picked up next? Encodes the frames before each HD-EPIC pick once (`--stage encode`, cached per recording in `results/next_object/cache/`, resumable), then fits linear probes with each input (`--stage fit`). `--weights` sets the range of weights of the added block that cross-validation chooses from; `--cache` reads a cache from another folder, so a refit can write to a new `--out`. Writes `results/next_object/next_object.csv`, `next_object_contrasts.csv`, `next_object.json`, `next_object_predictions.npz` and `next_object.log`. |
 | `gaze-probe` | 3a | A linear probe that predicts gaze from the frozen encoder's features. It caches the features in `results/gaze_features.npz`. |
 | `control-probe` | 3b | The same probe with palm position as the target. It reads the features cached by `gaze-probe`. |
@@ -155,11 +157,14 @@ Training and every evaluation command handle a clip in the same steps:
 | `signal-dropout` | 2 | Compares `ego_ft_v2` and `ego_sd1p0` clip by clip, from the two `stock-vs-tuned` outputs. It needs no GPU. |
 | `summarize` | | Writes a JSON and a Markdown summary of a training run, to `results/<run>_summary.json` and `.md`. |
 | `plot` | | Plots the training loss, the held-out errors and Δ to `results/<run>_results.png`. With several `--dir` arguments it also writes `results/delta_compare.png`. |
+| `figures` | 3, 4, 8, 9 | Draws the figures of the notes into `docs/EgoVault/figures/` from the result files of the tests (`--only` picks groups: overview, picks, test3, test4, test8, test9). It also writes the Test 9 comparisons without the runs with a loss spike (logged gradient norm above 1.0) to `results/test9/gaze_forms_comparisons_without_spikes.csv`. Two Test 9 figures need the error of every patch: `--stage patches` (GPU, about 40 minutes) runs every Test 9 model over the cached encoder features and keeps the errors in `results/test9/cache/patches/`. |
 | `watch` | | A live terminal view of a running training job. It only reads the job's log. |
 
-The self-tests check the numerical parts of the linear probe, and that `--shuffle-signals`
-breaks the match between signals and frames and changes nothing else. Run them with
-`$PY -m tests`.
+The self-tests check the numerical parts of the linear probe, that `--shuffle-signals`
+breaks the match between signals and frames and changes nothing else, the gaze forms, and the
+two error measures (`tests/test_errors.py`: the L1 loss equals V-JEPA 2-AC's, and the scoring of
+`gaze-forms` by hand), and what fine-tuning trains and how `gaze-forms` names the forms
+(`tests/test_finetune.py`). Run them with `$PY -m tests`.
 
 ## Training
 
@@ -174,9 +179,12 @@ PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True $PY -m ego train \
     --val-participants P08 --val-recordings 4 --val-clips 24 \
     --epochs 3 --clips-per-recording 30 --batch-size 16 \
     --num-workers 8 --encode-chunk 48 --save-every 3 \
-    --out-dir checkpoints/ego_ft_v2
+    --loss mse --out-dir checkpoints/ego_ft_v2
 ```
 
+- `ego_ft_v2`, `ego_sd1p0` and the Test 9 runs were trained with MSE, before `--loss` existed.
+  To repeat them, add `--loss mse`; without it, `train` uses L1. The scripts in
+  `checkpoints/test9/` that queued the Test 9 runs predate the option.
 - `ego_sd1p0` uses the same command with `--signal-dropout 1.0 --out-dir checkpoints/ego_sd1p0`.
   It took 38 minutes.
 - The planned full run uses `--epochs 8 --clips-per-recording 60 --val-recordings 6
@@ -231,6 +239,8 @@ hand layers.
 |---|---|
 | `checkpoints/ego_ft_v2/` | `best.pt` (epoch 3). The model used in most tests. |
 | `checkpoints/ego_sd1p0/` | `best.pt`, `epoch_003.pt` and `final.pt`. The model trained without signals. |
+| `checkpoints/test9/` | The 20 runs of Test 9, `<form>_s<seed>/` (pe+rope is `perope`, its shuffled control `peropeshuf`), and the queue that trained them (`queue2.sh`, `todo.txt`, `queue.log`). All trained with MSE. |
+| `checkpoints/test10/` | The 12 runs of Test 10: `pe_l1_s<seed>`, `none_l1_s<seed>`, `pe_l1full_s<seed>`, `none_l1full_s<seed>`. `queue.sh` runs the lines of `todo.txt` one after another on one GPU and logs to `queue.log`; its `eval` lines run `gaze-forms` on the Test 9 and Test 10 runs into `results/test10/`. Start it with `setsid nohup bash checkpoints/test10/queue.sh > checkpoints/test10/queue.out 2>&1 &`. |
 | `checkpoints/ego_finetune/`, `ego_finetuned_p01_07/`, `ego_ft_quick/` | Logs only, from runs that were stopped. |
 
 Each checkpoint file is 1.22 GB. The trainable weights alone are about 310 MB (77 million
