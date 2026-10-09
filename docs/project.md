@@ -19,7 +19,7 @@ The work done and its timeline, the paper, and the final presentation.
 | [[4-results#^test4\|Test 4]] | Does the model use the signals? | 19 August 2026 |
 | [[4-results#^test8\|Test 8]] | Does the gaze point tell what comes next? | 7 October 2026 |
 | [[4-results#^test9\|Test 9]] | Does gaze as a position in the image improve the prediction? | 7–8 October 2026 |
-| Test 10 | Do the loss of the pretraining (L1), or training the whole predictor, change the prediction and the value of gaze? | Running since 8 October 2026 ([[6-next-steps]]) |
+| [[4-results#^test10\|Test 10]] | Do the loss of the pretraining (L1), or training the whole predictor, change the prediction and the value of gaze? | 8 October 2026 |
 
 Other work:
 

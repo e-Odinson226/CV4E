@@ -35,7 +35,7 @@ Because HD-EPIC is an evaluation-only benchmark, official zero-shot comparison r
 1. **EGTEA Gaze+ (Train & Eval):** 28 hours of cooking tasks with 2D gaze (x,y pixel coordinates). This is the gold standard for action anticipation with gaze, featuring established splits and baselines (e.g., RULSTM, AVT). It is the safest choice for publication if the 3D gaze requirement is dropped.
 2. **Ego-Exo4D (Train & Eval):** ~88 hours of egocentric Aria footage (out of 1,400+ total hours). This subset provides high-fidelity 3D gaze and 3D hand tracking, making it the best choice to maintain the current 3D architecture while using official training splits.
 3. **Ego4D Forecasting Benchmark (Train & Eval):** 3,000+ hours with a specific Short-Term Object Interaction Anticipation task. It uses 2D gaze on a subset of data. The gaze quality is noisier due to hardware variance, making it better for general pre-training than precise gaze ablation.
-4. **Visual Experience Dataset / VEDB (Training Only):** 240 hours of continuous 2D eye-tracking in the wild. Lacks tight verb-noun action annotations, making it suitable for unsupervised pre-training but not evaluation.
+4. **Visual Experience Dataset / VEDB (Training Only):** 240 hours of continuous 2D eye-tracking in the wild. Lacks tight verb–noun action annotations, making it suitable for unsupervised pre-training but not evaluation.
 
 **Strategy Recommendation:** To maximize impact and comparability, the recommended approach is to adapt the `gaze_proj` layer to accept 2D coordinates, train and evaluate the architecture on the official **EGTEA Gaze+** splits to prove efficacy against published baselines, and finally zero-shot evaluate that same model on HD-EPIC to prove domain generalization.
 
@@ -316,6 +316,27 @@ and the checks during training use.
 - A matched model trained with `--signal-dropout 1.0` separates the two. The value of the
   information is `ego_ft_v2` with real signals compared with `ego_sd1p0` with hidden signals
   ([[4-results#^test2|Test 2]]). Every future training comparison includes such a matched model.
+
+### Rules for comparing models
+
+Three rules hold for every comparison from Test 11 on. Each one exists because a result of this
+project cannot be read without it.
+
+1. **Compare the gain of the signals within one backbone, never the absolute errors across
+   backbones.** Report $\Delta = \text{error(matched model)} - \text{error(model with signals)}$ for
+   each backbone and compare the $\Delta$. The V-JEPA 2 and V-JEPA 2.1 predictors differ in the
+   encoder, the patch grid, the resolution, the depth and width of the predictor, what it predicts,
+   and whether attention is causal over frames. A difference between their absolute errors cannot
+   be attributed to any one of these.
+2. **Measure the positive control again whenever the horizon, the backbone or the measure
+   changes.** The future control gains 0.26% ([[4-results#^test9|Test 9]]). That number is the
+   ceiling of this measure for the V-JEPA 2-AC predictor at 0.27 s, and it is what makes the small
+   gains of Tests 2, 9 and 10 readable. It is not the ceiling of any other setting.
+3. **Separate what the predictor received from what the probe received.** When a probe reads the
+   prediction, three arms are needed: neither the predictor nor the probe receives gaze; the probe
+   alone receives it; both receive it. The value of the conditioning is the third minus the second.
+   The third minus the first adds the value of gaze as an input of the probe, which
+   [[4-results#^test8|Test 8]] already measured on the frozen encoder.
 
 ### Linear probes on the frozen encoder (Test 3)
 

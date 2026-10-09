@@ -13,6 +13,8 @@ COMMANDS = {
     "draw-gaze":      ("draw_gaze",      "check the gaze projection: overlays, where the points fall, depth effect"),
     "gaze-at-picks":  ("gaze_at_picks",  "check the gaze projection: is the gaze point on the object about to be picked up?"),
     "train":          ("train",          "fine-tune the ego predictor (Test 1; with --signal-dropout 1.0, the Test 2 control)"),
+    "train-ego":      ("train_ego",      "Test 11: train the predictor with gaze and hand as maps over the image tokens"),
+    "eval-ego":       ("eval_ego",       "Test 11: score the train-ego predictors on P08 and P09, with present, future and hidden points"),
     "evaluate":       ("evaluate",       "paired error, signals hidden vs real, on any participants"),
     "gaze-probe":     ("gaze_probe",     "Test 3a: can gaze be read from the frozen encoder's features?"),
     "control-probe":  ("control_probe",  "Test 3b: the gaze probe with palm position as the target"),

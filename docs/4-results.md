@@ -746,6 +746,87 @@ without the runs with a loss spike: `python -m ego figures --only test9`, which 
 `docs/figures/t9_*.png` and `results/test9/gaze_forms_comparisons_without_spikes.csv`
 (the spike rule: a logged gradient norm above 1.0).
 
+## Test 10. The loss of the pretraining, and training the whole predictor
+
+Run on 8 October 2026. Twelve models of the V-JEPA 2-AC predictor, four arms with three seeds
+each, scored on the 600 clips of Test 9 together with the twenty models of Test 9. ^test10
+
+**Question.** Every model before this one was trained with the mean squared difference (MSE),
+while V-JEPA 2-AC was pretrained with the mean absolute difference (L1), and only the last 6 of
+its 24 blocks were trained ([[3-method#Training]]). Do the loss of the pretraining, or training
+the whole predictor, change how well the model predicts and how much gaze helps?
+
+**Hypothesis and prediction.** H3 says the model is undertrained. If the frozen blocks are what
+keeps the predictor from using gaze, then the gain of gaze over the matched model is larger when
+the whole predictor trains than when only the last 6 blocks do. Written before the runs: each
+model does better on the measure of its own loss; training the whole predictor lowers the error
+of the model without signals by more than the spread between seeds; and if the frozen blocks
+were the limit, comparison 6 below is larger than comparison 3.
+
+**Method.** Four arms: `pe l1` and `none l1` train the last 6 blocks with L1, and `pe l1 full`
+and `none l1 full` train the whole predictor, all 24 blocks and `predictor_embed`, 305.2 million
+parameters in place of 77.0 million. `none` is signal dropout 1.0, the matched model. Three seeds
+each. The recipe of Test 9 in every other respect: 3 epochs, P01-P07, 30 clips per recording,
+batch size 16, no warmup. So each comparison changes one thing. The measures are L1 and MSE over
+the whole frame and within 2 patches of the gaze point, on the 600 clips of P08 and P09, against
+the references without fine-tuning ([[3-method#Prediction error and Δ]]). Each gain has a 95%
+interval from a bootstrap over the 25 test recordings, and an effect counts only if that interval
+excludes 0 and the gain is larger than the spread between seeds.
+
+**Result.** The primary comparison was 6, near the gaze point, on L1.
+
+| | A − B | L1 | 95% interval | Seed spread | Counts |
+|---|---|---|---|---|---|
+| 1 | pe l1 − pe | +0.0110 | 0.0108 to 0.0113 | 0.0001 | yes |
+| 2 | none l1 − none | +0.0110 | 0.0108 to 0.0113 | 0.0002 | yes |
+| 3 | pe l1 − none l1 | +0.00016 | 0.00009 to 0.00023 | 0.00017 | no |
+| 4 | none l1 full − none l1 | +0.0041 | 0.0035 to 0.0047 | 0.0002 | yes |
+| 5 | pe l1 full − pe l1 | +0.0041 | 0.0034 to 0.0047 | 0.0001 | yes |
+| 6 | pe l1 full − none l1 full | +0.00013 | −0.00004 to 0.00031 | 0.0002 | no |
+
+Near the gaze point, the two comparisons that measure gaze are 3, +0.00019 (0.00001 to 0.00037,
+seed spread 0.00029), and 6, +0.00027 (−0.00011 to 0.00062, seed spread 0.00028). Neither counts.
+
+- *The loss.* Training with L1 lowers the L1 error by 0.0110 with gaze and without it, and by
+  0.0059 and 0.0060 near the gaze point. The exchange is not even: it raises the MSE error by
+  0.0611 and 0.0607. Each model does better on the measure of its own loss, as predicted, but the
+  sizes differ by a factor of about five.
+- *Training the whole predictor.* It lowers the L1 error by 0.0041 without signals and by 0.0041
+  with gaze, and by 0.0043 and 0.0044 near the gaze point. Against the blend of the past frames,
+  the model without signals improves from 0.0428 to 0.0469 over the whole frame and from 0.0337 to
+  0.0380 near the gaze point. Held-out error fell at every epoch, so 3 epochs did not overfit the
+  3,900 training clips.
+- *Gaze.* The gain of gaze is +0.00016 with the last 6 blocks and +0.00013 with the whole
+  predictor, over the whole frame, and +0.00019 and +0.00027 near the gaze point. Every one of
+  these is at or below the spread between seeds, and the two for the full fine-tune have intervals
+  that include 0. Training the whole predictor did not make gaze worth more.
+
+**Conclusion.** The loss and the trainable depth both change how well the predictor predicts, and
+both by much more than gaze ever has: 0.0110 for the loss and 0.0041 for the depth, against
+0.0001 to 0.0003 for gaze. Comparison 4 holds, so later predictors are trained as a whole.
+Comparison 6, the primary comparison, does not: gaze is worth no more to a predictor that can
+adapt all its blocks than to one with 18 frozen ones.
+
+That answers the part of H3 that this test was built for, and it removes one explanation offered
+in [[#^test9|Test 9]] for why the rope form did not help. Explanation 2 there was that rope moves
+a token the frozen blocks rely on and 3 epochs are too few to adapt. If frozen blocks were what
+held gaze back, the full fine-tune would have released it. It did not. What remains is explanation
+1, which is about the attention itself and not about what trains: in a RoPE head the attention
+between two tokens depends on their content, not their distance, so a gaze token placed at the
+gaze point is not a token the other tokens attend to. This is the finding Test 11 is built on.
+
+**Limits.** Three epochs, as in Tests 9 and 10, so the longer run of H3 is still untested. Three
+seeds per arm, and the gaze gains are the same size as the spread between them, so this test can
+rule a large gain out but cannot measure a small one. One gaze form, pe, the best of Test 9. The
+measure is the error of the predicted embeddings 0.27 s ahead, where even the gaze and hand of
+the target frame gain only 0.26% ([[#^test9|Test 9]]).
+
+**Reproduce.** `checkpoints/test10/queue.sh` with `checkpoints/test10/todo.txt`, which holds the
+options of each run (`--loss l1`, `--unfreeze-last-n 24 --unfreeze-embed`). The evaluation:
+`python -m ego gaze-forms --runs checkpoints/test9 checkpoints/test10 --cache
+results/test9/cache --out results/test10`. Files: `results/test10/gaze_forms.csv`,
+`gaze_forms_comparisons.csv`, `gaze_forms_references.csv`.
+
 ## Is the model undertrained? (H3)
 
 No finished test has addressed H3 yet. All results come from models trained for 3 epochs with

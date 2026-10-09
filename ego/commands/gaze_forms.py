@@ -1,8 +1,8 @@
 """
 Test 9: compare the gaze forms on people not in the training data.
 
-Every finished training run under --runs (a folder <form>_s<seed> with final.pt; best.pt is
-scored) is evaluated on the same test set, plus ego_sd1p0 as "none", seed 0. ego_ft_v2 is
+Every finished training run under --runs (a folder <form>_s<seed> holding best.pt, the weights
+of its best held-out epoch, which are the ones scored) is evaluated on the same test set, plus ego_sd1p0 as "none", seed 0. ego_ft_v2 is
 scored as a reference for the reproduction check and is not pooled with the new runs. The plan
 is in docs/6-next-steps.md (Test 9).
 
@@ -129,7 +129,7 @@ def find_models(args):
     models = []
     folders = [args.runs] if isinstance(args.runs, str) else args.runs
     for d in sorted(d for f in folders for d in Path(f).glob("*_s[0-9]*")):
-        if not (d / "final.pt").exists():
+        if not (d / "best.pt").exists():
             continue
         cfg = torch.load(d / "best.pt", map_location="cpu", weights_only=False, mmap=True).get("config", {})
         models.append((d.name, form_of(cfg), int(re.search(r"_s(\d+)$", d.name).group(1)), d / "best.pt", cfg))

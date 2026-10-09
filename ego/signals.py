@@ -21,8 +21,8 @@ radians(d) / GAZE_STD[0] in the units the projection layer sees.
 import numpy as np
 import torch
 
-from ego.data import GAZE_MEAN, GAZE_STD
-from ego.gaze_geometry import to_patch
+from ego.data import GAZE_MEAN, GAZE_STD, HAND_MEAN, HAND_STD
+from ego.gaze_geometry import GRID, to_patch
 
 NO_POINT = -1.0
 
@@ -52,6 +52,55 @@ def read(gl, hl, vrs_ns, T, proj=None):
         for t, ns in enumerate(vrs_ns):
             hand[t], hlft[t], hrgt[t] = hl.get_token_for_vrs_ns(ns)
     return gaze, gv, hand, hlft, hrgt
+
+
+def points(sig, proj, standardize=True, grid=GRID):
+    """
+    A signal tuple -> the four inputs of the Test 11 predictor (ego/ego_predictor.py), as
+    numpy arrays with no batch dimension:
+
+        gaze_pt  (T, 2)     the gaze point, column and row in patch units
+        gaze_val (T,)  bool
+        hand_pt  (T, 2, 2)  the left then the right palm, the same units
+        hand_val (T, 2) bool
+
+    The gaze point is already in the signal tuple, filled in by read(). The palms are not:
+    the hand file gives them in the device frame, so each one is projected into the image
+    here, with the same camera model as the gaze (GazeProjector.project_device_point). A
+    point that is missing, outside the frame or without a calibration is NO_POINT and marked
+    invalid, and the predictor's map for it is zero everywhere.
+    """
+    gaze, gv, hand, hlft, hrgt = sig
+    T = gaze.shape[0]
+
+    gaze_pt = np.full((T, 2), NO_POINT, np.float32)
+    gaze_val = np.zeros(T, bool)
+    if gaze.shape[-1] >= 5:
+        gaze_pt[:] = gaze[:, 3:5]
+        gaze_val[:] = np.asarray(gv, bool) & (gaze[:, 3] >= 0) & (gaze[:, 4] >= 0)
+
+    hand_pt = np.full((T, 2, 2), NO_POINT, np.float32)
+    hand_val = np.zeros((T, 2), bool)
+    if proj is not None:
+        valid = (np.asarray(hlft, bool), np.asarray(hrgt, bool))
+        for h, cols in enumerate(((3, 6), (9, 12))):      # left palm, right palm
+            for t in range(T):
+                if not valid[h][t]:
+                    continue
+                xyz = hand[t, cols[0]:cols[1]]
+                if standardize:
+                    xyz = xyz * HAND_STD + HAND_MEAN
+                xy = proj.project_device_point(xyz)
+                if xy is not None:
+                    hand_pt[t, h] = to_patch(xy, grid=grid)
+                    hand_val[t, h] = True
+    return gaze_pt, gaze_val, hand_pt, hand_val
+
+
+def null_points(T):
+    """No gaze point and no palm point: the maps of the matched model add nothing."""
+    return (np.full((T, 2), NO_POINT, np.float32), np.zeros(T, bool),
+            np.full((T, 2, 2), NO_POINT, np.float32), np.zeros((T, 2), bool))
 
 
 def as_batch(sig, device):

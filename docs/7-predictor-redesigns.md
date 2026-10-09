@@ -7,6 +7,9 @@ updated: 2026-10-08
 
 # 7. Predictor Redesigns for Spatial Gaze
 
+The wider catalogue of ways to give a model gaze and hands, and which of them are open to this
+project, is in [[conditioning-methods]].
+
 This document explores architectural redesigns to address the "Spatial Mismatch" identified in [[5-discussion#Weak points of the design]]. The core problem is that injecting gaze as a global scalar token (as done currently and in GazeQwen) forces the frozen transformer to learn complex trigonometry to map gaze to patches. Without a rigorous spatial mechanism, gaze defaults to a "scalar gate" that only reacts to its presence, rather than acting as a spatial selector.
 
 Below are four architectural redesigns to physically force the predictor's attention onto the gaze point, ordered from least to most invasive.

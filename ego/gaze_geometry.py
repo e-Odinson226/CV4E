@@ -77,8 +77,8 @@ class GazeProjector:
         rgb = cal.rescale_camera_calibration(cams["camera-rgb"], np.array([size, size], np.int32),
                                              cal.DeviceVersion.Gen1)
         self.camera = cal.rotate_camera_calib_cw90deg(rgb)
-        self.T_camera_cpf = self.camera.get_transform_device_camera().inverse() @ \
-            device.get_transform_device_cpf()
+        self.T_camera_device = self.camera.get_transform_device_camera().inverse()
+        self.T_camera_cpf = self.T_camera_device @ device.get_transform_device_cpf()
         self.serial = cams["camera-rgb"].get_serial_number()
         self.size = size
 
@@ -87,6 +87,21 @@ class GazeProjector:
         p = self.T_camera_cpf @ self._mps.get_eyegaze_point_at_depth(float(yaw), float(pitch),
                                                                      float(depth))
         uv = self.camera.project(p)
+        if uv is None:
+            return None
+        x, y = np.asarray(uv, dtype=float).ravel()
+        return (x, y) if (0 <= x < self.size and 0 <= y < self.size) else None
+
+
+    def project_device_point(self, xyz):
+        """
+        A point in the device frame -> pixel (x, y), or None if it does not project into the
+        image. The hand file gives the wrists and palms in this frame
+        ([[3-method#Inputs]]), so this is how a palm becomes a position in the image, the
+        hand's equivalent of project(). The same camera model and the same 90-degree
+        rotation as the gaze path, so both land in the same upright frame.
+        """
+        uv = self.camera.project(self.T_camera_device @ np.asarray(xyz, dtype=float).ravel())
         if uv is None:
             return None
         x, y = np.asarray(uv, dtype=float).ravel()
