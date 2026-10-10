@@ -146,7 +146,8 @@ Training and every evaluation command handle a clip in the same steps:
 | `gaze-at-picks` | | Checks the gaze projection against HD-EPIC's annotations: for each pick, whether the gaze point lies in the box of the object, against chance (the same box with gaze from random moments), without the rotation, at a fixed depth, and before the pick. It also finds the best shift of the gaze points for each participant. Writes `gaze_at_picks.csv`, `.json`, `.log` and `picks.jpg` to `results/gaze_projection/`. |
 | `fetch-calibrations` | | Fetches the camera calibration of every HD-EPIC recording group. It reads only the calibration entry of each SLAM zip from the dataset server, with HTTP range requests, or from the local zip where one exists. It writes every 100th record to `SLAM-and-Gaze/<P>/SLAM/calibration/<n>.jsonl`. |
 | `train` | 1, 9, 10 | Fine-tunes the ego predictor. After each epoch it measures Δ on the fixed held-out clips, as MSE and as L1. It writes `train.log`, `metrics.jsonl` and checkpoints to `--out-dir`. `--loss` chooses the training loss: `l1` (the default, as in V-JEPA 2-AC's training) or `mse` (every model trained before the option). `--unfreeze-last-n` sets how many of the last predictor blocks train (6 by default); `--unfreeze-last-n 24 --unfreeze-embed` trains the whole predictor (a full fine-tune, Test 10). `--gaze-form` chooses the gaze form of Test 9; `--future-signals` gives each step the signals of the frame it predicts (the positive control). |
-| `train-ego` | 11 | Trains `ego/ego_predictor.py` from the start: a predictor of about 22 million parameters, not causal over frames, with gaze and the palms as Gaussian maps added to the image tokens instead of conditioning tokens. `--target-slots` chooses the horizons, predicted together in one forward pass (`2 4` at `--frame-stride 8` is about 0.53 s and 1.07 s). `--arm` chooses the arm of Test 11: `maps` (the design), `none` (the matched model: every signal parameter held at its zero start), `shuffled` (the points of another clip in the batch), `future` (the points of the target frames, the positive control). `head` and `token` raise until they are built. Writes `train.log`, `metrics.jsonl` and `final.pt` to `--out-dir`. |
+| `train-ego` | 11 | Trains `ego/ego_predictor.py` from the start: a predictor of about 22 million parameters, not causal over frames, with gaze and the palms as Gaussian maps added to the image tokens instead of conditioning tokens. `--target-slots` chooses the horizons, predicted together in one forward pass (`2 4` at `--frame-stride 8` is about 0.53 s and 1.07 s). `--arm` chooses the arm of Test 11: `maps` (the design), `none` (the matched model: every signal parameter held at its zero start), `shuffled` (the points of another clip in the batch). `head` and `token` raise until they are built. Writes `train.log`, `metrics.jsonl` and `final.pt` to `--out-dir`. |
+| `eval-ego` | 11 | Scores every `train-ego` run under `--runs` (`<arm>_s<seed>/best.pt` and each `epoch<N>.pt`) on the held-out sampler of `train-ego` over every P08 and P09 recording, 24 clips each (600 clips). At each horizon, L1 and MSE over the whole frame and within 2 patches of the gaze point, with two inputs per model: the present points and no points. Run folders whose arm `train-ego` does not have are skipped. `--patches` also keeps the MSE of every patch in `results/test11/cache/patches.npz`, for the figures. Two references: the last context frame and the blend of Tests 9 and 10. Comparisons pool the seeds of an arm and carry 95% intervals over recordings. `--batch 1` (the default) reproduces the check after each epoch exactly. Writes `results/test11/eval_ego.csv`, `eval_ego_comparisons.csv`, `scores.npz` and `eval_ego.log`; about 12 minutes on one L40S. |
 | `evaluate` | | The paired comparison on any participants: the error with the signals hidden and with real signals, on the same clips. It samples its own clips. It writes `results/mse_paired.csv`. |
 | `gaze-forms` | 9, 10 | Evaluates every finished run in the `--runs` folders (`checkpoints/test9` by default; folders `<name>_s<seed>` with `final.pt`), pooled by form: the gaze form, with " l1" for runs trained with L1 and " full" for a full fine-tune (Test 10), with `ego_sd1p0` as "none" and `ego_ft_v2` as a reference. The test set is the fixed clips of all P08 and P09 recordings (600 clips). It measures the error of the next step over the whole frame and within 2 patches of the gaze point, as MSE and as L1, with the model's signals and with them hidden; the comparisons of the plan, seeds averaged, with intervals over recordings; the reproduction check against `ego_ft_v2`. It also scores three references without fine-tuning (repeat the last context frame; a layer-normalized blend, 0.2 × the last context frame + 0.8 × the mean of the 8; V-JEPA 2-AC's predictor before fine-tuning, new layers drawn with seed 0) and compares every form and reference with the blend. The encoder features are cached in `<out>/cache/` (7.8 GB for Test 9; `--cache` reads them from another folder) and each model's scores in `<out>/scores/`, so a rerun scores only new runs, and runs whose scores lack L1. The comparisons of Test 10 are computed when its forms are present. Writes `results/test9/gaze_forms.csv`, `gaze_forms_references.csv`, `gaze_forms_comparisons.csv` (the comparisons with the blend have `b` = "blend of past frames"), `gaze_forms.json` and `gaze_forms.log`. |
 | `next-object` | 8 | Does the gaze point tell which object is picked up next? Encodes the frames before each HD-EPIC pick once (`--stage encode`, cached per recording in `results/next_object/cache/`, resumable), then fits linear probes with each input (`--stage fit`). `--weights` sets the range of weights of the added block that cross-validation chooses from; `--cache` reads a cache from another folder, so a refit can write to a new `--out`. Writes `results/next_object/next_object.csv`, `next_object_contrasts.csv`, `next_object.json`, `next_object_predictions.npz` and `next_object.log`. |
@@ -159,7 +160,7 @@ Training and every evaluation command handle a clip in the same steps:
 | `signal-dropout` | 2 | Compares `ego_ft_v2` and `ego_sd1p0` clip by clip, from the two `stock-vs-tuned` outputs. It needs no GPU. |
 | `summarize` | | Writes a JSON and a Markdown summary of a training run, to `results/<run>_summary.json` and `.md`. |
 | `plot` | | Plots the training loss, the held-out errors and Δ to `results/<run>_results.png`. With several `--dir` arguments it also writes `results/delta_compare.png`. |
-| `figures` | 3, 4, 8, 9 | Draws the figures of the notes into `docs/figures/` from the result files of the tests (`--only` picks groups: overview, picks, test3, test4, test8, test9). It also writes the Test 9 comparisons without the runs with a loss spike (logged gradient norm above 1.0) to `results/test9/gaze_forms_comparisons_without_spikes.csv`. Two Test 9 figures need the error of every patch: `--stage patches` (GPU, about 40 minutes) runs every Test 9 model over the cached encoder features and keeps the errors in `results/test9/cache/patches/`. |
+| `figures` | 3, 4, 8, 9, 11 | Draws the figures of the notes into `docs/figures/` from the result files of the tests (`--only` picks groups: overview, picks, test3, test4, test8, test9, test11). The Test 11 figures read `results/test11/` from `eval-ego`; `t11_distance.png` and `t11_gain_map.png` need `eval-ego --patches`. It also writes the Test 9 comparisons without the runs with a loss spike (logged gradient norm above 1.0) to `results/test9/gaze_forms_comparisons_without_spikes.csv`. Two Test 9 figures need the error of every patch: `--stage patches` (GPU, about 40 minutes) runs every Test 9 model over the cached encoder features and keeps the errors in `results/test9/cache/patches/`. |
 | `watch` | | A live terminal view of a running training job. It only reads the job's log. |
 
 The self-tests check the numerical parts of the linear probe, that `--shuffle-signals`
@@ -243,6 +244,7 @@ hand layers.
 | `checkpoints/ego_sd1p0/` | `best.pt`, `epoch_003.pt` and `final.pt`. The model trained without signals. |
 | `checkpoints/test9/` | The 20 runs of Test 9, `<form>_s<seed>/` (pe+rope is `perope`, its shuffled control `peropeshuf`), and the queue that trained them (`queue2.sh`, `todo.txt`, `queue.log`). All trained with MSE. |
 | `checkpoints/test10/` | The 12 runs of Test 10: `pe_l1_s<seed>`, `none_l1_s<seed>`, `pe_l1full_s<seed>`, `none_l1full_s<seed>`. `queue.sh` runs the lines of `todo.txt` one after another on one GPU and logs to `queue.log`; its `eval` lines run `gaze-forms` on the Test 9 and Test 10 runs into `results/test10/`. Start it with `setsid nohup bash checkpoints/test10/queue.sh > checkpoints/test10/queue.out 2>&1 &`. |
+| `checkpoints/test11/` | The first runs of Test 11: `maps_s0` and `none_s0`, each with `best.pt`, `epoch3.pt`, `final.pt`, `train.log`, `metrics.jsonl` and `run.out`. `queue.sh` holds the recipe and runs the lines of `todo.txt` (`<name> <train-ego options>`) one after another, logging to `queue.log`. Each file holds only the predictor, 22.4 million parameters. |
 | `checkpoints/ego_finetune/`, `ego_finetuned_p01_07/`, `ego_ft_quick/` | Logs only, from runs that were stopped. |
 
 Each checkpoint file is 1.22 GB. The trainable weights alone are about 310 MB (77 million
@@ -279,9 +281,12 @@ object about to be picked up twice as often as by chance
 picked up next, while the three gaze numbers do not ([[4-results#^test8|Test 8]]). Given to
 the predictor as a position, gaze does no better than as three angles: as a position in the
 token's content it does as well as the angles, and as a position in the attention it does not
-help ([[4-results#^test9|Test 9]]). Test 10 is running: the predictor trained with the loss of
-its pretraining (L1), and trained as a whole. Test 11 builds a predictor from V-JEPA 2.1 that
-takes gaze and hand. The results of the paper will be measured on two benchmarks with gaze,
+help ([[4-results#^test9|Test 9]]). Training the predictor with the loss of its pretraining
+(L1), or as a whole, changes the prediction far more than gaze does, and does not make gaze worth
+more ([[4-results#^test10|Test 10]]). A predictor built for gaze and hand and trained from the
+start, with the signals as maps over the image tokens, gains 0.0004 near the gaze point and
+nothing over the whole frame in its first runs ([[4-results#^test11|Test 11]]). The results of
+the paper will be measured on two benchmarks with gaze,
 HD-EPIC's gaze interaction anticipation and EGTEA Gaze+ (Test 12). The plan is in
 [[6-next-steps]].
 
@@ -294,9 +299,9 @@ Read in order. Files 1 to 6 follow the chapters of a report.
 | [[1-introduction]] | The question, the approach, the three Paths, and the hypotheses with their status. |
 | [[2-background]] | The models and papers this work builds on, the two benchmarks, and the terms used. |
 | [[3-method]] | Data, model, gaze position in the image, training, evaluation, design choices. |
-| [[4-results]] | Tests 1–4, 8 and 9 and what they showed. |
+| [[4-results]] | Tests 1–4 and 8–10, the first runs of Test 11, and what they showed. |
 | [[5-discussion]] | What the results mean together, and the weak points of the design. |
-| [[6-next-steps]] | Test 10 (running), Tests 11 and 12 (planned) and the other work, in order. |
+| [[6-next-steps]] | The next runs of Test 11, Tests 12–14 (planned) and the other work, in order. |
 
 ### Names
 
@@ -304,12 +309,13 @@ Read in order. Files 1 to 6 follow the chapters of a report.
 |---|---|
 | Path 1–3 | the three ways to use gaze ([[1-introduction]]) |
 | M, R, H1–H4 | the hypotheses, each with a short name: M main, R already in the image, H1 horizon, H2 not used, H3 undertrained, H4 gaze form |
-| Test 1–4, 8, 9 | the tests that were run; parts are written 4a, 4b |
-| Test 10 | the running test: L1 and a full fine-tune of the V-JEPA 2-AC predictor |
-| Test 11, 12 | the planned tests: a predictor from V-JEPA 2.1 with gaze and hand; the benchmarks. Numbers 5–7 are tests of the paper made with other code ([[parsa]]). |
+| Test 1–4, 8–10 | the tests that were run; parts are written 4a, 4b. Test 10: L1 and a full fine-tune of the V-JEPA 2-AC predictor |
+| Test 11 | a predictor built for gaze and hand, trained from the start; first runs done |
+| Test 12–14 | the planned tests: the benchmarks; the Test 11 predictor on V-JEPA 2.1; the next object read from the prediction. Numbers 5–7 are tests of the paper made with other code ([[parsa]]). |
 | `ego_ft_v2`, `ego_sd1p0` | the trained models: with gaze and hand, and without |
 | angles, pe, rope, pe+rope | the gaze forms compared in Test 9 |
 | l1, full | added to a form's name in Test 10: trained with L1; the whole predictor trained (for example "pe l1 full") |
+| maps, none, shuffled, token | the arms of Test 11 |
 
 ### Other files
 

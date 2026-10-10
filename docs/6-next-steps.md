@@ -2,7 +2,7 @@
 type: report
 status: running
 created: 2026-09-18
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # 6. Next steps
@@ -28,7 +28,7 @@ The results of the paper are measured on benchmarks with gaze (Test 12).
 | 2 | Test 8. Does the gaze point tell what comes next? | H4, R | gaze cannot point, short horizon | Done ([[4-results#^test8\|Test 8]]): the decision rule was met |
 | 3 | Test 9. Does gaze as a position in the image improve the prediction? | H4, M | gaze cannot point, no positive control, too little evidence | Done ([[4-results#^test9\|Test 9]]): no gaze form beats the angles; rope does not help |
 | 4 | Test 10. The loss of the pretraining, and training the whole predictor | H3, M | too little evidence | Done ([[4-results#^test10\|Test 10]]): the loss and the trainable depth both matter; gaze does not gain from either |
-| 5 | Test 11. A predictor designed for gaze and hand | H4, H3, M | gaze cannot point, short horizon | Planned |
+| 5 | Test 11. A predictor designed for gaze and hand | H4, H3, M | gaze cannot point, short horizon | First runs done ([[4-results#^test11\|Test 11]]): one seed of maps and none. The maps gain 0.0004 near the gaze point on MSE and nothing on L1; no positive control |
 | 6 | Test 13. The same predictor on V-JEPA 2.1 features | H4, M | gaze cannot point | Planned |
 | 7 | Test 14. What the prediction says about the next object | M, H1 | coarse measure | Planned |
 | 8 | Test 12. The benchmarks | M | short horizon, coarse measure | Planned |
@@ -127,7 +127,24 @@ evaluation: `python -m ego gaze-forms --runs checkpoints/test9 checkpoints/test1
 results/test9/cache --out results/test10`, after the Test 9 scores are copied to
 `results/test10/scores/` so that they are not computed again. The queue does both.
 
-## 5. Test 11 (planned). A predictor designed for gaze and hand
+## 5. Test 11 (first runs done). A predictor designed for gaze and hand
+
+**First runs.** 8–9 October 2026: [[4-results#^test11|Test 11]]. One seed each of maps and none,
+13 epochs, no signal dropout, evaluated with `python -m ego eval-ego` on 600 clips of P08 and P09.
+The maps lower the error near the gaze point by 0.0004 on MSE, in all 25 test recordings, and
+change nothing over the whole frame or on L1. Without signals, the predictor beats the blend of
+the past frames on L1 and not on MSE. There is no positive control.
+
+**Next runs.** In this order, each about 3.2 hours with the recipe of the first runs.
+
+1. shuffled for 13 epochs: whether the gain of the maps comes from the information of the points
+   or from the extra input.
+2. More seeds of maps and none, for the spread between seeds and the decision rule.
+
+**Open choice.** The predictor trained from the start is still below the blend of the past frames
+on MSE, and its gain from gaze is no larger than in Tests 9 and 10. Before more seeds, it is open
+whether to train it longer, with another loss (MSE, or L1 and MSE together), or with signal
+dropout, so that the Δ within a model also measures the value of the signals.
 
 **Why.** Tests 1–4, 8, 9 and 10 give gaze to the V-JEPA 2-AC predictor in the slot its pretraining
 built for the robot's action. That token is rotated by the frame index alone, so it holds no row and
@@ -197,10 +214,11 @@ the gaze lead on the hand ([[3-method#Design choices]]). Beyond about 2 s the pr
 mix of the possible futures. The horizon is no longer fixed by a pretrained step, so H1 is tested
 in the same runs.
 
-**Training.** P01–P07. The whole predictor and the signal parameters train. 8 epochs and more clips
-per recording than the 30 of Tests 9 and 10, because nothing is pretrained. A warmup of the
-learning rate, because 2 of 20 runs in Test 9 had a loss spike at the start. Signal dropout as
-before.
+**Training.** P01–P07. The whole predictor and the signal parameters train. More epochs and more
+clips per recording than the 3 epochs and 30 clips of Tests 9 and 10, because nothing is
+pretrained: the first runs used 13 epochs and 40 clips. A warmup of the learning rate, because 2
+of 20 runs in Test 9 had a loss spike at the start; with a warmup of 500 steps no first run had
+one. The first runs had no signal dropout (see the open choice above).
 
 **Arms.** Five seeds each. Only the signals differ. The channels that are open to the project,
 and the published work behind each, are in [[conditioning-methods]].
@@ -210,21 +228,20 @@ and the published work behind each, are in [[conditioning-methods]].
 | maps | gaze and hand as maps | the design |
 | none | $\alpha$ held at 0 | the matched model |
 | shuffled | the maps, with gaze and hand from another clip | information against extra input |
-| future | the gaze and hand at the target time | the positive control: the ceiling of the measure |
 | token | a gaze token placed at the gaze point in RoPE, as the rope form of Test 9 | the second form |
 
 - The arms are the ones that make this predictor comparable with the V-JEPA 2-AC predictors of
   Tests 9 and 10: the same encoder, split, clips and controls, so the gain of gaze can be read
   against theirs ([[3-method#Rules for comparing models]]).
-- The future arm is measured again here. Its 0.26% in Test 9 is a property of the V-JEPA 2-AC
-  predictor at 0.27 s, not the ceiling of this measure at 0.5 s or 1 s.
 - The token arm did not help the V-JEPA 2-AC predictor with frozen blocks. A small predictor
   trained as a whole may use it.
 
 **Measures.** The error of the predicted tokens, L1 and MSE, at each horizon: over the whole frame,
 within 2 patches of the gaze point, and on the box of the object about to be picked, against the
 references without training ([[3-method#Prediction error and Δ]]). The correlation between the
-prediction and the target beside each error.
+prediction and the target beside each error. `eval-ego` measures all of these except the box of
+the object, which is not built yet. Both token sets are layer-normalized, so the MSE gives the
+correlation: MSE $= 2(1-\rho)$.
 
 **Comparisons and the decision rule.** The primary comparison is maps − none, on the patches of the
 object about to be picked, at 1 s, on L1. It is written before the runs, with 95% intervals from a
@@ -239,9 +256,10 @@ is larger than the spread between seeds.
    projection is built; the check is not.
 2. The predictor in `ego/ego_predictor.py`, with the self-test that an untrained model gives the
    matched model exactly, and the command `python -m ego train-ego`. Both built.
-3. Targets at both horizons in the training data.
+3. Targets at both horizons in the training data. Built (`--target-slots`).
 4. Predictions and the decision rule written before the runs.
-5. The runs, then the evaluation against the existing references.
+5. The runs, then the evaluation against the existing references. First runs and their
+   evaluation done (`python -m ego eval-ego`); the next runs are listed above.
 
 **What follows.** If maps − none passes the decision rule, the design carries gaze and Test 13
 repeats it on V-JEPA 2.1 features. If it does not, the comparison with Tests 9 and 10 says
@@ -278,7 +296,7 @@ need the ViT-G encoder, which then sets the cost.
 
 **Reading the result.** The deltas within each backbone, never the absolute errors across them.
 Report maps − none on V-JEPA 2.1 against maps − none on V-JEPA 2 from Test 11
-([[3-method#Rules for comparing models]]). The future arm is measured again.
+([[3-method#Rules for comparing models]]).
 
 **Steps.**
 
@@ -363,7 +381,9 @@ does not damage the backbone. The harness is the one Test 14 uses
 **Which datasets carry which signals.** No dataset holds gaze, a hand signal, an official training
 split and an anticipation task with published baselines at once. EGTEA has the task and 2D gaze but
 hand masks on about 14,000 frames only. MECCANO has gaze, hand boxes and the task. Ego-Exo4D and
-Nymeria hold gaze and hand in 3D with official splits but define no anticipation task. HD-EPIC
+Nymeria hold gaze and hand in 3D with official splits but define no task that asks which object
+comes next; Ego-Exo4D's procedure understanding only marks the next keystep
+([[2-background#Ego4D and Ego-Exo4D]]). HD-EPIC
 holds both signals and the task but no training split. Each benchmark above therefore answers one
 question and not the others.
 

@@ -1,6 +1,6 @@
 ---
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Review of the project and of related work
@@ -372,7 +372,7 @@ instrument is calibrated (section 3.1).
 | HD-EPIC VQA, gaze estimation | What is the person looking at? 1,000 questions. | Aria | see the row above | Medium. |
 | EGTEA Gaze+ action anticipation | Name the next action. Three official splits (split 1: 8,299 training and 2,022 test segments, 106 actions). Two protocols: 0.5 s ahead, top-1 and mean class accuracy, split 1 (AVT, InAViT, SAGE); or 0.25–2 s ahead, top-5 accuracy (RULSTM). | 2D gaze from SMI glasses | 58.4% mean class accuracy at 0.5 s (SAGE, ECCV 2026; gaze predicted, not measured, at test time) | Good. The standard dataset for gaze and anticipation. |
 | EK100 action anticipation | Name the action 1 s ahead | none | 27.91% action MT5R on the test set (TAP-JEPA, second) | Only to show that the conditioning does not harm transfer. |
-| Ego4D short-term object interaction anticipation | Box, noun, verb and time to contact of the next object | for a subset of Ego4D only | EgoVis 2026 reports, for example VISTA with V-JEPA 2.1 | Medium. Whether the gaze subset overlaps this task's clips is not checked. |
+| Ego4D short-term object interaction anticipation | Box, noun, verb and time to contact of the next object | only in about 31–45 h of social recordings | 5.40 Overall top-5 mAP (VISTA, frozen V-JEPA 2.1, first at EgoVis 2026) | Low with gaze: overlap with the gaze recordings is not checked but little is expected ([[2-background#Ego4D and Ego-Exo4D]]). Usable without gaze as a transfer check. |
 | StreamGaze, EgoGazeVQA | Questions about gaze and intent in streaming video | yes | GazeQwen 63.9% on StreamGaze | Only with a language model, so for Path 3. |
 | PEVA protocol on Nymeria | Egocentric video prediction from body motion | Aria gaze recorded | PEVA | Good for the world-model question with gaze added to body motion. |
 

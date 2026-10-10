@@ -2,7 +2,7 @@
 type: report
 status: running
 created: 2026-10-05
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # 4. Results
@@ -11,10 +11,11 @@ The tests, in the order of the argument. Test 1 shows that the predictor can lea
 gaze and hand inputs. Test 2 gives the main result: the inputs do not improve the prediction.
 Tests 3 and 4 check two explanations for it. Test 8 asks whether what the person looks at
 tells what comes next, before gaze is given to the predictor as a position. Test 9 gives the
-predictor gaze as a position in the image. Each test addresses a hypothesis from
-[[1-introduction#^hypotheses|the introduction]]. How each measure works is in [[3-method]]. The
-weak points that limit Tests 1–4 are in [[5-discussion#Weak points of the design]]. The planned
-Test 10 is in [[6-next-steps]].
+predictor gaze as a position in the image. Test 10 trains it with the loss of its pretraining
+and as a whole. Test 11 replaces it with a predictor built for the signals; its first runs are
+here. Each test addresses a hypothesis from [[1-introduction#^hypotheses|the introduction]]. How
+each measure works is in [[3-method]]. The weak points that limit Tests 1–4 are in
+[[5-discussion#Weak points of the design]]. The rest of the plan is in [[6-next-steps]].
 
 ## Test 1. Can the predictor learn with gaze and hand inputs?
 
@@ -827,11 +828,233 @@ options of each run (`--loss l1`, `--unfreeze-last-n 24 --unfreeze-embed`). The 
 results/test9/cache --out results/test10`. Files: `results/test10/gaze_forms.csv`,
 `gaze_forms_comparisons.csv`, `gaze_forms_references.csv`.
 
+## Test 11. A predictor designed for gaze and hand: first runs
+
+Run on 8–9 October 2026: one run each of two arms, maps and none, 6.3 hours of training on one GPU, then the
+evaluation on P08 and P09. These are the first runs of the plan in [[6-next-steps]]. There is
+one seed per arm, so the decision rule of the plan cannot be applied. ^test11
+
+**Question.** Tests 1–4, 9 and 10 gave gaze to the V-JEPA 2-AC predictor in the slot its
+pretraining built for the robot's action. Does a predictor built for gaze and hand predict
+better with them than without, when no pretrained conditioning slot and no pretrained step
+constrain the design?
+
+**Hypothesis and prediction.** H4 (gaze form). Written before the runs: if the form of the gaze
+input is the reason for the null of Tests 2 and 9, a predictor whose gaze marks the image tokens
+gains more from gaze than the V-JEPA 2-AC predictor did, and the gain is larger near the gaze
+point than over the whole frame. The runs predict 0.53 s and 1.07 s ahead, so they also bear on
+H1 (horizon).
+
+**Method.**
+
+- *The predictor* (`ego/ego_predictor.py`). 12 blocks of width 384, 22.4 million parameters,
+  trained from the start on the tokens of the frozen V-JEPA 2 encoder. RoPE over time, row and
+  column, and attention over all tokens. The frames to predict are mask tokens at their own
+  time slots, so both horizons come from one forward pass.
+- *The signals as maps.* The token of patch $p$ at observed step $\tau$ becomes
+  $x_{\tau,p} + \alpha_g\, k(p, g_\tau)\, e_g + \alpha_h \left( k(p, l_\tau)\, e_l + k(p, r_\tau)\, e_r \right)$,
+  where $k$ is a Gaussian over the patch grid whose width $\sigma$ starts at 1 patch and is
+  learned ([[6-next-steps]]). The vectors $e$ start at 0, so every run starts as the model
+  without signals.
+- *Arms.* The shuffled and token arms of the plan were not run.
+
+| Arm | Signals | Role |
+|---|---|---|
+| maps | the gaze point and both palms of each observed frame, as maps | the design |
+| none | the maps add nothing | the matched model |
+
+
+- *Training.* P01–P07, 40 clips per recording per epoch (5,240 clips), batch size 16, L1 loss,
+  AdamW with a learning rate of $10^{-4}$ and weight decay 0.01. The learning rate rises over 500
+  steps and then falls to 0 along a cosine over the planned number of epochs. 8 context frames,
+  8 frames apart (2.1 s). The frames to predict are 2 and 4 steps after the last context frame,
+  0.53 s and 1.07 s. Seed 0 in every arm. No signal dropout: a signal is hidden only where its
+  point is missing in the data. maps and none trained for 13 epochs, 3.2 hours each.
+- *Same start, same clips.* maps and none start from the same weights and draw the same
+  training clips in the same order. Their training losses agree to the fifth digit over the
+  first 50 steps. So maps − none shows what the maps change, with no difference in start or data. It
+  does not show how much another seed would change it.
+- *Test set.* 24 clips from each of the 25 recordings of P08 and P09, 600 clips. These are the
+  people and recordings of Tests 9 and 10, but not their clips, because a clip here spans the
+  2.1 s of context and the horizon. Every clip has a gaze point in its last context frame.
+- *Measures.* L1 and MSE between the predicted tokens and the frozen encoder's tokens of each
+  frame to predict, over the whole frame and within 2 patches of the gaze point of the last
+  context frame ("near"), as in Tests 9 and 10. Both token sets are layer-normalized, so the MSE
+  equals $2(1-\rho)$, where $\rho$ is the correlation between a predicted and a true token. Each
+  model is scored with its points and with the points hidden. The references are repeating the
+  last context frame and the blend of the context frames of Tests 9 and 10. Each model is scored
+  at its last epoch, which was its best held-out epoch, and at epoch 3.
+- *Statistics.* The gain of A over B is the error of B minus the error of A, clip by clip, with
+  a 95% interval from a bootstrap over the 25 test recordings. With one seed per arm there is no
+  spread between seeds.
+
+**Checks.**
+
+- On the 96 P08 clips of the check after each epoch, the evaluation gives exactly the errors
+  that the training logged, with the points and with them hidden.
+- No run had a loss spike. The largest gradient norm in any run is 0.87, at the first logged
+  step, below the clip at 1.0. In Test 9, without a warmup, 2 of 20 runs had one.
+
+**Result.** Error on the 600 test clips; lower is better.
+
+| Model | L1, 0.53 s | L1, 1.07 s | MSE, 0.53 s | MSE, 1.07 s | MSE near, 0.53 s | MSE near, 1.07 s |
+|---|---|---|---|---|---|---|
+| repeat last frame | 0.5532 | 0.5778 | 0.8224 | 0.8840 | 0.6482 | 0.7163 |
+| blend of past frames | 0.4780 | 0.4940 | 0.6173 | 0.6558 | 0.4946 | 0.5347 |
+| none, 13 epochs | 0.4576 | 0.4622 | 0.6720 | 0.6898 | 0.5697 | 0.5866 |
+| maps, 13 epochs | 0.4576 | 0.4622 | 0.6720 | 0.6898 | 0.5693 | 0.5862 |
+
+The gains, in units of $10^{-4}$, at 0.53 s / 1.07 s:
+
+| A − B | What it measures | L1 | L1 near | MSE | MSE near |
+|---|---|---|---|---|---|
+| maps − none | the value of the maps | +0.04 / +0.03 | +0.2 / +0.3 | +0.03 / −0.20 | +3.8 / +3.6 |
+| maps − maps with the points hidden | the Δ within maps | +0.07 / +0.08 | +0.5 / +0.7 | +1.4 / +1.3 | +10.5 / +10.3 |
+| none − maps with the points hidden | the cost of hiding an input maps expects | +0.03 / +0.06 | +0.3 / +0.4 | +1.3 / +1.5 | +6.7 / +6.8 |
+
+For maps − none, the 95% intervals are, on MSE near, [+3.4, +4.2] and [+3.2, +4.0]; on L1 near,
+[+0.1, +0.3] and [+0.2, +0.4]; on MSE over the whole frame, [−0.03, +0.10] and [−0.28, −0.12].
+The intervals of the other rows exclude 0 (`results/test11/eval_ego_comparisons.csv`).
+
+![[figures/t11_training.png]]
+
+- *The maps change the prediction near the gaze point, by little.* maps − none is +0.00038 on
+  MSE near the gaze point at 0.53 s and +0.00036 at 1.07 s, 0.07% of the error there. maps is
+  better in 80% of the clips and in all 25 recordings. On L1, the loss the predictor trains on,
+  the gain near the gaze point is 0.00002–0.00003. Over the whole frame it is 0.000004 on L1, and
+  on MSE 0 at 0.53 s and −0.00002 at 1.07 s. The gain is the same at both horizons.
+- *Hiding the points mostly measures something else.* Within maps, hiding the points raises the
+  error near the gaze point by 0.00105 (MSE). Of this, 0.00067 is the cost of hiding an input
+  that maps expects: maps with its points hidden predicts worse than none. 0.00038 is the value
+  of the maps. Test 2 found the same pattern: +0.0011 within the model, +0.0003 against the
+  matched model. maps saw no hidden points in training, except where a point was missing. The
+  check after each epoch reports only the Δ within a model, so its rise over the epochs does not
+  show that the maps help. Over the epochs that Δ rises from 0 to 0.00014 (MSE, whole frame),
+  while maps − none stays between −0.00012 and +0.00008 with no trend.
+- *How much the maps move a token.* At the end of training, $\alpha \lVert e \rVert$ is 0.22 for
+  gaze and 0.20–0.21 for each palm. The image tokens after the input layer have a mean norm of
+  17.5, so the maps change the token at the gaze point by about 1.3% of its length. $\sigma$
+  grew from 1 to 1.10 patches.
+- *The predictor beats the blend on L1, not on MSE.* Against the blend of the past frames, none
+  lowers the L1 error by 0.020 at 0.53 s and 0.032 at 1.07 s, but raises the MSE by 0.055 and
+  0.034. Since the MSE is $2(1-\rho)$, the predicted tokens correlate less with the true tokens
+  than the blend does: $\rho$ = 0.664 against 0.691 at 0.53 s, 0.655 against 0.672 at 1.07 s.
+  Near the gaze point at 0.53 s, the L1 gain over the blend is +0.003, with an interval that
+  includes 0. Training with L1 had this cost in Test 10 too, where it raised the MSE of the
+  V-JEPA 2-AC predictor by 0.061. There the predictor still beat the blend on both measures at
+  0.27 s, by 0.043 on L1 and 0.012 on MSE without signals.
+
+![[figures/t11_decomposition.png]]
+
+![[figures/t11_references.png]]
+
+**Where in the frame the gain is.** The error of every patch, grouped by its distance from the
+gaze point of the last context frame, or from the nearest palm in that frame. Gains in units of
+$10^{-4}$ MSE, 95% intervals over recordings.
+
+![[figures/t11_distance.png]]
+
+![[figures/t11_gain_map.png]]
+
+| Distance (patches) | 0–1 | 1–2 | 2–3 | 3–4 | 4–6 | 6–8 | 8–12 | 12 or more |
+|---|---|---|---|---|---|---|---|---|
+| Patches per clip, from the gaze point | 3.2 | 9.4 | 15.8 | 21.4 | 54.7 | 58.2 | 80.2 | 13.2 |
+| Error of none, 0.53 s | 0.566 | 0.571 | 0.586 | 0.602 | 0.646 | 0.694 | 0.731 | 0.538 |
+| maps − none, from the gaze point, 0.53 s | +7.0 [+6.1, +7.8] | +2.7 [+2.3, +3.0] | +0.1 | −0.5 | −0.4 | −0.2 | −0.1 | +0.1 |
+| maps − none, from the gaze point, 1.07 s | +6.4 [+5.6, +7.1] | +2.6 [+2.3, +3.0] | +0.1 | −0.6 | −0.6 | −0.4 | −0.4 | −0.1 |
+| maps − none, from the nearest palm, 0.53 s | +4.7 [+4.0, +5.4] | +2.7 [+2.3, +3.1] | +0.5 | −0.3 | −0.4 | −0.2 | −0.1 | +0.2 |
+| none − maps with points hidden, from the gaze point, 0.53 s | +8.3 | +6.1 | +3.9 | +2.4 | +1.3 | +0.7 | +0.4 | +0.1 |
+
+- *The gain lies where the maps are drawn.* maps − none is +0.0007 within 1 patch of the gaze
+  point and +0.0003 at 1–2 patches, about the width of the kernel ($\sigma$ = 1.1 patches), and
+  the same at both horizons. Within 1 patch it is 0.12% of the error there.
+- *Farther away the maps cost a little.* From 3 to 8 patches, maps − none is −0.00002 to −0.00006
+  per patch, with intervals that exclude 0, and at 1.07 s also beyond 8 patches. 228 of the 256
+  patches of a clip lie 3 or more patches from the gaze point. Over the whole frame the local gain
+  and this cost cancel, which is why
+  maps − none is about 0 over the whole frame, and below 0 at 1.07 s.
+- *Around the palms the pattern is the same:* +0.0005 within 1 patch of the nearest palm, +0.0003
+  at 1–2 patches. The gaze point lies a median of 2.0 patches from the nearest palm (491 clips
+  with a palm), so the gains around gaze and around the palms overlap and are not separated here.
+- *The cost of hiding the points spreads wider than the gain:* +0.0008 at the gaze point and
+  still +0.0002 at 3–4 patches. Without its points, maps predicts worse over a larger region than
+  the one where the points help it.
+- The error of none is lowest at the gaze point (0.566) and highest 8–12 patches away (0.731), as
+  in Test 9.
+
+**Comparison with Tests 9 and 10.** The gain of gaze against the matched model. Tests 9 and 10:
+three seeds each, at 0.27 s, on the clips of Test 9. Test 11: one seed, at 0.53 s / 1.07 s.
+
+| Test | Predictor | L1 | L1 near | MSE | MSE near |
+|---|---|---|---|---|---|
+| 9: pe − none | V-JEPA 2-AC, last 6 blocks, MSE loss | +0.00017 | +0.00027 | +0.00032 | +0.00070 |
+| 9: future − none | the same, positive control | +0.00046 | +0.00081 | +0.00126 | +0.00231 |
+| 10: pe l1 − none l1 | V-JEPA 2-AC, last 6 blocks, L1 loss | +0.00016 | +0.00019 | −0.00015 | +0.00016 |
+| 10: pe l1 full − none l1 full | V-JEPA 2-AC, whole predictor, L1 loss | +0.00013 | +0.00027 | +0.00043 | +0.00057 |
+| 11: maps − none | new, from the start, L1 loss | +0.000004 / +0.000003 | +0.00002 / +0.00003 | +0.000003 / −0.00002 | +0.00038 / +0.00036 |
+
+![[figures/t11_gains.png]]
+
+- On L1, the gain of the maps is much smaller than the gain of pe in Tests 9 and 10: over the
+  whole frame 0.000003–0.000004 against 0.00013–0.00017, 30 to 60 times smaller, and near the
+  gaze point 0.00002–0.00003 against 0.00019–0.00027, 6 to 13 times smaller.
+- On MSE near the gaze point, the gain is of the same size as in Tests 9 and 10 (0.00016–0.00070),
+  and smaller than the spread between their seeds there (0.0004–0.0016).
+- Over the whole frame on MSE, the maps gain nothing, as pe in Test 10 with the last 6 blocks.
+- The positive control of Test 9 was detected on every measure. Test 11 has none.
+
+**Conclusion.**
+
+- In these first runs, gaze and hand as maps over the image tokens lower the error near the gaze
+  point by 0.0004 on MSE, consistently over clips and recordings, and change nothing over the
+  whole frame or on L1, the loss the predictor trains on. H4's prediction, that this form gains
+  more than the V-JEPA 2-AC predictor did, is not supported by them: near the gaze point on MSE
+  the gain is the same size as in Tests 9 and 10, and on L1 it is smaller.
+- The gain is local. It lies within about 2 patches of the gaze point and of the palms, the width
+  of the maps, and a small cost over the rest of the frame cancels it over the whole frame.
+- The gain is the same at 0.53 s and 1.07 s. These runs do not show more room for gaze at the
+  longer horizon (H1).
+- There is no positive control, so these runs cannot say how large a gain the measure can show
+  at these horizons.
+- Without signals, the predictor trained from the start beats the blend of the past frames on L1
+  but not on MSE: its tokens correlate less with the future than an average of the past frames
+  does. A gain of gaze is hard to read in a prediction that is still below this reference (H3).
+- The Δ within a model again overstates the value of the signals: about two thirds of it near
+  the gaze point is the cost of hiding an input the model expects.
+
+**Limits.**
+
+- One seed per arm. The arms share their start and their training clips, which makes maps − none
+  precise for this seed, but the spread between seeds is not known.
+- No positive control. The shuffled and token arms were not run, so it is not shown that the
+  gain of the maps comes from the information of the points and not from the extra input.
+- No signal dropout, so the Δ within a model mixes the value of the points with the cost of
+  hiding them.
+- The measure of the plan on the object about to be picked up is not built; near the gaze point
+  is the closest measure available.
+- The test clips differ from those of Tests 9 and 10, and the horizons differ, so the errors
+  compare across tests only through the gains and the references.
+- Two test people.
+
+**Reproduce.** The runs: `checkpoints/test11/queue.sh` with `checkpoints/test11/todo.txt`, which
+holds the options of each run (`--arm`, `--seed`, `--epochs`, `--max-hours`); the recipe is in
+`queue.sh`. Each run is in `checkpoints/test11/<arm>_s0/`: `best.pt`, `epoch3.pt`, `final.pt`,
+`train.log`, `metrics.jsonl`, `run.out`. `checkpoints/test11/future_s0/` holds a run of an arm
+that is no longer part of the test; `eval-ego` skips it. The evaluation: `python -m ego eval-ego --checkpoint
+data/model_checkpoints/vjepa2-ac-vitg.pt --video-dir data/epic-kitchen/ek100-hd/HD-EPIC/Videos
+--gaze-dir data/epic-kitchen/ek100-hd/HD-EPIC/SLAM-and-Gaze --runs checkpoints/test11 --out
+results/test11 --patches` (about 12 minutes). Files in `results/test11/`: `eval_ego.csv` (the
+error of every model and input), `eval_ego_comparisons.csv`, `scores.npz` (every clip),
+`eval_ego.log`, and `cache/patches.npz` (the error of every patch). The figures: `python -m ego
+figures --only test11`, which writes `docs/figures/t11_*.png`.
+
 ## Is the model undertrained? (H3)
 
-No finished test has addressed H3 yet. All results come from models trained for 3 epochs with
-30 clips per recording, in which only the last 6 of the 24 predictor blocks train. A run at the
-intended size (8 epochs, 60 clips per recording) has never finished. Two results bear on it:
-fine-tuning already lowered the error by 0.125 (Test 2), and the two longer runs had Δ at or
-below zero before they were stopped (Test 1). Test 10, running, trains the whole predictor and
-uses the loss of the pretraining ([[6-next-steps]]).
+Two tests address parts of H3. Test 10 trained the whole V-JEPA 2-AC predictor for 3 epochs:
+the error fell by 0.0041 (L1), and gaze gained no more ([[#^test10|Test 10]]). Test 11 trained a
+new predictor from the start for 13 epochs with a warmup: no run had a loss spike, the held-out
+error fell at every epoch, and the gain of gaze is no larger than in Tests 9 and 10; without
+signals, that predictor is still below the blend of the past frames on MSE
+([[#^test11|Test 11]]). A run of the V-JEPA 2-AC predictor at the intended size (8 epochs, 60
+clips per recording) has never finished. Earlier results: fine-tuning lowered the error by 0.125
+(Test 2), and the two longer runs had Δ at or below zero before they were stopped (Test 1).
