@@ -23,8 +23,6 @@ The arms (Test 11, docs/6-next-steps.md). Only the signals differ.
     maps      gaze and hand as maps: the design
     none      alpha held at 0: the matched model, exactly the same weights otherwise
     shuffled  the maps, with the points of another clip in the batch
-    future    the points of the target frames: the positive control, the ceiling of the
-              measure at each horizon
 
 How much the model uses a signal is alpha * ||e||, printed each log step as |gaze|,
 |left| and |right|. Every run starts at 0 there, because the vectors e start at zero: the
@@ -37,9 +35,9 @@ averaged over the horizons. `best.pt` is rewritten whenever that error improves,
 (from `--checkpoint-epochs`) is kept whatever it does, and `final.pt` is the last epoch. So a
 run goes as far as it keeps improving and no further.
 
-These four are the arms that make the new predictor comparable with the V-JEPA 2-AC
+These three are the arms that make the new predictor comparable with the V-JEPA 2-AC
 predictors of Tests 9 and 10: the same split, clips, encoder and controls, so the gain of
-gaze can be read against theirs. `token` is the fifth arm, a gaze token per step placed at
+gaze can be read against theirs. `token` is the fourth arm, a gaze token per step placed at
 the gaze point in RoPE as the rope form of Test 9, for comparing the two channels inside one
 predictor. It needs a gaze token in ego/ego_predictor.py and raises until that exists.
 """
@@ -63,7 +61,7 @@ from ego.model import encode_independent, load_models, maybe_norm
 
 log = logging.getLogger("train_ego")
 
-ARMS = ("maps", "none", "shuffled", "future", "token")
+ARMS = ("maps", "none", "shuffled", "token")
 LOSSES = {"l1": F.l1_loss, "mse": F.mse_loss}
 VAL_SEED = 12345
 
@@ -86,15 +84,6 @@ def clip_indices(start, T, stride, target_slots):
     return obs, tgt
 
 
-def point_indices(obs_idx, stride, target_slots, future, n_frames):
-    """
-    The frames whose gaze and palms the predictor receives: the observed frames, or for the
-    positive control every observed frame moved forward by the first target slot, so the last
-    observed step carries the points of the first frame to predict.
-    """
-    idx = [j + target_slots[0] * stride for j in obs_idx] if future else list(obs_idx)
-    return [min(j, n_frames - 1) for j in idx]
-
 
 class EgoClipDataset(Dataset):
     """
@@ -106,21 +95,17 @@ class EgoClipDataset(Dataset):
         gaze_val   (T,)   bool
         hand_pt    (T, 2, 2)          the left then right palm, in patches
         hand_val   (T, 2) bool
-
-    With `future_points`, the points are read at the frames of the first target slot in
-    place of the observed frames: the positive control.
     """
 
     def __init__(self, video_dir, gaze_dir, participants, context_steps=8, frame_stride=8,
                  target_slots=(2, 4), img_size=256, clips_per_recording=200,
-                 standardize=True, future_points=False, grid=GRID):
+                 standardize=True, grid=GRID):
         self.T = context_steps
         self.stride = frame_stride
         self.target_slots = tuple(target_slots)
         self.img_size = img_size
         self.clips_per_rec = clips_per_recording
         self.standardize = standardize
-        self.future_points = future_points
         self.grid = grid
         self.recordings = find_recordings(video_dir, gaze_dir, participants)
         self._cache = {}
@@ -165,9 +150,7 @@ class EgoClipDataset(Dataset):
         obs_frames = frames[[pos[j] for j in obs_idx]]
         tgt_frames = frames[[pos[j] for j in tgt_idx]]
 
-        pt_idx = point_indices(obs_idx, self.stride, self.target_slots, self.future_points,
-                               len(vrs))
-        sig = signals.read(gl, hl, [int(vrs[j]) for j in pt_idx], self.T, proj)
+        sig = signals.read(gl, hl, [int(vrs[j]) for j in obs_idx], self.T, proj)
         pts = signals.points(sig, proj, self.standardize, self.grid)
         return (obs_frames, tgt_frames, *(torch.from_numpy(x) for x in pts))
 
@@ -178,15 +161,11 @@ class EgoClipDataset(Dataset):
 
 
 def fixed_val_clips(video_dir, gaze_dir, participants, T, stride, target_slots,
-                    n_recordings, n_clips, img_size=256, grid=GRID, seed=VAL_SEED,
-                    future_points=False):
+                    n_recordings, n_clips, img_size=256, grid=GRID, seed=VAL_SEED):
     """
     The held-out clips of the check after each epoch. The same recordings, seed and sampler
     every epoch, so the trend of the gain is comparable across epochs. Video is not decoded
     here, only the indices and the points, so the list exists before the GPU is used.
-
-    With `future_points` the points are those the future arm trains on (point_indices). The
-    clip positions depend only on the seed, so the same clips come back either way.
     """
     rng = np.random.RandomState(seed)
     recs = find_recordings(video_dir, gaze_dir, participants)[:n_recordings]
@@ -203,8 +182,7 @@ def fixed_val_clips(video_dir, gaze_dir, participants, T, stride, target_slots,
         for _ in range(n_clips):
             start = int(rng.randint(0, len(vrs) - span))
             obs_idx, tgt_idx = clip_indices(start, T, stride, target_slots)
-            pt_idx = point_indices(obs_idx, stride, target_slots, future_points, len(vrs))
-            sig = signals.read(gl, hl, [int(vrs[j]) for j in pt_idx], T, proj)
+            sig = signals.read(gl, hl, [int(vrs[j]) for j in obs_idx], T, proj)
             out.append((rec, obs_idx, tgt_idx,
                         signals.points(sig, proj, True, grid)))
     log.info(f"[val] {len(out)} clips from {len(recs)} recordings of {participants}")
@@ -218,8 +196,7 @@ def fixed_val_clips(video_dir, gaze_dir, participants, T, stride, target_slots,
 def arm_points(arm, batch_points, device):
     """
     The points the predictor receives for this arm. `none` is handled by holding alpha at 0,
-    so it needs no change here; `future` is handled by the dataset, which reads the points at
-    the target frames.
+    so it needs no change here.
     """
     gaze_pt, gaze_val, hand_pt, hand_val = (x.to(device) for x in batch_points)
     if arm == "shuffled":
@@ -448,14 +425,12 @@ def main(argv=None):
 
     train_ds = EgoClipDataset(args.video_dir, args.gaze_dir, args.participants,
                               args.context_steps, args.frame_stride, args.target_slots,
-                              args.img_size, args.clips_per_recording,
-                              future_points=(args.arm == "future"), grid=grid)
+                              args.img_size, args.clips_per_recording, grid=grid)
     loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True,
                         num_workers=args.num_workers, drop_last=True, pin_memory=True)
     val_clips = fixed_val_clips(args.video_dir, args.gaze_dir, args.val_participants,
                                 args.context_steps, args.frame_stride, args.target_slots,
-                                args.val_recordings, args.val_clips, args.img_size, grid,
-                                future_points=(args.arm == "future"))
+                                args.val_recordings, args.val_clips, args.img_size, grid)
 
     optimizer = torch.optim.AdamW(
         [p for p in predictor.parameters() if p.requires_grad],

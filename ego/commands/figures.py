@@ -30,6 +30,15 @@ Figures (group: file, what it shows)
               t9_training.png           training loss, the reproduction of ego_ft_v2, Δ in training
               t9_distance.png           gain over none by distance from the gaze point (patches)
               t9_gain_map.png           gain over none around the gaze point (patches)
+    test11:   t11_training.png          held-out error, Δ within maps against maps − none, map strength
+              t11_gains.png             gain of gaze against the matched model, Tests 9, 10 and 11
+              t11_decomposition.png     the Δ within a model: value of the signals + cost of hiding them
+              t11_references.png        the predictors without signals against the references, by horizon
+              t11_distance.png          maps − none by distance from the gaze point and from the nearest palm
+              t11_gain_map.png          maps − none and the cost of hiding, around the gaze point
+
+The Test 11 figures read results/test11/ (python -m ego eval-ego); the last two need the error
+of every patch (eval-ego --patches, results/test11/cache/patches.npz).
 """
 
 import argparse
@@ -689,8 +698,305 @@ def fig_test9_patches(plt, out):
     save(plt, fig, out, "t9_gain_map.png")
 
 
+# ---------------------------------------------------------------------------
+# Test 11
+# ---------------------------------------------------------------------------
+
+T11 = {"maps": "#CC79A7", "none": "#7f7f7f"}
+AC = "#0072B2"                                  # the V-JEPA 2-AC predictor of Tests 9 and 10
+REF = {"blend of past frames": ("#555555", "--"), "repeat last frame": ("#AAAAAA", ":")}
+T11_DIR = Path("results/test11")
+T11_RUNS = Path("checkpoints/test11")
+
+
+def t11_scores():
+    if not (T11_DIR / "scores.npz").exists():
+        return None
+    return dict(np.load(T11_DIR / "scores.npz"))
+
+
+def t11_gain(z, a, b, m, h):
+    """Gain of a over b (error of b minus error of a) at horizon h: mean and 95% interval."""
+    return interval(z[f"{b}|{m}"][:, h] - z[f"{a}|{m}"][:, h], z["recording"])
+
+
+def t11_rows(run):
+    rows = [json.loads(l) for l in open(T11_RUNS / run / "metrics.jsonl") if l.strip()]
+    return [r for r in rows if r["t"] == "step"], [r for r in rows if r["t"] == "epoch"]
+
+
+def fig_test11(plt, out):
+    import pandas as pd
+    z = t11_scores()
+    if z is None:
+        print("[skip] Test 11 figures: run `python -m ego eval-ego` first")
+        return
+    hz = [float(h) for h in z["horizons"]]
+
+    # --- training ---
+    fig, axes = plt.subplots(1, 3, figsize=(12, 3.6))
+    runs = {arm: t11_rows(f"{arm}_s0") for arm in ("maps", "none")}
+    ax = axes[0]
+    for arm, ls in (("none", "--"), ("maps", "-")):
+        ep = runs[arm][1]
+        ax.plot([r["epoch"] for r in ep], [r["val_score"] for r in ep], ls, marker="o", ms=3,
+                color=T11[arm], lw=1.4 if arm != "none" else 1.8)
+    ax.text(13.3, runs["maps"][1][-1]["val_score"], "maps and none\n(equal to 4 digits)", fontsize=7, va="center")
+    ax.set_xlim(0.5, 17)
+    ax.set_xticks([1, 3, 5, 7, 9, 11, 13])
+    ax.set_xlabel("epoch"); ax.set_ylabel("held-out error (L1), lower is better")
+    ax.set_title("Held-out error after each epoch", loc="left")
+
+    ax = axes[1]
+    within = [1e4 * np.mean([v[0][2] - v[0][3], v[1][2] - v[1][3]]) for v in (r["val"] for r in runs["maps"][1])]
+    matched = [1e4 * np.mean([n[0][3] - m[0][3], n[1][3] - m[1][3]])
+               for n, m in zip((r["val"] for r in runs["none"][1]), (r["val"] for r in runs["maps"][1]))]
+    e = range(1, len(within) + 1)
+    ax.axhline(0, color="#333333", lw=0.8)
+    ax.plot(e, within, "o-", ms=3.5, color=T11["maps"], lw=1.6)
+    ax.plot(e, matched, "s--", ms=3.5, mfc="white", color="#333333", lw=1.2)
+    ax.text(13.3, within[-1], "within maps:\nhidden − real", fontsize=7, va="center", color="#333333")
+    ax.text(13.3, matched[-1], "maps − none", fontsize=7, va="center", color="#333333")
+    ax.set_xlim(0.5, 17)
+    ax.set_xticks([1, 3, 5, 7, 9, 11, 13])
+    ax.set_xlabel("epoch"); ax.set_ylabel("gain (10⁻⁴ MSE), > 0: the points help")
+    ax.set_title("The Δ within maps rises; maps − none does not", loc="left")
+
+    ax = axes[2]
+    spe = 327
+    st = runs["maps"][0]
+    x = [(r["epoch"] - 1) + r["step"] / spe for r in st]
+    for sig, ls, label in (("gaze", "-", "gaze"), ("left", "--", "left palm"), ("right", ":", "right palm")):
+        ax.plot(x, [r["signal_strength"][sig] for r in st], ls, color=T11["maps"], lw=1.5)
+        ax.text(x[-1] + 0.2, st[-1]["signal_strength"][sig], label, fontsize=7, va="center")
+    ax.set_xlim(0, 15.8)
+    ax.set_xlabel("epoch"); ax.set_ylabel("α‖e‖ (0 for none throughout)")
+    ax.set_title("How strongly maps adds each map", loc="left")
+    fig.suptitle("Test 11. Training of maps and none, seed 0, which start from the same weights and see the same "
+                 "clips. Held-out: the 96 P08 clips of the check after each epoch, mean of the two horizons",
+                 fontsize=9)
+    fig.tight_layout()
+    save(plt, fig, out, "t11_training.png")
+
+    # --- gain of gaze against the matched model, Tests 9, 10 and 11 ---
+    c10 = pd.read_csv("results/test10/gaze_forms_comparisons.csv")
+
+    def old(a, b, m):
+        r = c10[(c10.measure == m) & (c10.a == a) & (c10.b == b)].iloc[0]
+        return r.gain, r.ci_lo, r.ci_hi, r.seed_spread
+    measures = [("l1", "l1", "L1, whole frame"), ("near_l1", "near_l1", "L1, near the gaze point"),
+                ("mse", "mse", "MSE, whole frame"), ("near", "near_mse", "MSE, near the gaze point")]
+    rows = [("Test 9: pe − none, 0.27 s", COLORS["pe"], "o", lambda m, m11: old("pe", "none", m)),
+            ("Test 10: pe l1 − none l1, 0.27 s", COLORS["pe"], "s", lambda m, m11: old("pe l1", "none l1", m)),
+            ("Test 10: pe l1 full − none l1 full, 0.27 s", COLORS["pe"], "^", lambda m, m11: old("pe l1 full", "none l1 full", m)),
+            ("Test 11: maps − none, 0.53 s", T11["maps"], "o", lambda m, m11: (*t11_gain(z, "maps_s0|present", "none_s0|present", m11, 0), np.nan)),
+            ("Test 11: maps − none, 1.07 s", T11["maps"], "D", lambda m, m11: (*t11_gain(z, "maps_s0|present", "none_s0|present", m11, 1), np.nan)),
+            ("Test 9: future − none, 0.27 s\n(positive control)", "#000000", "o", lambda m, m11: old("future", "none", m))]
+    fig, axes = plt.subplots(1, 4, figsize=(12, 3.6), sharey=True)
+    y = np.arange(len(rows))[::-1]
+    for ax, (m, m11, title) in zip(axes, measures):
+        ax.axvline(0, color="#333333", lw=0.8)
+        for yi, (label, col, mk, get) in zip(y, rows):
+            g, lo, hi, sp = (1e4 * v for v in get(m, m11))
+            if np.isfinite(sp):
+                ax.add_patch(plt.Rectangle((-sp, yi - 0.3), 2 * sp, 0.6, color="#E4E4E4", lw=0))
+            ax.plot([lo, hi], [yi, yi], color=col, lw=1.6)
+            ax.plot(g, yi, mk, ms=6, color=col)
+        ax.axhline(2.5, color="#EEEEEE", lw=0.8)
+        ax.axhline(0.5, color="#EEEEEE", lw=0.8)
+        ax.set_title(title)
+        ax.set_xlabel("gain (10⁻⁴); > 0: gaze helps")
+        ax.grid(axis="y", visible=False)
+    axes[0].set_yticks(y, [r[0] for r in rows])
+    axes[0].set_ylim(-0.7, len(rows) - 0.3)
+    fig.legend(handles=[plt.Rectangle((0, 0), 1, 1, color="#E4E4E4", label="± spread between seeds (Tests 9, 10: 3 seeds)"),
+                        plt.Line2D([], [], color="#333333", lw=1.6, label="95% interval over the 25 test recordings")],
+               loc="lower center", ncol=2, bbox_to_anchor=(0.55, -0.06))
+    fig.suptitle("Test 11 against Tests 9 and 10. The gain of gaze against the matched model, on four measures. "
+                 "Test 11: one seed, so no seed spread;\nits clips are not those of Tests 9 and 10, but come from "
+                 "the same 25 recordings of P08 and P09", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    save(plt, fig, out, "t11_gains.png")
+
+    # --- the Δ within a model: value of the signals + cost of hiding them ---
+    t2 = pd.read_csv("results/rung_b1_contrasts.csv").set_index("contrast")
+    sd = pd.read_csv("results/signal_dropout_contrasts.csv").set_index("contrast")
+    t10 = pd.read_csv("results/test10/gaze_forms.csv")
+
+    def old_within(form, m):
+        r = t10[t10.form == form]
+        col = {"mse": ("mse_hide", "mse"), "near": ("near_hide", "near")}[m]
+        return float((r[col[0]] - r[col[1]]).mean())
+
+    def t11_within(m, h):
+        return float(np.nanmean(z[f"maps_s0|hidden|{m}"][:, h] - z[f"maps_s0|present|{m}"][:, h]))
+    dec = [  # label, color, {measure: (within, value)}
+        ("Test 2: ego_ft_v2, angles, 0.27 s\n(96 P08 clips, one run)", "#0072B2",
+         {"mse": (t2.loc["finetuned:mask - finetuned:real", "mean_delta"], sd.loc["sd1.0 masked - ft_v2 real", "mean_delta"])}),
+        ("Test 9: pe, 0.27 s", COLORS["pe"], {m: (old_within("pe", m), old("pe", "none", m)[0]) for m in ("mse", "near")}),
+        ("Test 10: pe l1, 0.27 s", COLORS["pe"], {m: (old_within("pe l1", m), old("pe l1", "none l1", m)[0]) for m in ("mse", "near")}),
+        ("Test 11: maps, 0.53 s", T11["maps"], {m: (t11_within(m11, 0), t11_gain(z, "maps_s0|present", "none_s0|present", m11, 0)[0])
+                                               for m, m11 in (("mse", "mse"), ("near", "near_mse"))}),
+        ("Test 11: maps, 1.07 s", T11["maps"], {m: (t11_within(m11, 1), t11_gain(z, "maps_s0|present", "none_s0|present", m11, 1)[0])
+                                               for m, m11 in (("mse", "mse"), ("near", "near_mse"))}),
+    ]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.4), sharey=True)
+    y = np.arange(len(dec))[::-1]
+    for ax, m, title in ((axes[0], "mse", "MSE, whole frame"), (axes[1], "near", "MSE, near the gaze point")):
+        ax.axvline(0, color="#333333", lw=0.8)
+        for yi, (label, col, vals) in zip(y, dec):
+            if m not in vals:
+                ax.text(0.5, yi, "not measured", fontsize=7, color="#888888", va="center")
+                continue
+            w, v = (1e4 * x for x in vals[m])
+            ax.plot([v, w], [yi, yi], color="#BBBBBB", lw=3, solid_capstyle="butt", zorder=1)
+            ax.plot(w, yi, "o", ms=7, mfc="white", mec=col, mew=1.6, zorder=3)
+            ax.plot(v, yi, "o", ms=7, color=col, zorder=3)
+        ax.set_title(title)
+        ax.set_xlabel("10⁻⁴ MSE")
+        ax.grid(axis="y", visible=False)
+    axes[0].set_yticks(y, [d[0] for d in dec])
+    axes[0].set_ylim(-0.6, len(dec) - 0.4)
+    fig.legend(handles=[plt.Line2D([], [], marker="o", ls="", ms=7, mfc="white", mec="#333333", label="Δ within the model: signals hidden − real"),
+                        plt.Line2D([], [], marker="o", ls="", ms=7, color="#333333", label="value of the signals: matched model − model with signals"),
+                        plt.Line2D([], [], color="#BBBBBB", lw=3, label="the difference: the cost of hiding an input the model expects")],
+               loc="lower center", ncol=3, bbox_to_anchor=(0.55, -0.08), fontsize=7.5)
+    fig.suptitle("The Δ within a model overstates the value of the signals, in every test that has a matched model",
+                 fontsize=9.5)
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    save(plt, fig, out, "t11_decomposition.png")
+
+    # --- the predictors without signals against the references, by horizon ---
+    t9 = pd.read_csv("results/test10/gaze_forms.csv")
+    r9 = pd.read_csv("results/test10/gaze_forms_references.csv").set_index("model")
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.7))
+    for ax, key, ylab in ((axes[0], "corr", "correlation of predicted and true tokens\n(1 − MSE/2), higher is better"),
+                          (axes[1], "l1", "error (L1), lower is better")):
+        get = (lambda v: 1 - v / 2) if key == "corr" else (lambda v: v)
+        m11 = "mse" if key == "corr" else "l1"
+        for name, (col, ls) in REF.items():
+            ys = [get(r9.loc[name, m11])] + [get(np.mean(z[f"{name}|-|{m11}"][:, h])) for h in (0, 1)]
+            ax.plot([0.27] + hz, ys, ls, marker="o", ms=3.5, color=col, lw=1.3)
+            ax.text(1.1, ys[-1], name, fontsize=7, va="center", color="#333333")
+        for form, mk, label in (("none", "o", "MSE loss, last 6 blocks (Test 9)"), ("none l1", "s", "L1, last 6 blocks (Test 10)"),
+                                ("none l1 full", "^", "L1, whole predictor (Test 10)")):
+            v = t9[t9.form == form][m11].mean()
+            ax.plot(0.27, get(v), mk, ms=6.5, color=AC, label=f"V-JEPA 2-AC, {label}", ls="")
+        ys = [get(np.mean(z[f"none_s0|present|{m11}"][:, h])) for h in (0, 1)]
+        ax.plot(hz, ys, "D-", ms=5, color=T11["maps"], lw=1.6, label="Test 11 predictor (none), L1, from the start")
+        ax.set_xticks([0.27] + hz, ["0.27 s\n(Test 9 clips)", "0.53 s", "1.07 s"])
+        ax.set_xlim(0.15, 1.45)
+        ax.set_ylabel(ylab)
+        ax.set_xlabel("horizon")
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.1), fontsize=7.5)
+    fig.suptitle("The predictors without signals against the references. At 0.27 s on the 600 clips of Tests 9 and 10; "
+                 "at 0.53 s and 1.07 s on the 600 clips of Test 11 (same recordings)", fontsize=9)
+    fig.tight_layout(rect=(0, 0.04, 1, 1))
+    save(plt, fig, out, "t11_references.png")
+
+
+def fig_test11_patches(plt, out):
+    f = T11_DIR / "cache" / "patches.npz"
+    if not f.exists():
+        print("[skip] t11_distance.png, t11_gain_map.png: run `python -m ego eval-ego --patches` first")
+        return
+    d = dict(np.load(f))
+    recs, hz = d["recording"], [float(h) for h in d["horizons"]]
+    gaze = d["points|present|gaze"]                                       # (n, 2) column, row
+    hands, hval = d["points|present|hands"], d["points|present|hands_valid"]  # (n, 2, 2), (n, 2)
+    c = np.arange(16) + 0.5
+    pc, pr = np.tile(c, 16)[None], np.repeat(c, 16)[None]                  # row-major patch centres
+    dc, dr = pc - gaze[:, :1], pr - gaze[:, 1:]
+    dist = np.hypot(dc, dr)
+    hd = np.stack([np.where(hval[:, k:k + 1], np.hypot(pc - hands[:, k, :1], pr - hands[:, k, 1:]), np.inf)
+                   for k in (0, 1)]).min(0)                               # (n, 256) to the nearest palm
+    has_hand = hval.any(1)
+    none, maps, hide = d["none_s0|present"], d["maps_s0|present"], d["maps_s0|hidden"]   # (n, 2, 256)
+
+    edges = [0, 1, 2, 3, 4, 6, 8, 12, 23]
+    mids = [(a + b) / 2 for a, b in zip(edges[:-1], edges[1:])]
+
+    def ring(v, dd):
+        o = np.full((len(v), len(mids)), np.nan)
+        for k, (a, b) in enumerate(zip(edges[:-1], edges[1:])):
+            m = (dd >= a) & (dd < b)
+            o[:, k] = np.where(m.any(1), (v * m).sum(1) / np.maximum(m.sum(1), 1), np.nan)
+        return o
+
+    def curve(ax, v, dd, rows, col, ls, mk, shift):
+        r = ring(v[rows], dd[rows])
+        st = [interval(r[:, k], recs[rows]) for k in range(len(mids))]
+        x = np.array(mids) + shift
+        ax.errorbar(x, [1e4 * s[0] for s in st], yerr=[[1e4 * (s[0] - s[1]) for s in st], [1e4 * (s[2] - s[0]) for s in st]],
+                    color=col, ls=ls, marker=mk, ms=4, lw=1.3, elinewidth=0.7, mfc=col if mk != "D" else "white")
+
+    fig, axes = plt.subplots(1, 3, figsize=(12, 3.5), gridspec_kw={"width_ratios": [1, 1.3, 1.3]})
+    allc = np.ones(len(recs), bool)
+    for h, ls, mk in ((0, "-", "o"), (1, "--", "D")):
+        r = ring(none[:, h], dist)
+        st = [interval(r[:, k], recs) for k in range(len(mids))]
+        axes[0].plot(mids, [s[0] for s in st], ls, marker=mk, ms=3.5, color=T11["none"], mfc="white" if mk == "D" else T11["none"])
+        curve(axes[1], none[:, h] - maps[:, h], dist, allc, T11["maps"], ls, mk, (h - 0.5) * 0.15)
+        curve(axes[2], none[:, h] - maps[:, h], hd, has_hand, T11["maps"], ls, mk, (h - 0.5) * 0.15)
+    axes[0].set_ylabel("error of none (MSE)")
+    axes[0].set_title("Where the error is", loc="left")
+    for ax, title in ((axes[1], "maps − none, by distance from the gaze point"),
+                      (axes[2], f"maps − none, by distance from the nearest palm\n({has_hand.sum()} clips with a palm)")):
+        ax.axhline(0, color="#333333", lw=0.8)
+        ax.axvspan(0, 2, color="#F0E442", alpha=0.2, lw=0)
+        ax.set_ylabel("gain (10⁻⁴ MSE), > 0: maps better")
+        ax.set_title(title, loc="left")
+    for ax, xl in zip(axes, ("distance from the gaze point (patches)", "distance from the gaze point (patches)",
+                             "distance from the nearest palm (patches)")):
+        ax.set_xlabel(xl)
+    axes[0].legend(handles=[plt.Line2D([], [], color="#555555", ls="-", marker="o", ms=4, label=f"{hz[0]:.2f} s"),
+                            plt.Line2D([], [], color="#555555", ls="--", marker="D", ms=4, mfc="white", label=f"{hz[1]:.2f} s")],
+                   fontsize=7)
+    fig.suptitle("Test 11. Where in the frame the maps change the prediction. Points of the last context frame; "
+                 "600 clips, seed 0; 95% intervals over recordings", fontsize=9.5)
+    fig.tight_layout()
+    save(plt, fig, out, "t11_distance.png")
+
+    R = 6
+    bc, br = np.rint(dc).astype(int), np.rint(dr).astype(int)
+    inside = (np.abs(bc) <= R) & (np.abs(br) <= R)
+    idx = ((br + R) * (2 * R + 1) + (bc + R))[inside]
+    count = np.bincount(idx, minlength=(2 * R + 1) ** 2).reshape(2 * R + 1, 2 * R + 1)
+
+    def grid(v):
+        s = np.bincount(idx, weights=v[inside], minlength=(2 * R + 1) ** 2).reshape(2 * R + 1, 2 * R + 1)
+        g = s / np.maximum(count, 1)
+        g[count < 300] = np.nan
+        return g
+    panels = [(none[:, 0] - maps[:, 0], f"maps − none, {hz[0]:.2f} s"), (none[:, 1] - maps[:, 1], f"maps − none, {hz[1]:.2f} s"),
+              (hide[:, 0] - none[:, 0], f"none − maps with points hidden,\n{hz[0]:.2f} s: the cost of hiding")]
+    gains = [1e4 * grid(v) for v, _ in panels]
+    vmax = np.nanpercentile(np.abs(np.stack(gains)), 98)
+    fig, axes = plt.subplots(1, 4, figsize=(12.5, 3.5), layout="constrained")
+    ext = (-R - 0.5, R + 0.5, R + 0.5, -R - 0.5)
+    im0 = axes[0].imshow(grid(none[:, 0]), extent=ext, cmap="viridis")
+    axes[0].set_title(f"error of none (MSE), {hz[0]:.2f} s")
+    fig.colorbar(im0, ax=axes[0], shrink=0.8, location="left", pad=0.02)
+    for ax, g, (_, title) in zip(axes[1:], gains, panels):
+        im = ax.imshow(g, extent=ext, cmap="RdBu", vmin=-vmax, vmax=vmax)
+        ax.set_title(title)
+    fig.colorbar(im, ax=list(axes[1:]), shrink=0.8, pad=0.01, label="gain (10⁻⁴ MSE); blue: the first is better")
+    for ax in axes:
+        ax.grid(False)
+        ax.plot(0, 0, "+", color="white" if ax is axes[0] else "#D55E00", ms=9, mew=1.6)
+        ax.add_patch(plt.Circle((0, 0), 2, fill=False, ls="--", lw=0.8, color="white" if ax is axes[0] else "#333333"))
+        ax.set_xticks([-6, -3, 0, 3, 6]); ax.set_yticks([-6, -3, 0, 3, 6])
+        ax.set_xlabel("columns from the gaze point")
+    axes[0].set_ylabel("rows from the gaze point")
+    fig.suptitle("Test 11. Error and gain around the gaze point of the last context frame (+); the dashed circle is "
+                 "the 'near' region. 600 clips, seed 0; cells with fewer than 300 patches are blank", fontsize=9.5)
+    save(plt, fig, out, "t11_gain_map.png")
+
+
 GROUPS = {"overview": [fig_overview], "picks": [fig_picks], "test3": [fig_test3], "test4": [fig_test4],
-          "test8": [fig_test8], "test9": [fig_forms_diagram, fig_test9, fig_test9_patches]}
+          "test8": [fig_test8], "test9": [fig_forms_diagram, fig_test9, fig_test9_patches],
+          "test11": [fig_test11, fig_test11_patches]}
 
 
 def draw(args):
@@ -706,7 +1012,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--stage", choices=["figures", "patches"], default="figures")
     ap.add_argument("--only", nargs="+", default=None,
-                    help="groups: overview picks test3 test4 test8 test9")
+                    help="groups: overview picks test3 test4 test8 test9 test11")
     ap.add_argument("--out", default="docs/figures")
     ap.add_argument("--video-dir")
     ap.add_argument("--gaze-dir")

@@ -2,7 +2,7 @@
 type: report
 status: running
 created: 2026-10-05
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # 2. Background
@@ -125,6 +125,150 @@ with backbones pretrained on other data. Two protocols are in use:
   mean class accuracy is 35.2% for AVT, 58.2% for InAViT and 58.4% for SAGE. SAGE uses gaze labels
   in training and predicts gaze at test time; it does not use measured gaze.
 - 0.25–2 s ahead, top-5 accuracy (RULSTM).
+
+### Ego4D and Ego-Exo4D
+
+Ego4D and Ego-Exo4D are the two largest egocentric datasets with official splits, test servers
+and yearly challenges. Unlike HD-EPIC, both have training sets. Neither has an anticipation
+benchmark that takes measured gaze as an input. The numbers below are from the papers, the
+official documentation and the challenge reports; they are checked against the data only where
+this is said.
+
+| Dataset | Glasses | Gaze | Hands | Official training split | Anticipation task |
+|---|---|---|---|---|---|
+| HD-EPIC | Aria Gen 1 | 3D (Aria MPS), 10 or 60 Hz, all but 2 recordings | MPS wrists and palms, 10 or 30 Hz | no | gaze interaction anticipation (VQA, evaluation only) |
+| EGTEA Gaze+ | SMI | 2D point, all videos | masks on about 14,000 frames | yes, 3 splits | action anticipation |
+| Ego-Exo4D | Aria Gen 1 | 3D (Aria MPS), 10 Hz | 3D hand pose annotations | yes | none for objects; "next keystep" inside procedure understanding |
+| Ego4D | many models | 2D point, only in about 31–45 h of social recordings | boxes on key frames of the hand–object clips | yes | short-term object interaction (STA), long-term action (LTA), both without gaze |
+
+#### Ego4D
+
+**The data.** Ego4D (Grauman et al., CVPR 2022) has 3,670 hours of daily-life video from 931
+camera wearers at 74 locations in 9 countries. The scenarios are household, outdoor, work and
+leisure activities. The video was recorded with several head-mounted camera models, not with Aria
+glasses. Release v2 added videos and annotations for the forecasting and hand–object tasks, and
+v2.1 added the Goal-Step annotations.
+
+**Gaze.** Only a small part of Ego4D has gaze. The Ego4D paper lists 45 hours with gaze. The
+part that published gaze work uses has 27 videos of 80 participants, about 31 hours, recorded in
+the social setting (conversations and games) with Pupil Invisible eye trackers (Lai et al., BMVC
+2022). The gaze is a 2D point in normalized image coordinates, sampled faster than the video.
+Of the fields in the gaze files, only the frame index, the confidence and the two coordinates
+are filled. There is no 3D gaze and no gaze depth. Ego4D has no continuous hand tracking either:
+hands are annotated as boxes on the key frames of the hand–object clips.
+
+**The benchmarks.** Ego4D defines five groups of benchmarks.
+
+| Group | Tasks |
+|---|---|
+| Episodic memory | natural language queries, visual queries (2D and 3D), moment queries |
+| Hands and objects | point-of-no-return localization, object state change, active object detection |
+| Audio-visual diarization | speaker localization and tracking, active speaker detection, diarization, transcription |
+| Social | looking at me, talking to me |
+| Forecasting | locomotion, future hand positions, short-term object interaction anticipation (STA), long-term action anticipation (LTA) |
+
+Goal-Step (Song et al., NeurIPS 2023) was added later. It annotates about 48,000 procedural step
+segments (430 hours) and the high-level goals of 2,807 hours of video. The 2026 challenges were
+natural language queries, Goal-Step and STA for Ego4D.
+
+**Short-term object interaction anticipation (STA).** The model sees the video up to a frame. It
+must name the objects that the person will touch next and, for each one, give its box in the
+last frame, its noun, the verb of the interaction and the time to contact. Release v2 has 243
+hours of annotated clips: 98,276 training, 47,395 validation and 19,780 test examples, with 128
+noun and 81 verb classes. The test labels are hidden and scored by a server. The measure is the
+top-5 mean average precision. A prediction counts only if its box overlaps the true box with an
+IoU above 0.5. "Noun" also needs the right noun, "Noun+Verb" the right noun and verb,
+"Noun+TTC" the right noun and a time-to-contact error below 0.25 s, and "Overall" all of them.
+The 2026 leaderboard:
+
+| Method | Overall | Noun | Noun+Verb | Noun+TTC |
+|---|---|---|---|---|
+| Faster R-CNN + SlowFast, baseline v2 | 3.61 | 26.15 | 9.45 | 8.69 |
+| StillFast, baseline v2 | 5.12 | 25.06 | 13.29 | 9.14 |
+| VISTA, first place (Qiu et al., 2026) | 5.40 | 27.26 | 16.15 | 8.95 |
+
+VISTA adds frozen V-JEPA 2.1 features of the last 8 frames, read by an attentive probe, to an
+object detector on the last frame. It uses no gaze and no hand input. Entries of earlier years
+report higher Overall scores (6.75 in 2024). The reports do not explain the difference, so the
+2026 scores are compared only with each other.
+
+**Long-term action anticipation (LTA).** The model sees a clip and predicts the next 20 actions,
+each a verb and a noun. It may give 5 sequences, and the best one is scored by its edit distance
+to the true sequence (lower is better). The published edit distances for actions on the test set
+are about 0.85–0.88. The 2025 winner passes the predicted verbs and nouns to a fine-tuned
+language model (Llama 2, 7B).
+
+**Benchmarks on the gaze part.** Two tasks use the 31 hours with gaze, outside the official
+challenges: gaze estimation (GLC, Lai et al., BMVC 2022: 43.1 F1, with 20 videos for training and
+7 for testing) and gaze anticipation (CSTS, Lai et al., ECCV 2024). Both predict gaze. Neither uses
+gaze to predict something else.
+
+#### Ego-Exo4D
+
+**The data.** Ego-Exo4D (Grauman et al., CVPR 2024; IJCV 2025) records skilled activities from
+the wearer's Aria glasses and from 4 or 5 GoPro cameras around the scene at the same time.
+Release v2 has 1,286 hours of video, 221 of them from the Aria glasses, in 5,035 takes. The paper
+gives 740 participants, 123 scenes and 13 cities. The website gives more than 800 participants,
+131 scenes and, in its introduction, 1,422 hours; it does not explain the difference from the
+v2 figure. A take lasts 2.6 minutes on average, from 8 s to 42 minutes.
+
+There are 43 activities in 8 domains. Three are procedural: cooking, bike repair and health care
+(a COVID-19 test, CPR). Five are physical: soccer, basketball, dance, bouldering and music.
+Cooking is the largest domain: nearly 100 hours of Aria video, more than 650 takes, more than 170
+cooks and 60 kitchens. The language annotations are keysteps (a taxonomy of 689), narrations of
+each action, and commentary from experts on how well the person performs.
+
+**Gaze and hands.** The glasses are Aria Gen 1, the same as in HD-EPIC. The RGB camera records at
+30 fps and 1408 × 1408 pixels. The two eye-tracking cameras record at 10 fps, so the gaze is at
+10 Hz, as for P01–P03 of HD-EPIC. Each participant did the gaze calibration of the Aria app, so
+both the general and the personalized gaze of MPS can be produced. The gaze, the SLAM trajectory
+and the semi-dense point cloud are released per take, and pre-computed 2D gaze points are
+included. For hands, the dataset has 3D hand pose annotations of 21 joints per hand: 68,000
+frames annotated by hand in 3D and 4.3 million produced automatically. Later work uses the MPS
+wrist positions as well (Learning Predictive Visuomotor Coordination, CVPR 2026 Findings). How
+many takes have MPS hand tracking is not checked.
+
+**The benchmarks.** Four groups. All tasks use one common split, with the counts per task in the
+paper. Whether the split separates participants is not checked. Several tasks forbid gaze as an
+input at test time.
+
+| Group | Task | Gaze as input | Measure | Result |
+|---|---|---|---|---|
+| Ego-exo relation | Correspondence: find the object of a mask in one view in the other view | not used | IoU and others | under 30% IoU (paper baselines) |
+| Ego-exo relation | Translation: generate the ego view from the exo views | not used | IoU, image similarity | IoU 10.3 (paper baseline) |
+| Recognition | Fine-grained keystep recognition: classify a trimmed ego clip into one of 278 keysteps | in training only | top-1 accuracy | 41.5% (paper baseline) |
+| Recognition | Energy-efficient keystep recognition: detect keysteps online under a power budget (20 mW or 2.8 W) | not stated | calibrated mAP | 77.9 at 20 mW, 93.2 at 2.8 W (paper baselines) |
+| Recognition | Procedure understanding: from the video up to now, mark each keystep as previous, optional, missing, a mistake or next | not stated | calibrated AP, chance 50% | 2026 challenge |
+| Proficiency | Demonstrator proficiency: classify the person as novice, early, intermediate or late expert | forbidden | top-1 accuracy | 50.4% against 42.4% for the majority class (paper); 53% (2025 challenge) |
+| Proficiency | Demonstration proficiency: find the moments of good execution and of needed improvement | not stated | mAP | about 4 (paper baselines) |
+| Ego pose | Body pose: 17 joints of the wearer from the ego video and IMU | forbidden | MPJPE | 18.5 cm (paper baseline) |
+| Ego pose | Hand pose: 21 joints per visible hand from the ego frames | not stated | PA-MPJPE | 11.1 mm (paper baseline); 8.3 mm (2025 challenge) |
+
+The 2026 challenges were body pose and procedure understanding.
+
+**Gaze in published work on Ego-Exo4D.** Learning Predictive Visuomotor Coordination forecasts
+head pose, gaze and upper-body motion from the ego video and the past motion. It uses gaze as a
+target and as an input, but defines its own task, not one of the benchmarks above.
+
+#### What they offer the project
+
+**Ego-Exo4D is the closest match to HD-EPIC with a training set.** It uses the same glasses and
+the same MPS outputs, so the gaze projection of [[3-method#Gaze position in the image]] should
+apply with each take's calibration; this is not yet tested. Its cooking takes, nearly 100 hours,
+are close to HD-EPIC's kitchens. Its official split gives a training set that HD-EPIC lacks. The
+measures of Tests 9–11, the prediction error over the frame and near the gaze point, can be
+computed on it directly. Three limits follow from the facts above. The gaze is at 10 Hz. There is
+no task that asks which object comes next. The benchmarks that forbid gaze at test time would be
+reported twice, once by their rule and once with gaze as a separate setting. The "next keystep"
+label of procedure understanding is the nearest task to intention.
+
+**Ego4D has the standard short-term anticipation benchmark, but no gaze for it.** STA asks for
+the next object, the verb and the time to contact, and its leader already reads frozen V-JEPA 2.1
+features. The measured gaze, however, comes only from the social recordings, while the STA clips
+come from the hand–object and forecasting videos. Whether any STA clip has gaze is not checked,
+since the Ego4D metadata is not on this machine; given the scenarios, little overlap is expected.
+STA can therefore be used without gaze, as a transfer check like EK100. Ego4D's scale also makes
+it a candidate for pretraining a predictor without signals.
 
 ## Terms
 

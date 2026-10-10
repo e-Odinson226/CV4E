@@ -2,7 +2,7 @@
 type: report
 status: running
 created: 2026-09-18
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Project
@@ -20,6 +20,7 @@ The work done and its timeline, the paper, and the final presentation.
 | [[4-results#^test8\|Test 8]] | Does the gaze point tell what comes next? | 7 October 2026 |
 | [[4-results#^test9\|Test 9]] | Does gaze as a position in the image improve the prediction? | 7–8 October 2026 |
 | [[4-results#^test10\|Test 10]] | Do the loss of the pretraining (L1), or training the whole predictor, change the prediction and the value of gaze? | 8 October 2026 |
+| [[4-results#^test11\|Test 11]] | Does a predictor built for gaze and hand, trained from the start, gain from them? First runs. | 8–9 October 2026 |
 
 Other work:
 
@@ -27,8 +28,8 @@ Other work:
   V-JEPA 2 takes as context. No benefit; not continued.
 - Encoding each frame on its own, which lowered the error before fine-tuning from 4.82 to
   0.58.
-- The models `ego_ft_v2` and `ego_sd1p0`, and the 20 models of Test 9 in
-  `checkpoints/test9/`.
+- The models `ego_ft_v2` and `ego_sd1p0`, the 20 models of Test 9 in `checkpoints/test9/`, the
+  12 of Test 10 in `checkpoints/test10/` and the maps and none runs of Test 11 in `checkpoints/test11/`.
 - The idea that the signals may help more at longer horizons (H1, May 2026), and the idea that
   gaze needs a position in the image (H4).
 - October 2026: a review of the research logic (the weak points in
@@ -53,7 +54,8 @@ Other work:
 | 19 August | Palm control of Test 3. Tested whether the model uses gaze ([[4-results#^test4\|Test 4]]). Trained the matched model without signals ([[4-results#^test2\|Test 2]]). | The model reacts to whether gaze is present, and little to where the person looks. A model trained without gaze and hand predicts as well. |
 | 24 August | The paper was submitted. | |
 | October | Review of the research logic. Camera calibrations fetched. Gaze projected into the image and checked. Test 8 run ([[4-results#^test8\|Test 8]]). Test 9 run ([[4-results#^test9\|Test 9]]). | What the person looks at tells which object is picked up next; the three gaze numbers do not. Given to the predictor as a position, gaze does as well as the three angles in the token's content (pe), and does not help in the attention (rope). Next: Test 10 ([[6-next-steps]]). |
-| 8 October | Review of the method and the literature ([[review]]). L1 measure and references added to the evaluation. Training switched to L1. Test 10 started. The two benchmarks with gaze chosen for the results of the paper. | Test 10 compares L1 with MSE and a full fine-tune with the last 6 blocks. Tests 11 (a predictor from V-JEPA 2.1 with gaze and hand) and 12 (the benchmarks) are planned ([[6-next-steps]]). |
+| 8 October | Review of the method and the literature ([[review]]). L1 measure and references added to the evaluation. Training switched to L1. Test 10 started. The two benchmarks with gaze chosen for the results of the paper. | Test 10 compares L1 with MSE and a full fine-tune with the last 6 blocks. Tests 11 (a predictor designed for gaze and hand) and 12 (the benchmarks) are planned ([[6-next-steps]]). |
+| 8–9 October | Test 10 finished ([[4-results#^test10\|Test 10]]). First runs of Test 11: a predictor trained from the start, with gaze and hand as maps over the image tokens ([[4-results#^test11\|Test 11]]). | The loss and the trainable depth change the prediction far more than gaze; gaze gains no more from either. The maps lower the error near the gaze point by 0.0004 on MSE and nothing over the whole frame; the new predictor is still below the blend of the past frames on MSE. Next: the shuffled arm and more seeds ([[6-next-steps]]). |
 
 ## Paper
 
